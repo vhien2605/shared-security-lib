@@ -1,0 +1,6 @@
+export const KEYCLOAK_BASE = 'http://localhost:8000'
+export const REALM = 'security-lib-realm'
+export const CLIENT_ID = 'security-lib-client'
+export const REDIRECT_URI = 'http://localhost:5173/callback'
+export const POST_LOGOUT_REDIRECT_URI = 'http://localhost:5173/'
+export const API_BASE_URL = 'http://localhost:8080'
