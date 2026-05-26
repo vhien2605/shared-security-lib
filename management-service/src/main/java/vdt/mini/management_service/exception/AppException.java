@@ -1,7 +1,14 @@
 package vdt.mini.management_service.exception;
 
-public class AppException extends RuntimeException {
-  public AppException(String message) {
-    super(message);
-  }
+import lombok.Getter;
+import vdt.mini.management_service.util.enums.ErrorCode;
+
+@Getter
+public class AppException extends RuntimeException{
+    private final ErrorCode errorCode;
+
+    public AppException(ErrorCode errorCode) {
+        super(errorCode.getMessage());
+        this.errorCode = errorCode;
+    }
 }

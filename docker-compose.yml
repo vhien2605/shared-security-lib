@@ -1,0 +1,62 @@
+services:
+  kafka:
+    container_name: kafka
+    image: apache/kafka:4.1.1
+    hostname: kafka
+    restart: always
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_NODE_ID: 0
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - security-library
+  postgres:
+    container_name: postgres
+    image: postgres:17
+    restart: always
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: security_library
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 123456
+    networks:
+      - security-library
+  redis:
+    container_name: redis
+    image: redis:8
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass redis123
+    networks:
+      - security-library
+  keycloak:
+    container_name: keycloak
+    image: quay.io/keycloak/keycloak:26.2
+    restart: always
+    ports:
+      - "8000:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: 123456
+    command:
+      - start-dev
+    depends_on:
+      - postgres
+    networks:
+      - security-library
+networks:
+  security-library:
+    name: security-library
+    driver: bridge
