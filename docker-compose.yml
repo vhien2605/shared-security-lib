@@ -50,8 +50,11 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: 123456
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import
     command:
       - start-dev
+      - --import-realm
     depends_on:
       - postgres
     networks:
