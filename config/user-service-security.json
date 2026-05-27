@@ -1,0 +1,34 @@
+{
+  "serviceId" : "72f8a400-b23c-4434-b47b-570a2c6c4308",
+  "inbounds" : {
+    "HTTP_POST_/users/webhook" : {
+      "endpointId" : "f47f741f-2b20-4275-ab6d-53d7c9f0f42d",
+      "name" : "mock-webhook",
+      "path" : "/users/webhook",
+      "topic" : "",
+      "method" : "POST",
+      "protocol" : "HTTP",
+      "description" : ""
+    },
+    "HTTP_PUT_/users/update" : {
+      "endpointId" : "99ac7d43-3731-4907-9f9a-d6a7bfcfed3b",
+      "name" : "mock-webhook-PUT",
+      "path" : "/users/update",
+      "topic" : "",
+      "method" : "PUT",
+      "protocol" : "HTTP",
+      "description" : ""
+    }
+  },
+  "outbounds" : {
+    "HTTP_POST_https://localhost:8083/profile/api/info" : {
+      "endpointId" : "a9fa90aa-5940-41af-8466-4e937dbc27c1",
+      "name" : "profile-outbound",
+      "targetUrl" : "https://localhost:8083/profile/api/info",
+      "topic" : "",
+      "method" : "POST",
+      "protocol" : "HTTP",
+      "description" : "Gọi API thanh toán đối tác"
+    }
+  }
+}

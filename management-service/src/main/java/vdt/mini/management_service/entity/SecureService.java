@@ -21,8 +21,8 @@ import java.util.List;
 @AllArgsConstructor
 @Entity
 @Table(name = "service")
-public class Service extends AbstractAuditable {
-    @Column(name = "name", length = 100, nullable = false, unique = true)
+public class SecureService extends AbstractAuditable {
+    @Column(name = "name", length = 100, nullable = false)
     private String name;
 
     @Column(name = "description", columnDefinition = "TEXT")
@@ -35,9 +35,9 @@ public class Service extends AbstractAuditable {
     @Column(name = "status", length = 20, nullable = false)
     private ServiceStatus status = ServiceStatus.ACTIVE;
 
-    @OneToMany(mappedBy = "service")
+    @OneToMany(mappedBy = "secureService")
     private List<InboundEndpoint> inboundEndpoints = new ArrayList<>();
 
-    @OneToMany(mappedBy = "service")
+    @OneToMany(mappedBy = "secureService")
     private List<OutboundEndpoint> outboundEndpoints = new ArrayList<>();
 }

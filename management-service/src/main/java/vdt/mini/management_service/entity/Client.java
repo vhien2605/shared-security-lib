@@ -27,7 +27,7 @@ public class Client extends AbstractAuditable {
 
     @Column(name = "client_key", length = 255, nullable = false, unique = true)
     private String clientKey;
-
+    
     @Column(name = "contact_email", length = 255)
     private String contactEmail;
 

@@ -10537,7 +10537,7 @@ GET /examples/02-complex-example/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/e
 GET /examples/03-one-to-many-relationship/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/examples/03-one-to-many-relationship/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /examples/04-many-to-many-relationship/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/examples/04-many-to-many-relationship/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /examples/05-migrations/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/examples/05-migrations/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /examples/06-base-service/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/examples/06-base-service/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /examples/06-base-secureService/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/examples/06-base-secureService/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /examples/07-feature-flags/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/examples/07-feature-flags/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /examples/08-performance/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/examples/08-performance/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /examples/09-production/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/examples/09-production/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -10910,8 +10910,8 @@ GET /server/s3.js [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/server/s3.js,,,curl/8
 GET /server/src/persistence/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/server/src/persistence/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /Server_with_db/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/Server_with_db/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /serverless.yml [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/serverless.yml,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service-worker.js [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service-worker.js,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService-worker.js [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService-worker.js,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /services/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/services/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /services/adminer/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/services/adminer/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /services/deployment-agent/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/services/deployment-agent/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -10949,10 +10949,10 @@ GET /src/__tests__/__fixtures__/typeScriptProject/.env [SEP]   [SEP] curl/8.7.1 
 GET /src/__tests__/__fixtures__/typeScriptVisualizeProject/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/__tests__/__fixtures__/typeScriptVisualizeProject/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /src/add-auth/express/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/add-auth/express/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /src/assembly/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/assembly/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /src/character-service/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/character-service/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /src/character-secureService/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/character-secureService/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /src/client/mobile/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/client/mobile/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /src/core/tests/dotenv-files/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/core/tests/dotenv-files/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /src/gameprovider-service/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/gameprovider-service/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /src/gameprovider-secureService/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/gameprovider-secureService/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /src/main/front-end/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/main/front-end/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /src/main/resources/archetype-resources/__rootArtifactId__-acceptance-test/src/test/resources/app-launcher-tile/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/main/resources/archetype-resources/__rootArtifactId__-acceptance-test/src/test/resources/app-launcher-tile/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /src/renderer/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/renderer/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -11223,7 +11223,7 @@ GET /configs/application.ini [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/configs/ap
 GET /_profiler/empty/search/results [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/_profiler/empty/search/results,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /api/v1 [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/api/v1,,,curl/8.7.1,,,,,,307,1,other_anomaly,loki_exp1
 GET /api/v1/ [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/api/v1/,,,curl/8.7.1,,,,,,200,1,other_anomaly,loki_exp1
-GET /api/service [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/api/service,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /api/secureService [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/api/secureService,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /api/system/info [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/api/system/info,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /api/gateway [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/api/gateway,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /api/command [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/api/command,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -11390,8 +11390,8 @@ GET /startup.sh [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/startup.sh,,,curl/8.7.1
 GET /cron.sh [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/cron.sh,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /aws-credentials.sh [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/aws-credentials.sh,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /configure.sh [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/configure.sh,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service.pwd [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service.pwd,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service.grp [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service.grp,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService.pwd [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService.pwd,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService.grp [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService.grp,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /server.sh [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/server.sh,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /configuration.php.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/configuration.php.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /app/etc/local.xml.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/app/etc/local.xml.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -13008,7 +13008,7 @@ GET /backend/.env.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/backend/.env.bak,
 GET /s3/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/s3/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /usr/sbin/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/usr/sbin/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /testing/.env.local [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/testing/.env.local,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.git/config [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.git/config,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.git/config [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.git/config,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /config/static/default.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/config/static/default.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /api/new/config.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/api/new/config.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /srv/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/srv/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -13027,7 +13027,7 @@ GET /log/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/log/.env,,,curl/8.7.1,,,,
 GET /core/app/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/core/app/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /api/config/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/api/config/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /demo/.env.dev [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/demo/.env.dev,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /src/character-service/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/character-service/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /src/character-secureService/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/character-secureService/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /smtp.json.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/smtp.json.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /old/config.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/old/config.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /app/.env.staging [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/app/.env.staging,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -13130,7 +13130,7 @@ GET ///.aws/credentials [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,///.aws/credenti
 GET /helm/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/helm/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /plugins/.env.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/plugins/.env.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /_/.ssh/authorized_keys [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/_/.ssh/authorized_keys,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /examples/06-base-service/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/examples/06-base-service/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /examples/06-base-secureService/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/examples/06-base-secureService/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /.git/credentials.bak.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.git/credentials.bak.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /services/.ssh/authorized_keys [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/services/.ssh/authorized_keys,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /tailwind.config.mjs.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/tailwind.config.mjs.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -13164,7 +13164,7 @@ GET /laravel/.env.dev [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/laravel/.env.dev,
 GET /blog/.vscode/sftp.json [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/blog/.vscode/sftp.json,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /07-accessing-data/begin/vue-heroes/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/07-accessing-data/begin/vue-heroes/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /config/db/login.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/config/db/login.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 "GET /""/wp-config.bak"", [SEP]   [SEP] curl/8.7.1 [SEP]     ",GET,"/""/wp-config.bak"",",,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /backup/aws_credentials [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/backup/aws_credentials,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /public_html/.env.dev [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/public_html/.env.dev,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -14131,7 +14131,7 @@ GET /config/logs/error.log [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/config/logs/
 GET /client-app/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/client-app/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /backup_2.sqlite [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/backup_2.sqlite,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /challenge/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/challenge/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /mailer/service/info.php [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/mailer/service/info.php,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /mailer/secureService/info.php [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/mailer/secureService/info.php,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /services/*/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/services/*/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /Sources/API/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/Sources/API/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /.ssh/id_rsa [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.ssh/id_rsa,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -14296,7 +14296,7 @@ GET /.ssh/id_dsa.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.ssh/id_dsa.bak,,,
 GET /api/secrets/wp-config.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/api/secrets/wp-config.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /mailer/backend/info.php [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/mailer/backend/info.php,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /dev/actuator/env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/dev/actuator/env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.env.local [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.env.local,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.env.local [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.env.local,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /tiedostot/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/tiedostot/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /config/secrets/test.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/config/secrets/test.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /dump.sql.lzma.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/dump.sql.lzma.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -14517,7 +14517,7 @@ GET /services/minio/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/services/minio
 GET /mailer/laravel/info.php [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/mailer/laravel/info.php,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /tests/drupal-test/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/tests/drupal-test/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /kubernetes/configmap.yml.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/kubernetes/configmap.yml.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.env.dev [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.env.dev,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.env.dev [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.env.dev,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /tmp/.ssh/authorized_keys [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/tmp/.ssh/authorized_keys,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /backend/.git/config [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/backend/.git/config,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /admin/.git/config [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/admin/.git/config,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -14537,7 +14537,7 @@ GET /lcomernbootcamp/projbackend/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/l
 GET /.aws/credentials3 [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.aws/credentials3,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /admin-app/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/admin-app/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /prisma/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/prisma/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /src/gameprovider-service/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/gameprovider-service/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /src/gameprovider-secureService/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/gameprovider-secureService/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /config/new/info.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/config/new/info.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /.env.development.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.env.development.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /nextjs/.env.development [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/nextjs/.env.development,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -14930,7 +14930,7 @@ GET /backup/.ssh/authorized_keys [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/backup
 GET /config/keys/config.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/config/keys/config.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /core/config/main.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/core/config/main.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /config/old/site.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/config/old/site.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.env.production [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.env.production,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.env.production [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.env.production,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /config/static/sample.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/config/static/sample.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /app/client/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/app/client/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /config/static/db.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/config/static/db.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -15440,9 +15440,9 @@ GET /ts/prime/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/ts/prime/.env,,,curl
 GET /core/static/config.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/core/static/config.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /config/aws.json [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/config/aws.json,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /secrets/aws_credentials.json [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secrets/aws_credentials.json,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/config.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/config.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/config.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/config.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /asset/.git/config [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/asset/.git/config,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.env.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.env.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.env.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.env.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /tmp/error.log [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/tmp/error.log,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /examples/with-react-relay-network-modern/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/examples/with-react-relay-network-modern/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /function/config.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/function/config.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -15574,7 +15574,7 @@ GET /config/error.log [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/config/error.log,
 GET /vendor/.git/config [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/vendor/.git/config,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /api/keys/default.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/api/keys/default.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /dbdump.sql [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/dbdump.sql,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.env.staging [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.env.staging,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.env.staging [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.env.staging,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /storage/logs/debug.log [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/storage/logs/debug.log,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /restapi/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/restapi/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /root/.aws/credentials [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/root/.aws/credentials,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -16081,7 +16081,7 @@ GET /config/config.yaml [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/config/config.y
 GET /info/.env.dev [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/info/.env.dev,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /front-empathy/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/front-empathy/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /api/old/db.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/api/old/db.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /src/character-service/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/character-service/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /src/character-secureService/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/character-secureService/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /users/.env.local [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/users/.env.local,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET //public/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,//public/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /admin/console/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/admin/console/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -16936,7 +16936,7 @@ GET /.env.example.inactive [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.env.example
 GET /prod/.env.local [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/prod/.env.local,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /acme/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/acme/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /fulfillment/settings.json [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/fulfillment/settings.json,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.env.local [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.env.local,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.env.local [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.env.local,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /.EnV [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.EnV,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /development/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/development/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /tmp/config.js [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/tmp/config.js,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -17085,7 +17085,7 @@ GET /oldsanta/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/oldsanta/.env,,,curl
 GET /plugins/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/plugins/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /nodeapi/config.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/nodeapi/config.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /storage/.env.production [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/storage/.env.production,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/config.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/config.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/config.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/config.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /example27-how-to-load-env/sample02/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/example27-how-to-load-env/sample02/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /errors/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/errors/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /.env.dev.js [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.env.dev.js,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -17214,7 +17214,7 @@ GET /config/test/config.ini [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/config/test
 GET /crm/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/crm/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /packages/client/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/packages/client/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /.env.mandrill.backup [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.env.mandrill.backup,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.env.dev [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.env.dev,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.env.dev [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.env.dev,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /routes/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/routes/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /vue/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/vue/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /credentials.yml.save [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/credentials.yml.save,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -17437,7 +17437,7 @@ GET /.env.tmp.backup [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.env.tmp.backup,,,
 GET /deployment/config.yml [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/deployment/config.yml,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /.env.ini [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.env.ini,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /rust-backend/dao/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/rust-backend/dao/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.env.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.env.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.env.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.env.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /client/config.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/client/config.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /tmp/config.yml [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/tmp/config.yml,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /settings.py.swp [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/settings.py.swp,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -17551,10 +17551,10 @@ GET /data/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/data/.env,,,curl/8.7.1,,
 GET /laravel/core/.env.local [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/laravel/core/.env.local,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /Sources/API/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/Sources/API/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /services/deployment-agent/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/services/deployment-agent/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /examples/06-base-service/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/examples/06-base-service/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /examples/06-base-secureService/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/examples/06-base-secureService/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /settings.py.orig [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/settings.py.orig,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /client/mutual-fund-app/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/client/mutual-fund-app/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.env.dist [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.env.dist,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.env.dist [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.env.dist,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /.docker/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.docker/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /ch2-mytodo/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/ch2-mytodo/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /_config/config.php [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/_config/config.php,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -17757,7 +17757,7 @@ GET /.EnV.TmP [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.EnV.TmP,,,curl/8.7.1,,,,
 GET /flask_app/.env.dev [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/flask_app/.env.dev,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /github-connect/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/github-connect/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /serve-browserbench/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/serve-browserbench/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.env.staging [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.env.staging,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.env.staging [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.env.staging,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /core/env/settings.php [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/core/env/settings.php,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /marketing/.env.dist [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/marketing/.env.dist,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /.env.server.jpg [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.env.server.jpg,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -18320,7 +18320,7 @@ GET /reverse-proxy/config.json [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/reverse-
 GET /babel-plugin-dotenv/test/fixtures/prod-env/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/babel-plugin-dotenv/test/fixtures/prod-env/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /src/settings.json [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/settings.json,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /payment_gateway/config.yaml [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/payment_gateway/config.yaml,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /backend/.env.production [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/backend/.env.production,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /monitoring/config.json [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/monitoring/config.json,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /.env.test.localapi [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.env.test.localapi,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -18510,7 +18510,7 @@ GET /staticfiles/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/staticfiles/.env,
 GET /auth/config.json [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/auth/config.json,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /core/config.js [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/core/config.js,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /vendor/.env.example [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/vendor/.env.example,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /src/gameprovider-service/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/gameprovider-service/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /src/gameprovider-secureService/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/src/gameprovider-secureService/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /.env.www.backup [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.env.www.backup,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /files/.env.jpg [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/files/.env.jpg,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /api/config.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/api/config.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
@@ -18660,7 +18660,7 @@ GET /dashboard/settings.php [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/dashboard/s
 GET /develop/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/develop/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /.env.local.dist [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/.env.local.dist,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /assets/.env.old [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/assets/.env.old,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
-GET /service/.env.production [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/service/.env.production,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
+GET /secureService/.env.production [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/secureService/.env.production,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /mercadopago/settings.json [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/mercadopago/settings.json,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /beta/.env.bak [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/beta/.env.bak,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1
 GET /test/fixtures/.env [SEP]   [SEP] curl/8.7.1 [SEP]     ,GET,/test/fixtures/.env,,,curl/8.7.1,,,,,,404,1,scanning,loki_exp1

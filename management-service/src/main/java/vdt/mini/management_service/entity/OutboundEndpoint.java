@@ -26,7 +26,7 @@ public class OutboundEndpoint extends AbstractAuditable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "service_id", nullable = false)
-    private Service service;
+    private SecureService secureService;
 
     @Column(name = "name", length = 100)
     private String name;
