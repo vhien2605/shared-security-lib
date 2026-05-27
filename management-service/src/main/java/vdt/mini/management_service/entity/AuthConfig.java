@@ -1,0 +1,49 @@
+package vdt.mini.management_service.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import vdt.mini.management_service.util.enums.AuthType;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "auth_config")
+public class AuthConfig extends AbstractBase {
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "client_id", nullable = false)
+    private Client client;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "inbound_endpoint_id", nullable = false)
+    private InboundEndpoint inboundEndpoint;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", length = 20, nullable = false)
+    private AuthType type;
+
+    @Column(name = "secret_ref", length = 255)
+    private String secretRef;
+
+    @Column(name = "public_key", columnDefinition = "TEXT")
+    private String publicKey;
+
+    @Column(name = "algorithm", length = 50)
+    private String algorithm;
+
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+}
