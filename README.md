@@ -64,6 +64,10 @@ app.security.identity-file=config/security-identity.json
 app.security.registration.topic=security.endpoint.registration
 # Bật/tắt (mặc định: true)
 app.security.enabled=true
+app.security.redis.host=localhost
+app.security.redis.port=6379
+app.security.redis.password=redis123
+app.security.settings.sync.enabled=true
 ```
 
 ### 3.3. Kafka connection
