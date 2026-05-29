@@ -6,16 +6,20 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import vdt.mini.management_service.dto.event.InboundEndpointDTO;
 import vdt.mini.management_service.dto.event.OutboundEndpointDTO;
 import vdt.mini.management_service.dto.event.ServiceRegistrationEvent;
+import vdt.mini.management_service.entity.AlertConfig;
 import vdt.mini.management_service.entity.InboundEndpoint;
 import vdt.mini.management_service.entity.OutboundEndpoint;
 import vdt.mini.management_service.entity.SecureService;
+import vdt.mini.management_service.repository.AlertConfigRepository;
 import vdt.mini.management_service.repository.InboundEndpointRepository;
 import vdt.mini.management_service.repository.OutboundEndpointRepository;
 import vdt.mini.management_service.repository.ServiceRepository;
+import vdt.mini.management_service.util.enums.AlertSeverity;
 import vdt.mini.management_service.util.enums.EndpointMethod;
 import vdt.mini.management_service.util.enums.EndpointProtocol;
 import vdt.mini.management_service.util.enums.RollbackStrategy;
@@ -33,6 +37,8 @@ public class RegistrationService {
     private final ServiceRepository serviceRepository;
     private final InboundEndpointRepository inboundEndpointRepository;
     private final OutboundEndpointRepository outboundEndpointRepository;
+    private final AlertConfigRepository alertConfigRepository;
+    private final RedisSettingsSyncService redisSettingsSyncService;
 
     @Value("${app.security.inbound.default.rate-limit}")
     private int defaultRateLimit;
@@ -70,12 +76,25 @@ public class RegistrationService {
     @Value("${app.security.outbound.default.log-retention-days}")
     private int outboundDefaultLogRetentionDays;
 
+    @Value("${app.security.alert.default.severity:WARNING}")
+    private String defaultAlertSeverity;
+
+    @Value("${app.security.alert.default.throttle-minutes:5}")
+    private int defaultAlertThrottleMinutes;
+
+    @Value("${app.security.alert.default.channels:LOG}")
+    private String defaultAlertChannels;
+
     public RegistrationService(ServiceRepository serviceRepository,
                                InboundEndpointRepository inboundEndpointRepository,
-                               OutboundEndpointRepository outboundEndpointRepository) {
+                               OutboundEndpointRepository outboundEndpointRepository,
+                               AlertConfigRepository alertConfigRepository,
+                               RedisSettingsSyncService redisSettingsSyncService) {
         this.serviceRepository = serviceRepository;
         this.inboundEndpointRepository = inboundEndpointRepository;
         this.outboundEndpointRepository = outboundEndpointRepository;
+        this.alertConfigRepository = alertConfigRepository;
+        this.redisSettingsSyncService = redisSettingsSyncService;
     }
 
     @Transactional
@@ -113,7 +132,7 @@ public class RegistrationService {
 
         for (InboundEndpointDTO dto : event.getInbounds()) {
 
-            InboundEndpoint ep = inboundEndpointRepository.findById(dto.getEndpointId())
+            InboundEndpoint ep = inboundEndpointRepository.findByIdWithAlert(dto.getEndpointId())
                     .orElseGet(() -> {
                         InboundEndpoint created = new InboundEndpoint();
                         created.setId(dto.getEndpointId());
@@ -152,6 +171,17 @@ public class RegistrationService {
                 ep.setResponseTimeThresholdMs(inboundDefaultResponseTimeThresholdMs);
             }
 
+            // Tạo AlertConfig mới nếu endpoint chưa có
+            if (ep.getAlertConfig() == null) {
+                AlertConfig newAlertConfig = new AlertConfig();
+                newAlertConfig.setId(java.util.UUID.randomUUID().toString());
+                newAlertConfig.setName(dto.getName() + "-alert");
+                newAlertConfig.setSeverity(AlertSeverity.valueOf(defaultAlertSeverity));
+                newAlertConfig.setThrottleMinutes(defaultAlertThrottleMinutes);
+                newAlertConfig.setChannels(java.util.List.of(defaultAlertChannels.split(",")));
+                ep.setAlertConfig(alertConfigRepository.save(newAlertConfig));
+            }
+
             inbounds.add(ep);
         }
         inboundEndpointRepository.saveAll(inbounds);
@@ -162,7 +192,7 @@ public class RegistrationService {
 
         for (OutboundEndpointDTO dto : event.getOutbounds()) {
 
-            OutboundEndpoint ep = outboundEndpointRepository.findById(dto.getEndpointId())
+            OutboundEndpoint ep = outboundEndpointRepository.findByIdWithAlert(dto.getEndpointId())
                     .orElseGet(() -> {
                         OutboundEndpoint created = new OutboundEndpoint();
                         created.setId(dto.getEndpointId());
@@ -197,6 +227,18 @@ public class RegistrationService {
             if (ep.getRollbackStrategy() == null) {
                 ep.setRollbackStrategy(RollbackStrategy.IGNORE);
             }
+
+            // Tạo AlertConfig mới nếu endpoint chưa có
+            if (ep.getAlertConfig() == null) {
+                AlertConfig newAlertConfig = new AlertConfig();
+                newAlertConfig.setId(java.util.UUID.randomUUID().toString());
+                newAlertConfig.setName(dto.getName() + "-alert");
+                newAlertConfig.setSeverity(AlertSeverity.valueOf(defaultAlertSeverity));
+                newAlertConfig.setThrottleMinutes(defaultAlertThrottleMinutes);
+                newAlertConfig.setChannels(java.util.List.of(defaultAlertChannels.split(",")));
+                ep.setAlertConfig(alertConfigRepository.save(newAlertConfig));
+            }
+
             outbounds.add(ep);
         }
         outboundEndpointRepository.saveAll(outbounds);
@@ -205,5 +247,17 @@ public class RegistrationService {
                 event.getServiceName(),
                 inbounds.size(),
                 outbounds.size());
+
+        // Đăng ký afterCommit hook để sync Redis sau khi transaction thành công
+        String serviceId = event.getServiceId();
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        redisSettingsSyncService.syncAllEndpointsOfService(serviceId);
+                    }
+                }
+        );
+        log.info("Registered afterCommit hook for Redis sync: serviceId={}", serviceId);
     }
 }

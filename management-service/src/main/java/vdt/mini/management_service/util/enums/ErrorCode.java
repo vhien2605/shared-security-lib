@@ -18,7 +18,11 @@ public enum ErrorCode {
     TOKEN_EXPIRED(401, "Your token was expired, please login again", HttpStatus.UNAUTHORIZED),
     ACCOUNT_NOT_EXIST(401, "Can't find any account with your given email, please try others", HttpStatus.UNAUTHORIZED),
     PASSWORD_INVALID(401, "Your password was invalid, please try again", HttpStatus.UNAUTHORIZED),
-    TOKEN_INVALID(401, "Your token type was not allowed, please try again with others", HttpStatus.UNAUTHORIZED),;
+    TOKEN_INVALID(401, "Your token type was not allowed, please try again with others", HttpStatus.UNAUTHORIZED),
+    SERVICE_NOT_FOUND(404, "Service not found", HttpStatus.NOT_FOUND),
+    INBOUND_ENDPOINT_NOT_FOUND(404, "Inbound endpoint not found", HttpStatus.NOT_FOUND),
+    OUTBOUND_ENDPOINT_NOT_FOUND(404, "Outbound endpoint not found", HttpStatus.NOT_FOUND),
+    INVALID_INPUT(400, "Invalid input value", HttpStatus.BAD_REQUEST),;
 
     private final int code;
     private final String message;

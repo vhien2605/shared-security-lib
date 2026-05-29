@@ -30,6 +30,7 @@ public class SecurityEndpointScanner {
     private final ApplicationContext applicationContext;
     private final IdentityManager identityManager;
     private final KafkaPublisher kafkaPublisher;
+    private final SecuritySettingsStore securitySettingsStore;
 
     @Value("${app.security.service.name:my-service}")
     private String serviceName;
@@ -46,13 +47,18 @@ public class SecurityEndpointScanner {
     @Value("${app.security.enabled:true}")
     private boolean enabled;
 
+    @Value("${app.security.settings.sync.enabled:true}")
+    private boolean syncEnabled;
+
     @Autowired
     public SecurityEndpointScanner(ApplicationContext applicationContext,
                                    IdentityManager identityManager,
-                                   KafkaPublisher kafkaPublisher) {
+                                   KafkaPublisher kafkaPublisher,
+                                   SecuritySettingsStore securitySettingsStore) {
         this.applicationContext = applicationContext;
         this.identityManager = identityManager;
         this.kafkaPublisher = kafkaPublisher;
+        this.securitySettingsStore = securitySettingsStore;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -76,6 +82,19 @@ public class SecurityEndpointScanner {
             kafkaPublisher.send(registrationTopic, event);
             log.info("Registered {} inbound and {} outbound endpoints for service '{}'",
                     inbounds.size(), outbounds.size(), serviceName);
+
+            // Chủ động poll Redis cache để lấy settings (nếu có) — không đợi pub/sub
+            if (syncEnabled) {
+                List<String> inboundIds = inbounds.stream()
+                        .map(InboundEndpointDTO::getEndpointId)
+                        .toList();
+                List<String> outboundIds = outbounds.stream()
+                        .map(OutboundEndpointDTO::getEndpointId)
+                        .toList();
+                securitySettingsStore.pollFromRedis(inboundIds, outboundIds);
+                log.info("Polled Redis cache for {} inbound and {} outbound settings",
+                        inboundIds.size(), outboundIds.size());
+            }
         } catch (Exception e) {
             log.error("Failed to register security endpoints", e);
         }

@@ -28,7 +28,7 @@ public class AlertConfig extends AbstractAuditable {
     private String name;
 
     @Convert(converter = StringListJsonConverter.class)
-    @Column(name = "channels", columnDefinition = "JSON", nullable = false)
+    @Column(name = "channels", columnDefinition = "TEXT", nullable = false)
     private List<String> channels;
 
     @Enumerated(EnumType.STRING)

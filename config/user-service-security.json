@@ -1,28 +1,28 @@
 {
-  "serviceId" : "72f8a400-b23c-4434-b47b-570a2c6c4308",
+  "serviceId" : "d8bf37e6-d763-47a1-aa4b-5d45d456142f",
   "inbounds" : {
-    "HTTP_POST_/users/webhook" : {
-      "endpointId" : "f47f741f-2b20-4275-ab6d-53d7c9f0f42d",
-      "name" : "mock-webhook",
-      "path" : "/users/webhook",
-      "topic" : "",
-      "method" : "POST",
-      "protocol" : "HTTP",
-      "description" : ""
-    },
     "HTTP_PUT_/users/update" : {
-      "endpointId" : "99ac7d43-3731-4907-9f9a-d6a7bfcfed3b",
+      "endpointId" : "d321f63b-cd88-4d94-b259-4de7a038b0c1",
       "name" : "mock-webhook-PUT",
       "path" : "/users/update",
       "topic" : "",
       "method" : "PUT",
       "protocol" : "HTTP",
       "description" : ""
+    },
+    "HTTP_POST_/users/webhook" : {
+      "endpointId" : "d25b7b0f-3266-4afd-afbe-bbf5d97fa3a8",
+      "name" : "mock-webhook",
+      "path" : "/users/webhook",
+      "topic" : "",
+      "method" : "POST",
+      "protocol" : "HTTP",
+      "description" : ""
     }
   },
   "outbounds" : {
     "HTTP_POST_https://localhost:8083/profile/api/info" : {
-      "endpointId" : "a9fa90aa-5940-41af-8466-4e937dbc27c1",
+      "endpointId" : "a9d6ceb6-497e-49a0-8fa8-5b3036710e1f",
       "name" : "profile-outbound",
       "targetUrl" : "https://localhost:8083/profile/api/info",
       "topic" : "",

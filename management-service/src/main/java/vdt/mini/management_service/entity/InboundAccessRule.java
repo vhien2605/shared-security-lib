@@ -19,6 +19,7 @@ import vdt.mini.management_service.util.enums.AccessRuleType;
 import vdt.mini.management_service.util.enums.AccessRuleValueType;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Getter
 @Setter
@@ -55,4 +56,16 @@ public class InboundAccessRule extends AbstractBase {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof InboundAccessRule that)) return false;
+        return getId() != null && Objects.equals(getId(), that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

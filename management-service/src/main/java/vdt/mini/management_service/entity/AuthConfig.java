@@ -15,6 +15,7 @@ import lombok.Setter;
 import vdt.mini.management_service.util.enums.AuthType;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Getter
 @Setter
@@ -46,4 +47,16 @@ public class AuthConfig extends AbstractBase {
 
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof AuthConfig that)) return false;
+        return getId() != null && Objects.equals(getId(), that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

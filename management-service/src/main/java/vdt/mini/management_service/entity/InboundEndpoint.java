@@ -16,8 +16,8 @@ import lombok.Setter;
 import vdt.mini.management_service.util.enums.EndpointMethod;
 import vdt.mini.management_service.util.enums.EndpointProtocol;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -71,8 +71,8 @@ public class InboundEndpoint extends AbstractAuditable {
     private AlertConfig alertConfig;
 
     @OneToMany(mappedBy = "inboundEndpoint")
-    private List<InboundAccessRule> accessRules = new ArrayList<>();
+    private Set<InboundAccessRule> accessRules = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "inboundEndpoint")
-    private List<AuthConfig> authConfigs = new ArrayList<>();
+    private Set<AuthConfig> authConfigs = new LinkedHashSet<>();
 }
