@@ -17,8 +17,10 @@ public class InboundSettingsDTO {
     private String endpointId;
     private String name;
     private String path;
+    private String topic;
     private String method;
     private String protocol;
+    private Boolean enabled;
     private Integer rateLimit;
     private Integer rateLimitWindowSeconds;
     private Integer timeoutMs;

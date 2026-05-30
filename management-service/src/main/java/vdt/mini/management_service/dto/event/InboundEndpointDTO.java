@@ -13,4 +13,5 @@ public class InboundEndpointDTO {
     private String method;
     private String protocol;
     private String description;
+    private Boolean enabled;
 }

@@ -13,4 +13,5 @@ public class OutboundEndpointDTO {
     private String method;
     private String protocol;
     private String description;
+    private Boolean enabled;
 }

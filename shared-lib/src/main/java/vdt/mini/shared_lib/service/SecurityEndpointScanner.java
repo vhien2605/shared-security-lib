@@ -18,8 +18,10 @@ import vdt.mini.shared_lib.document.ServiceRegistrationEvent;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Component
@@ -72,8 +74,14 @@ public class SecurityEndpointScanner {
             String serviceId = identityManager.getOrCreateServiceId();
             log.info("Scanning for security endpoints (serviceId={})", serviceId);
 
-            List<InboundEndpointDTO> inbounds = scanInbounds();
-            List<OutboundEndpointDTO> outbounds = scanOutbounds();
+            ScanResult<InboundEndpointDTO> inboundScan = scanInbounds();
+            ScanResult<OutboundEndpointDTO> outboundScan = scanOutbounds();
+
+            List<InboundEndpointDTO> inbounds = new ArrayList<>(inboundScan.endpoints());
+            List<OutboundEndpointDTO> outbounds = new ArrayList<>(outboundScan.endpoints());
+
+            appendStaleInbounds(inbounds, inboundScan.keys());
+            appendStaleOutbounds(outbounds, outboundScan.keys());
 
             ServiceRegistrationEvent event = new ServiceRegistrationEvent(
                     serviceId, serviceName, baseUrl, serviceDescription, inbounds, outbounds
@@ -112,7 +120,7 @@ public class SecurityEndpointScanner {
         return methods;
     }
 
-    private List<InboundEndpointDTO> scanInbounds() {
+    private ScanResult<InboundEndpointDTO> scanInbounds() {
         List<InboundEndpointDTO> result = new ArrayList<>();
         Set<String> seenKeys = new LinkedHashSet<>();
         String[] beanNames = applicationContext.getBeanDefinitionNames();
@@ -139,17 +147,18 @@ public class SecurityEndpointScanner {
                 }
                 InboundEndpointDTO dto = identityManager.getOrCreateInbound(compositeKey,
                         new InboundEndpointDTO(null, annotation.name(), path, topic,
-                                methodName, protocolName, annotation.description()));
+                                methodName, protocolName, annotation.description(), true));
+                dto.setEnabled(true);
                 result.add(dto);
 
                 log.debug("Found @InBoundSecurity: name={}, path={}, topic={}, key={}",
                         annotation.name(), path, topic, compositeKey);
             }
         }
-        return result;
+        return new ScanResult<>(result, seenKeys);
     }
 
-    private List<OutboundEndpointDTO> scanOutbounds() {
+    private ScanResult<OutboundEndpointDTO> scanOutbounds() {
         List<OutboundEndpointDTO> result = new ArrayList<>();
         Set<String> seenKeys = new LinkedHashSet<>();
         String[] beanNames = applicationContext.getBeanDefinitionNames();
@@ -176,13 +185,47 @@ public class SecurityEndpointScanner {
                 }
                 OutboundEndpointDTO dto = identityManager.getOrCreateOutbound(compositeKey,
                         new OutboundEndpointDTO(null, annotation.name(), targetUrl, topic,
-                                methodName, protocolName, annotation.description()));
+                                methodName, protocolName, annotation.description(), true));
+                dto.setEnabled(true);
                 result.add(dto);
 
                 log.debug("Found @OutBoundSecurity: name={}, targetUrl={}, topic={}, key={}",
                         annotation.name(), targetUrl, topic, compositeKey);
             }
         }
-        return result;
+        return new ScanResult<>(result, seenKeys);
+    }
+
+    private void appendStaleInbounds(List<InboundEndpointDTO> target, Set<String> currentKeys) {
+        Map<String, InboundEndpointDTO> known = new LinkedHashMap<>(identityManager.getKnownInbounds());
+        for (Map.Entry<String, InboundEndpointDTO> entry : known.entrySet()) {
+            if (currentKeys.contains(entry.getKey())) {
+                continue;
+            }
+            InboundEndpointDTO dto = entry.getValue();
+            if (dto == null || dto.getEndpointId() == null) {
+                continue;
+            }
+            dto.setEnabled(false);
+            target.add(dto);
+        }
+    }
+
+    private void appendStaleOutbounds(List<OutboundEndpointDTO> target, Set<String> currentKeys) {
+        Map<String, OutboundEndpointDTO> known = new LinkedHashMap<>(identityManager.getKnownOutbounds());
+        for (Map.Entry<String, OutboundEndpointDTO> entry : known.entrySet()) {
+            if (currentKeys.contains(entry.getKey())) {
+                continue;
+            }
+            OutboundEndpointDTO dto = entry.getValue();
+            if (dto == null || dto.getEndpointId() == null) {
+                continue;
+            }
+            dto.setEnabled(false);
+            target.add(dto);
+        }
+    }
+
+    private record ScanResult<T>(List<T> endpoints, Set<String> keys) {
     }
 }

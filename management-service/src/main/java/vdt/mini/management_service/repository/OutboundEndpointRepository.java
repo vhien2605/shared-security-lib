@@ -11,9 +11,20 @@ import java.util.Optional;
 public interface OutboundEndpointRepository extends JpaRepository<OutboundEndpoint, String> {
     List<OutboundEndpoint> findBySecureServiceId(String serviceId);
 
-    @Query("SELECT oe FROM OutboundEndpoint oe JOIN FETCH oe.alertConfig WHERE oe.secureService.id = :serviceId")
+    List<OutboundEndpoint> findBySecureServiceIdAndEnabledTrue(String serviceId);
+
+    @Query("SELECT oe FROM OutboundEndpoint oe JOIN FETCH oe.alertConfig WHERE oe.secureService.id = :serviceId AND oe.enabled = true")
     List<OutboundEndpoint> findBySecureServiceIdWithAlert(@Param("serviceId") String serviceId);
 
-    @Query("SELECT oe FROM OutboundEndpoint oe JOIN FETCH oe.alertConfig WHERE oe.id = :id")
+    @Query("SELECT oe FROM OutboundEndpoint oe JOIN FETCH oe.alertConfig WHERE oe.id = :id AND oe.enabled = true")
     Optional<OutboundEndpoint> findByIdWithAlert(@Param("id") String id);
+
+    @Query("SELECT oe FROM OutboundEndpoint oe JOIN FETCH oe.alertConfig WHERE oe.id = :id")
+    Optional<OutboundEndpoint> findAnyByIdWithAlert(@Param("id") String id);
+
+    @Query("SELECT oe FROM OutboundEndpoint oe WHERE oe.secureService.id = :serviceId")
+    List<OutboundEndpoint> findAllBySecureServiceId(@Param("serviceId") String serviceId);
+
+    @Query("SELECT oe FROM OutboundEndpoint oe JOIN FETCH oe.alertConfig WHERE oe.secureService.id = :serviceId")
+    List<OutboundEndpoint> findAllBySecureServiceIdWithAlert(@Param("serviceId") String serviceId);
 }

@@ -42,8 +42,12 @@ public class RedisSettingsSyncService {
         try {
             InboundSettingsSyncDTO dto = buildInboundSyncDTO(endpoint);
             String key = "security:config:inbound:" + endpoint.getId();
-            String json = objectMapper.writeValueAsString(dto);
-            redisTemplate.opsForValue().set(key, json);
+            if (Boolean.TRUE.equals(endpoint.getEnabled())) {
+                String json = objectMapper.writeValueAsString(dto);
+                redisTemplate.opsForValue().set(key, json);
+            } else {
+                redisTemplate.delete(key);
+            }
 
             SettingsChangeMessage message = new SettingsChangeMessage(
                     "INBOUND",
@@ -66,8 +70,12 @@ public class RedisSettingsSyncService {
         try {
             OutboundSettingsSyncDTO dto = buildOutboundSyncDTO(endpoint);
             String key = "security:config:outbound:" + endpoint.getId();
-            String json = objectMapper.writeValueAsString(dto);
-            redisTemplate.opsForValue().set(key, json);
+            if (Boolean.TRUE.equals(endpoint.getEnabled())) {
+                String json = objectMapper.writeValueAsString(dto);
+                redisTemplate.opsForValue().set(key, json);
+            } else {
+                redisTemplate.delete(key);
+            }
 
             SettingsChangeMessage message = new SettingsChangeMessage(
                     "OUTBOUND",
@@ -88,11 +96,11 @@ public class RedisSettingsSyncService {
 
     public void syncAllEndpointsOfService(String serviceId) {
         try {
-            List<InboundEndpoint> inbounds = inboundEndpointRepository.findBySecureServiceIdWithAll(serviceId);
+            List<InboundEndpoint> inbounds = inboundEndpointRepository.findAllBySecureServiceIdWithAll(serviceId);
             for (InboundEndpoint ep : inbounds) {
                 syncInboundToRedis(ep);
             }
-            List<OutboundEndpoint> outbounds = outboundEndpointRepository.findBySecureServiceIdWithAlert(serviceId);
+            List<OutboundEndpoint> outbounds = outboundEndpointRepository.findAllBySecureServiceIdWithAlert(serviceId);
             for (OutboundEndpoint ep : outbounds) {
                 syncOutboundToRedis(ep);
             }
@@ -108,8 +116,10 @@ public class RedisSettingsSyncService {
         dto.setEndpointId(ep.getId());
         dto.setName(ep.getName());
         dto.setPath(ep.getPath());
+        dto.setTopic(ep.getTopic());
         dto.setMethod(ep.getMethod() != null ? ep.getMethod().name() : null);
         dto.setProtocol(ep.getProtocol() != null ? ep.getProtocol().name() : null);
+        dto.setEnabled(ep.getEnabled());
         dto.setRateLimit(ep.getRateLimit());
         dto.setRateLimitWindowSeconds(ep.getRateLimitWindowSeconds());
         dto.setTimeoutMs(ep.getTimeoutMs());
@@ -155,8 +165,10 @@ public class RedisSettingsSyncService {
         dto.setEndpointId(ep.getId());
         dto.setName(ep.getName());
         dto.setTargetUrl(ep.getTargetUrl());
+        dto.setTopic(ep.getTopic());
         dto.setMethod(ep.getMethod() != null ? ep.getMethod().name() : null);
         dto.setProtocol(ep.getProtocol() != null ? ep.getProtocol().name() : null);
+        dto.setEnabled(ep.getEnabled());
         dto.setTimeoutMs(ep.getTimeoutMs());
         dto.setRetryCount(ep.getRetryCount());
         dto.setRetryBackoffMs(ep.getRetryBackoffMs());

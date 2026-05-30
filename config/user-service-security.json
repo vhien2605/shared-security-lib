@@ -8,7 +8,8 @@
       "topic" : "",
       "method" : "POST",
       "protocol" : "HTTP",
-      "description" : ""
+      "description" : "",
+      "enabled" : true
     },
     "HTTP_PUT_/users/update" : {
       "endpointId" : "45361fa4-f5aa-48c7-8e8b-8f828ac018ca",
@@ -17,7 +18,28 @@
       "topic" : "",
       "method" : "PUT",
       "protocol" : "HTTP",
-      "description" : ""
+      "description" : "",
+      "enabled" : null
+    },
+    "HTTP_PUT_/users/update-v2" : {
+      "endpointId" : "a2c7420c-2c06-4740-90d0-0b019ea97b5a",
+      "name" : "mock-webhook-PUT",
+      "path" : "/users/update-v2",
+      "topic" : "",
+      "method" : "PUT",
+      "protocol" : "HTTP",
+      "description" : "",
+      "enabled" : true
+    },
+    "MQ_POST_user.profile.create" : {
+      "endpointId" : "35f11180-543e-4580-baee-c7297b28aab7",
+      "name" : "mock-listener",
+      "path" : "",
+      "topic" : "user.profile.create",
+      "method" : "POST",
+      "protocol" : "MQ",
+      "description" : "",
+      "enabled" : true
     }
   },
   "outbounds" : {
@@ -28,7 +50,8 @@
       "topic" : "",
       "method" : "POST",
       "protocol" : "HTTP",
-      "description" : "Gọi API thanh toán đối tác"
+      "description" : "Gọi API thanh toán đối tác",
+      "enabled" : null
     }
   }
 }

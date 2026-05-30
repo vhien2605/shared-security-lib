@@ -46,8 +46,12 @@ public class SecuritySettingsStore {
                 String json = redisTemplate.opsForValue().get("security:config:inbound:" + id);
                 if (json != null) {
                     InboundSettingsDTO dto = objectMapper.readValue(json, InboundSettingsDTO.class);
-                    inboundSettings.put(id, dto);
-                    log.debug("Loaded inbound settings from Redis: endpointId={}", id);
+                    if (Boolean.FALSE.equals(dto.getEnabled())) {
+                        inboundSettings.remove(id);
+                    } else {
+                        inboundSettings.put(id, dto);
+                        log.debug("Loaded inbound settings from Redis: endpointId={}", id);
+                    }
                 }
             } catch (Exception e) {
                 log.warn("Failed to poll inbound settings from Redis for endpointId={}", id, e);
@@ -58,8 +62,12 @@ public class SecuritySettingsStore {
                 String json = redisTemplate.opsForValue().get("security:config:outbound:" + id);
                 if (json != null) {
                     OutboundSettingsDTO dto = objectMapper.readValue(json, OutboundSettingsDTO.class);
-                    outboundSettings.put(id, dto);
-                    log.debug("Loaded outbound settings from Redis: endpointId={}", id);
+                    if (Boolean.FALSE.equals(dto.getEnabled())) {
+                        outboundSettings.remove(id);
+                    } else {
+                        outboundSettings.put(id, dto);
+                        log.debug("Loaded outbound settings from Redis: endpointId={}", id);
+                    }
                 }
             } catch (Exception e) {
                 log.warn("Failed to poll outbound settings from Redis for endpointId={}", id, e);
@@ -75,14 +83,24 @@ public class SecuritySettingsStore {
         if ("INBOUND".equals(message.getType())) {
             InboundSettingsDTO config = objectMapper.convertValue(message.getConfig(), InboundSettingsDTO.class);
             if (config != null) {
-                inboundSettings.put(message.getEndpointId(), config);
-                log.info("Updated inbound settings from pub/sub: endpointId={}, config={}", message.getEndpointId(), config);
+                if (Boolean.FALSE.equals(config.getEnabled())) {
+                    inboundSettings.remove(message.getEndpointId());
+                    log.info("Removed inbound settings from pub/sub: endpointId={}", message.getEndpointId());
+                } else {
+                    inboundSettings.put(message.getEndpointId(), config);
+                    log.info("Updated inbound settings from pub/sub: endpointId={}, config={}", message.getEndpointId(), config);
+                }
             }
         } else if ("OUTBOUND".equals(message.getType())) {
             OutboundSettingsDTO config = objectMapper.convertValue(message.getConfig(), OutboundSettingsDTO.class);
             if (config != null) {
-                outboundSettings.put(message.getEndpointId(), config);
-                log.info("Updated outbound settings from pub/sub: endpointId={}, config={}", message.getEndpointId(), config);
+                if (Boolean.FALSE.equals(config.getEnabled())) {
+                    outboundSettings.remove(message.getEndpointId());
+                    log.info("Removed outbound settings from pub/sub: endpointId={}", message.getEndpointId());
+                } else {
+                    outboundSettings.put(message.getEndpointId(), config);
+                    log.info("Updated outbound settings from pub/sub: endpointId={}, config={}", message.getEndpointId(), config);
+                }
             }
         } else {
             log.warn("Unknown settings change message type: {}", message.getType());

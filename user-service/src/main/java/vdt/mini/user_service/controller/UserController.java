@@ -20,10 +20,10 @@ public class UserController {
     }
 
 
-    @PostMapping("/users/update")
+    @PostMapping("/users/update-v2")
     @InBoundSecurity(
             name = "mock-webhook-PUT",
-            path = "/users/update",
+            path = "/users/update-v2",
             protocol = EndpointProtocol.HTTP,
             method = EndpointMethod.PUT)
     public String mockwebhook2() {

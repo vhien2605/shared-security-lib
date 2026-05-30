@@ -129,6 +129,64 @@ public class IdentityManager {
         return protocol + "_" + method + "_" + (pathOrTopic != null ? pathOrTopic : "");
     }
 
+    public Map<String, InboundEndpointDTO> getKnownInbounds() {
+        lock.readLock().lock();
+        try {
+            Map<String, InboundEndpointDTO> snapshot = new LinkedHashMap<>();
+            for (Map.Entry<String, InboundEndpointDTO> entry : inbounds.entrySet()) {
+                snapshot.put(entry.getKey(), copyInbound(entry.getValue()));
+            }
+            return snapshot;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    public Map<String, OutboundEndpointDTO> getKnownOutbounds() {
+        lock.readLock().lock();
+        try {
+            Map<String, OutboundEndpointDTO> snapshot = new LinkedHashMap<>();
+            for (Map.Entry<String, OutboundEndpointDTO> entry : outbounds.entrySet()) {
+                snapshot.put(entry.getKey(), copyOutbound(entry.getValue()));
+            }
+            return snapshot;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    private InboundEndpointDTO copyInbound(InboundEndpointDTO source) {
+        if (source == null) {
+            return null;
+        }
+        return new InboundEndpointDTO(
+                source.getEndpointId(),
+                source.getName(),
+                source.getPath(),
+                source.getTopic(),
+                source.getMethod(),
+                source.getProtocol(),
+                source.getDescription(),
+                source.getEnabled()
+        );
+    }
+
+    private OutboundEndpointDTO copyOutbound(OutboundEndpointDTO source) {
+        if (source == null) {
+            return null;
+        }
+        return new OutboundEndpointDTO(
+                source.getEndpointId(),
+                source.getName(),
+                source.getTargetUrl(),
+                source.getTopic(),
+                source.getMethod(),
+                source.getProtocol(),
+                source.getDescription(),
+                source.getEnabled()
+        );
+    }
+
     private void save() {
         try {
             File parentDir = identityFile.getParentFile();

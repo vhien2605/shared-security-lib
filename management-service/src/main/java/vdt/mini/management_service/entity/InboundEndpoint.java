@@ -37,6 +37,9 @@ public class InboundEndpoint extends AbstractAuditable {
     @Column(name = "path", length = 255)
     private String path;
 
+    @Column(name = "topic", length = 255)
+    private String topic;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "method", length = 10)
     private EndpointMethod method;
@@ -44,6 +47,9 @@ public class InboundEndpoint extends AbstractAuditable {
     @Enumerated(EnumType.STRING)
     @Column(name = "protocol", length = 20, nullable = false)
     private EndpointProtocol protocol;
+
+    @Column(name = "enabled", nullable = false)
+    private Boolean enabled = true;
 
     @Column(name = "rate_limit")
     private Integer rateLimit;

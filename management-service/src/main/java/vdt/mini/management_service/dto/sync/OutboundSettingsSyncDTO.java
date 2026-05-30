@@ -15,8 +15,10 @@ public class OutboundSettingsSyncDTO {
     private String endpointId;
     private String name;
     private String targetUrl;
+    private String topic;
     private String method;
     private String protocol;
+    private Boolean enabled;
     private Integer timeoutMs;
     private Integer retryCount;
     private Integer retryBackoffMs;

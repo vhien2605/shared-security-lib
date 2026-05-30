@@ -17,6 +17,7 @@ public class InboundEndpointResponse {
     private String serviceId;
     private String name;
     private String path;
+    private String topic;
     private EndpointMethod method;
     private EndpointProtocol protocol;
     private Integer rateLimit;

@@ -24,7 +24,9 @@ import vdt.mini.management_service.util.enums.RollbackStrategy;
 import vdt.mini.management_service.util.enums.ServiceStatus;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 
 @Service
@@ -91,11 +93,18 @@ public class RegistrationService {
         // 2. INBOUNDS (BATCH SAFE)
         // =========================
         List<InboundEndpoint> inbounds = new ArrayList<>();
+        Set<String> inboundIdsFromEvent = new HashSet<>();
 
-        for (InboundEndpointDTO dto : event.getInbounds()) {
+        List<InboundEndpointDTO> inboundEvents = event.getInbounds() != null ? event.getInbounds() : List.of();
+        for (InboundEndpointDTO dto : inboundEvents) {
+            if (dto.getEndpointId() == null) {
+                continue;
+            }
+            inboundIdsFromEvent.add(dto.getEndpointId());
+            boolean shouldEnable = dto.getEnabled() == null || dto.getEnabled();
 
             final boolean[] isNewEndpoint = {false};
-            InboundEndpoint ep = inboundEndpointRepository.findByIdWithAlert(dto.getEndpointId())
+            InboundEndpoint ep = inboundEndpointRepository.findAnyByIdWithAlert(dto.getEndpointId())
                     .orElseGet(() -> {
                         InboundEndpoint created = new InboundEndpoint();
                         created.setId(dto.getEndpointId());
@@ -106,14 +115,16 @@ public class RegistrationService {
             ep.setSecureService(service);
             ep.setName(dto.getName());
             ep.setPath(dto.getPath());
+            ep.setTopic(dto.getTopic());
             ep.setMethod(dto.getMethod() != null
                     ? EndpointMethod.valueOf(dto.getMethod())
                     : null);
             ep.setProtocol(dto.getProtocol() != null
                     ? EndpointProtocol.valueOf(dto.getProtocol())
                     : null);
+            ep.setEnabled(shouldEnable);
 
-            if (isNewEndpoint[0]) {
+            if (isNewEndpoint[0] && shouldEnable) {
                 settingTemplateService.copyInboundDefaults(serviceTemplate, ep);
                 AlertConfig alertConfig = settingTemplateService.createAlertConfigFromTemplate(serviceTemplate, dto.getName());
                 ep.setAlertConfig(alertConfigRepository.save(alertConfig));
@@ -126,11 +137,18 @@ public class RegistrationService {
         // 3. OUTBOUNDS (BATCH SAFE)
         // =========================
         List<OutboundEndpoint> outbounds = new ArrayList<>();
+        Set<String> outboundIdsFromEvent = new HashSet<>();
 
-        for (OutboundEndpointDTO dto : event.getOutbounds()) {
+        List<OutboundEndpointDTO> outboundEvents = event.getOutbounds() != null ? event.getOutbounds() : List.of();
+        for (OutboundEndpointDTO dto : outboundEvents) {
+            if (dto.getEndpointId() == null) {
+                continue;
+            }
+            outboundIdsFromEvent.add(dto.getEndpointId());
+            boolean shouldEnable = dto.getEnabled() == null || dto.getEnabled();
 
             final boolean[] isNewEndpoint = {false};
-            OutboundEndpoint ep = outboundEndpointRepository.findByIdWithAlert(dto.getEndpointId())
+            OutboundEndpoint ep = outboundEndpointRepository.findAnyByIdWithAlert(dto.getEndpointId())
                     .orElseGet(() -> {
                         OutboundEndpoint created = new OutboundEndpoint();
                         created.setId(dto.getEndpointId());
@@ -141,14 +159,16 @@ public class RegistrationService {
             ep.setSecureService(service);
             ep.setName(dto.getName());
             ep.setTargetUrl(dto.getTargetUrl());
+            ep.setTopic(dto.getTopic());
             ep.setMethod(dto.getMethod() != null
                     ? EndpointMethod.valueOf(dto.getMethod())
                     : null);
             ep.setProtocol(dto.getProtocol() != null
                     ? EndpointProtocol.valueOf(dto.getProtocol())
                     : null);
+            ep.setEnabled(shouldEnable);
 
-            if (isNewEndpoint[0]) {
+            if (isNewEndpoint[0] && shouldEnable) {
                 settingTemplateService.copyOutboundDefaults(serviceTemplate, ep);
                 if (ep.getRollbackStrategy() == null) {
                     ep.setRollbackStrategy(RollbackStrategy.IGNORE);
@@ -160,6 +180,26 @@ public class RegistrationService {
             outbounds.add(ep);
         }
         outboundEndpointRepository.saveAll(outbounds);
+
+        List<InboundEndpoint> staleInbounds = inboundEndpointRepository.findAllBySecureServiceId(service.getId())
+                .stream()
+                .filter(ep -> !inboundIdsFromEvent.contains(ep.getId()))
+                .filter(ep -> Boolean.TRUE.equals(ep.getEnabled()))
+                .peek(ep -> ep.setEnabled(false))
+                .toList();
+        if (!staleInbounds.isEmpty()) {
+            inboundEndpointRepository.saveAll(staleInbounds);
+        }
+
+        List<OutboundEndpoint> staleOutbounds = outboundEndpointRepository.findAllBySecureServiceId(service.getId())
+                .stream()
+                .filter(ep -> !outboundIdsFromEvent.contains(ep.getId()))
+                .filter(ep -> Boolean.TRUE.equals(ep.getEnabled()))
+                .peek(ep -> ep.setEnabled(false))
+                .toList();
+        if (!staleOutbounds.isEmpty()) {
+            outboundEndpointRepository.saveAll(staleOutbounds);
+        }
 
         log.info("Processed registration: service={}, inbounds={}, outbounds={}",
                 event.getServiceName(),

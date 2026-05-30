@@ -34,6 +34,9 @@ public class OutboundEndpoint extends AbstractAuditable {
     @Column(name = "target_url", length = 255)
     private String targetUrl;
 
+    @Column(name = "topic", length = 255)
+    private String topic;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "method", length = 10)
     private EndpointMethod method;
@@ -41,6 +44,9 @@ public class OutboundEndpoint extends AbstractAuditable {
     @Enumerated(EnumType.STRING)
     @Column(name = "protocol", length = 20, nullable = false)
     private EndpointProtocol protocol;
+
+    @Column(name = "enabled", nullable = false)
+    private Boolean enabled = true;
 
     @Column(name = "response_time_threshold_ms")
     private Integer responseTimeThresholdMs;

@@ -11,10 +11,10 @@ import java.util.stream.Collectors;
 
 public interface ServiceRepository extends JpaRepository<SecureService, String> {
 
-    @Query("SELECT ie.secureService.id, COUNT(ie) FROM InboundEndpoint ie WHERE ie.secureService.id IN :ids GROUP BY ie.secureService.id")
+    @Query("SELECT ie.secureService.id, COUNT(ie) FROM InboundEndpoint ie WHERE ie.secureService.id IN :ids AND ie.enabled = true GROUP BY ie.secureService.id")
     List<Object[]> countInboundsByServiceIdsRaw(@Param("ids") List<String> ids);
 
-    @Query("SELECT oe.secureService.id, COUNT(oe) FROM OutboundEndpoint oe WHERE oe.secureService.id IN :ids GROUP BY oe.secureService.id")
+    @Query("SELECT oe.secureService.id, COUNT(oe) FROM OutboundEndpoint oe WHERE oe.secureService.id IN :ids AND oe.enabled = true GROUP BY oe.secureService.id")
     List<Object[]> countOutboundsByServiceIdsRaw(@Param("ids") List<String> ids);
 
     default Map<String, Long> countInboundsByServiceIds(List<String> ids) {

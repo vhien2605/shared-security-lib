@@ -18,6 +18,7 @@ public class OutboundEndpointResponse {
     private String serviceId;
     private String name;
     private String targetUrl;
+    private String topic;
     private EndpointMethod method;
     private EndpointProtocol protocol;
     private Integer timeoutMs;
