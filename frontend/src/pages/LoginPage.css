@@ -1,0 +1,208 @@
+.login-page {
+  --lp-bg: #f6f7fb;
+  --lp-surface: #ffffff;
+  --lp-text: #1f2937;
+  --lp-muted: #6b7280;
+  --lp-primary: #b91c1c;
+  --lp-primary-hover: #991b1b;
+  --lp-alert-bg: #fef2f2;
+  --lp-alert-text: #991b1b;
+
+  min-height: 100svh;
+  display: grid;
+  grid-template-columns: minmax(0, 58%) minmax(0, 42%);
+  background: var(--lp-bg);
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.login-page__hero {
+  position: relative;
+  color: #f8fafc;
+  padding: clamp(2rem, 4vw, 3.5rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  text-align: left;
+  gap: 1rem;
+  background:
+    linear-gradient(160deg, rgba(17, 24, 39, 0.6), rgba(127, 29, 29, 0.7)),
+    url('/login.png') center / cover no-repeat;
+}
+
+.login-page__badge {
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.login-page__hero-brand {
+  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  font-weight: 700;
+}
+
+.login-page__hero-title {
+  margin: 0;
+  max-width: 20ch;
+  color: #ffffff;
+  font-size: clamp(1.8rem, 4.3vw, 3.1rem);
+  line-height: 1.12;
+}
+
+.login-page__hero-subtitle {
+  margin: 0;
+  max-width: 52ch;
+  color: rgba(248, 250, 252, 0.95);
+}
+
+.login-page__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+  width: min(580px, 100%);
+  margin-inline: 0;
+}
+
+.login-page__stat-card {
+  padding: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(2px);
+}
+
+.login-page__stat-value {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.login-page__stat-label {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: rgba(248, 250, 252, 0.88);
+}
+
+.login-page__hero-note {
+  margin-top: 0.8rem;
+  font-size: 0.9rem;
+  color: rgba(248, 250, 252, 0.85);
+}
+
+.login-page__auth {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1.1rem, 3vw, 2rem);
+}
+
+.login-form {
+  width: min(460px, 100%);
+  background: var(--lp-surface);
+  border-radius: 18px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.1);
+  padding: clamp(1.35rem, 3vw, 2rem);
+  text-align: left;
+}
+
+.login-form__logo {
+  margin: 0;
+  font-size: 1.7rem;
+}
+
+.login-form__title {
+  margin: 0.25rem 0;
+  color: var(--lp-text);
+  font-size: 1.65rem;
+}
+
+.login-form__subtitle {
+  margin: 0 0 1.25rem;
+  color: var(--lp-muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.login-form__alert {
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  background: var(--lp-alert-bg);
+  color: var(--lp-alert-text);
+  border: 1px solid #fecaca;
+  font-size: 0.88rem;
+}
+
+.login-form__submit {
+  width: 100%;
+  min-height: 46px;
+  border: none;
+  border-radius: 10px;
+  background: var(--lp-primary);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.login-form__submit:hover {
+  background: var(--lp-primary-hover);
+}
+
+.login-form__submit:focus-visible {
+  outline: 2px solid #fca5a5;
+  outline-offset: 2px;
+}
+
+.login-form__submit:disabled {
+  background: #d97777;
+  cursor: not-allowed;
+}
+
+.login-form__hint {
+  margin: 0.9rem 0 0;
+  color: #6b7280;
+  text-align: center;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 1080px) {
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+
+  .login-page__hero {
+    min-height: 280px;
+  }
+
+  .login-page__hero-title {
+    max-width: 24ch;
+  }
+}
+
+@media (max-width: 680px) {
+  .login-page__hero {
+    padding: 1.2rem;
+  }
+
+  .login-page__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .login-form {
+    border-radius: 12px;
+    padding: 1.15rem;
+  }
+
+  .login-form__hint {
+    text-align: left;
+  }
+}

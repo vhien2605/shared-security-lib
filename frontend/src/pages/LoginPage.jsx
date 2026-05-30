@@ -1,62 +1,71 @@
+import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import './LoginPage.css'
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const { login, authError, clearAuthError } = useAuth()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    clearAuthError()
+
+    if (isSubmitting) return
+
+    setIsSubmitting(true)
+    login()
+    setTimeout(() => setIsSubmitting(false), 2500)
+  }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #0a5c2a 0%, #0d7a3a 50%, #0a5c2a 100%)',
-      color: '#fff',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{
-          fontSize: '4rem',
-          fontWeight: 800,
-          letterSpacing: '0.1em',
-          marginBottom: '0.5rem',
-        }}>
-          VIETTEL
+    <main className="login-page">
+      <section className="login-page__hero" aria-label="Thông tin hệ thống">
+        <div className="login-page__badge">Nền tảng giám sát tập trung</div>
+        <div className="login-page__hero-brand">VDT Sentinel</div>
+        <h1 className="login-page__hero-title">Hệ thống giám sát tập trung VDT 2026</h1>
+        <p className="login-page__hero-subtitle">
+          Bảo vệ hạ tầng, phân tích sự cố và phản hồi theo thời gian thực.
+        </p>
+        <div className="login-page__stats" aria-label="Chỉ số hệ thống">
+          <article className="login-page__stat-card">
+            <span className="login-page__stat-value">500+</span>
+            <span className="login-page__stat-label">Đơn vị kết nối</span>
+          </article>
+          <article className="login-page__stat-card">
+            <span className="login-page__stat-value">24/7</span>
+            <span className="login-page__stat-label">Giám sát liên tục</span>
+          </article>
+          <article className="login-page__stat-card">
+            <span className="login-page__stat-value">100%</span>
+            <span className="login-page__stat-label">Phản hồi tự động</span>
+          </article>
         </div>
-        <div style={{
-          fontSize: '1.5rem',
-          fontWeight: 300,
-          opacity: 0.9,
-          marginBottom: '3rem',
-        }}>
-          Hệ thống giám sát trung tâm
-        </div>
-        <button
-          onClick={login}
-          style={{
-            padding: '0.85rem 3rem',
-            fontSize: '1.1rem',
-            fontWeight: 600,
-            color: '#0a5c2a',
-            background: '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            transition: 'transform 0.15s, box-shadow 0.15s',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.25)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.15)'
-          }}
-        >
-          Đăng nhập
-        </button>
-      </div>
-    </div>
+        <p className="login-page__hero-note">Hệ thống bảo mật dữ liệu và xác thực đa lớp.</p>
+      </section>
+
+      <section className="login-page__auth" aria-label="Đăng nhập">
+        <form className="login-form" onSubmit={handleSubmit} noValidate>
+          <p className="login-form__logo" aria-hidden="true">
+            🛡
+          </p>
+          <h2 className="login-form__title">Đăng nhập</h2>
+          <p className="login-form__subtitle">
+            Đăng nhập được quản lý bởi Keycloak để đảm bảo bảo mật và quản trị tài khoản tập trung.
+          </p>
+
+          {authError && (
+            <div className="login-form__alert" role="alert" aria-live="assertive">
+              Không thể khởi tạo đăng nhập. Vui lòng thử lại.
+            </div>
+          )}
+
+          <button type="submit" className="login-form__submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Đang chuyển hướng...' : 'Đăng nhập với Keycloak'}
+          </button>
+
+          <p className="login-form__hint">Bạn sẽ được chuyển đến trang xác thực Keycloak.</p>
+        </form>
+      </section>
+    </main>
   )
 }
