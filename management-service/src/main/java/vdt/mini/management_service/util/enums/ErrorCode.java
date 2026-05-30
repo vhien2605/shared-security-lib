@@ -22,7 +22,13 @@ public enum ErrorCode {
     SERVICE_NOT_FOUND(404, "Service not found", HttpStatus.NOT_FOUND),
     INBOUND_ENDPOINT_NOT_FOUND(404, "Inbound endpoint not found", HttpStatus.NOT_FOUND),
     OUTBOUND_ENDPOINT_NOT_FOUND(404, "Outbound endpoint not found", HttpStatus.NOT_FOUND),
-    INVALID_INPUT(400, "Invalid input value", HttpStatus.BAD_REQUEST),;
+    INVALID_INPUT(400, "Invalid input value", HttpStatus.BAD_REQUEST),
+    SETTING_TEMPLATE_NOT_FOUND(404, "Setting template not found", HttpStatus.NOT_FOUND),
+    GLOBAL_TEMPLATE_NOT_FOUND(404, "Global template not found", HttpStatus.NOT_FOUND),
+    SERVICE_TEMPLATE_NOT_FOUND(404, "Service template not found", HttpStatus.NOT_FOUND),
+    SETTING_TEMPLATE_VERSION_CONFLICT(409, "Template version conflict", HttpStatus.CONFLICT),
+    INVALID_SETTING_TEMPLATE(400, "Invalid setting template", HttpStatus.BAD_REQUEST),
+    BATCH_APPLY_FAILED(500, "Batch apply failed", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;
     private final String message;
