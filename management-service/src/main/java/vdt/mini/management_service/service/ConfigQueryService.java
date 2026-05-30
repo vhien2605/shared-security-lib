@@ -37,15 +37,16 @@ public class ConfigQueryService {
         Map<String, Long> inboundCountMap = serviceRepository.countInboundsByServiceIds(ids);
         Map<String, Long> outboundCountMap = serviceRepository.countOutboundsByServiceIds(ids);
         return page.map(service -> ServiceListResponse.builder()
-                        .id(service.getId())
-                        .name(service.getName())
-                        .baseUrl(service.getBaseUrl())
-                        .status(service.getStatus())
-                        .inboundCount(inboundCountMap.getOrDefault(service.getId(), 0L).intValue())
-                        .outboundCount(outboundCountMap.getOrDefault(service.getId(), 0L).intValue())
-                        .createdAt(service.getCreatedAt())
-                        .updatedAt(service.getUpdatedAt())
-                        .build());
+                .id(service.getId())
+                .name(service.getName())
+                .baseUrl(service.getBaseUrl())
+                .status(service.getStatus())
+                .description(service.getDescription())
+                .inboundCount(inboundCountMap.getOrDefault(service.getId(), 0L).intValue())
+                .outboundCount(outboundCountMap.getOrDefault(service.getId(), 0L).intValue())
+                .createdAt(service.getCreatedAt())
+                .updatedAt(service.getUpdatedAt())
+                .build());
     }
 
     public ServiceDetailResponse getServiceDetail(String serviceId) {

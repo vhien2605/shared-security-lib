@@ -14,6 +14,7 @@ public class ServiceListResponse {
     private String id;
     private String name;
     private String baseUrl;
+    private String description;
     private ServiceStatus status;
     private int inboundCount;
     private int outboundCount;
