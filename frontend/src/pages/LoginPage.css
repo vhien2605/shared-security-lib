@@ -1,10 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap');
+
 .login-page {
-  --lp-bg: #f6f7fb;
+  --lp-bg: #ffffff;
   --lp-surface: #ffffff;
-  --lp-text: #1f2937;
+  --lp-text: #1a1c1c;
   --lp-muted: #6b7280;
-  --lp-primary: #b91c1c;
-  --lp-primary-hover: #991b1b;
+  --lp-primary: #af101a;
+  --lp-primary-hover: #930010;
   --lp-alert-bg: #fef2f2;
   --lp-alert-text: #991b1b;
 
@@ -15,7 +17,9 @@
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Be Vietnam Pro', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  isolation: isolate;
+  overflow-x: clip;
 }
 
 .login-page__hero {
@@ -24,33 +28,69 @@
   padding: clamp(2rem, 4vw, 3.5rem);
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: space-between;
   align-items: flex-start;
   text-align: left;
-  gap: 1rem;
+  gap: 1.2rem;
   background:
-    linear-gradient(160deg, rgba(17, 24, 39, 0.6), rgba(127, 29, 29, 0.7)),
+    linear-gradient(rgba(0, 0, 0, 0.5), rgba(65, 0, 3, 0.8)),
     url('/login.png') center / cover no-repeat;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.login-page__hero * {
+  max-width: 100%;
+}
+
+.login-page__brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.login-page__hero-logo {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 1.25rem;
 }
 
 .login-page__badge {
+  width: fit-content;
   padding: 0.35rem 0.8rem;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
   background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .login-page__hero-brand {
-  font-size: clamp(1.4rem, 2.6vw, 2rem);
-  font-weight: 700;
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-family: Manrope, 'Be Vietnam Pro', sans-serif;
+}
+
+.login-page__hero-brand-sub {
+  margin: 0.15rem 0 0;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
 }
 
 .login-page__hero-title {
-  margin: 0;
-  max-width: 20ch;
+  margin: auto 0 0;
+  max-width: 16ch;
   color: #ffffff;
-  font-size: clamp(1.8rem, 4.3vw, 3.1rem);
+  font-family: Manrope, 'Be Vietnam Pro', sans-serif;
+  font-size: clamp(2rem, 4.3vw, 3.8rem);
+  font-weight: 800;
   line-height: 1.12;
 }
 
@@ -63,17 +103,17 @@
 .login-page__stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.9rem;
+  gap: 1rem;
   width: min(580px, 100%);
   margin-inline: 0;
 }
 
 .login-page__stat-card {
-  padding: 0.85rem;
+  padding: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 12px;
+  border-radius: 4px;
   background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(4px);
 }
 
 .login-page__stat-value {
@@ -90,8 +130,8 @@
 }
 
 .login-page__hero-note {
-  margin-top: 0.8rem;
-  font-size: 0.9rem;
+  margin-top: auto;
+  font-size: 0.88rem;
   color: rgba(248, 250, 252, 0.85);
 }
 
@@ -99,28 +139,76 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(1.1rem, 3vw, 2rem);
+  padding: clamp(1.4rem, 3.8vw, 3.2rem);
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  overflow: visible;
 }
 
 .login-form {
-  width: min(460px, 100%);
+  width: 100%;
+  max-width: 560px;
   background: var(--lp-surface);
-  border-radius: 18px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.1);
-  padding: clamp(1.35rem, 3vw, 2rem);
+  border-radius: 12px;
+  border: 1px solid #efefef;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+  padding: clamp(1.6rem, 3.4vw, 2.4rem);
   text-align: left;
+  box-sizing: border-box;
+}
+
+.login-form__brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.6rem;
 }
 
 .login-form__logo {
   margin: 0;
-  font-size: 1.7rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 1.25rem;
+  background: #f4f4f5;
+}
+
+.login-form__brand-title {
+  margin: 0;
+  color: var(--lp-text);
+  font-family: Manrope, 'Be Vietnam Pro', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.login-form__brand-subtitle {
+  margin: 0.2rem 0 0;
+  color: #6b7280;
+  font-size: 0.78rem;
+}
+
+.login-form__member-badge {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  background: rgba(175, 16, 26, 0.1);
+  color: var(--lp-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.62rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.32rem 0.62rem;
 }
 
 .login-form__title {
-  margin: 0.25rem 0;
+  margin: 0.25rem 0 0.25rem;
   color: var(--lp-text);
-  font-size: 1.65rem;
+  font-family: Manrope, 'Be Vietnam Pro', sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
 }
 
 .login-form__subtitle {
@@ -141,20 +229,35 @@
 }
 
 .login-form__submit {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  min-height: 46px;
+  height: 58px;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--lp-primary);
   color: #ffffff;
   font: inherit;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.06s ease;
+  box-sizing: border-box;
+  padding: 0 20px;
+  margin: 2px 0 0;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .login-form__submit:hover {
   background: var(--lp-primary-hover);
+}
+
+.login-form__submit:active {
+  transform: translateY(1px);
 }
 
 .login-form__submit:focus-visible {
@@ -168,10 +271,10 @@
 }
 
 .login-form__hint {
-  margin: 0.9rem 0 0;
+  margin: 12px 0 0;
   color: #6b7280;
   text-align: center;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
 }
 
 @media (max-width: 1080px) {
