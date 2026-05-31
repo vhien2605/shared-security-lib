@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { apiGet, apiPatch, apiPost, apiPut } from "../../../services/api";
 import "./SettingDetailServicePage.css";
 
-const ALERT_SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "WARN"];
+const ALERT_SEVERITIES = ["INFO", "WARNING", "CRITICAL"];
 const ALERT_CHANNELS = ["SLACK", "EMAIL", "WEBHOOK"];
 const ROLLBACK_STRATEGIES = [
   "CircuitBreaker",

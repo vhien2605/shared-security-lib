@@ -359,11 +359,9 @@ export default function SettingsManagementPage() {
                 <span>Severity</span>
                 <div className="settings-select-wrap">
                   <select value={template.alertSeverity || ''} onChange={(event) => updateTemplate('alertSeverity', event.target.value)}>
+                    <option>INFO</option>
+                    <option>WARNING</option>
                     <option>CRITICAL</option>
-                    <option>HIGH</option>
-                    <option>MEDIUM</option>
-                    <option>LOW</option>
-                    <option>WARN</option>
                   </select>
                   <span className="material-symbols-outlined">expand_more</span>
                 </div>
