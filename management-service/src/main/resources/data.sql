@@ -42,7 +42,7 @@ SELECT
     'IGNORE',
     'WARNING',
     5,
-    '["LOG"]',
+    '["EMAIL"]',
     NOW(),
     NOW()
 WHERE NOT EXISTS (

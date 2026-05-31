@@ -111,14 +111,14 @@ public class EndpointSettingsService {
     }
 
     private void updateAlertConfig(InboundEndpoint endpoint, String severity,
-                                    Integer throttleMinutes, List<String> channels) {
+                                   Integer throttleMinutes, List<String> channels) {
         AlertConfig alertConfig = endpoint.getAlertConfig();
         if (alertConfig == null) {
             // Create new alert config if endpoint doesn't have one
             AlertConfig newAlertConfig = new AlertConfig();
             newAlertConfig.setId(java.util.UUID.randomUUID().toString());
             newAlertConfig.setName(endpoint.getName() + "-alert");
-            newAlertConfig.setChannels(channels != null ? channels : List.of("LOG"));
+            newAlertConfig.setChannels(channels != null ? channels : List.of("EMAIL"));
             newAlertConfig.setSeverity(severity != null ? AlertSeverity.valueOf(severity) : AlertSeverity.WARNING);
             newAlertConfig.setThrottleMinutes(throttleMinutes != null ? throttleMinutes : 5);
             endpoint.setAlertConfig(alertConfigRepository.save(newAlertConfig));
@@ -143,7 +143,7 @@ public class EndpointSettingsService {
     }
 
     private void updateAlertConfig(OutboundEndpoint endpoint, String severity,
-                                    Integer throttleMinutes, List<String> channels) {
+                                   Integer throttleMinutes, List<String> channels) {
         AlertConfig alertConfig = endpoint.getAlertConfig();
         if (alertConfig == null) {
             AlertConfig newAlertConfig = new AlertConfig();

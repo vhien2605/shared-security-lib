@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { apiGet, apiPost, apiPut } from '../services/api'
+import { useNavigate } from 'react-router-dom'
+import { apiGet, apiPost, apiPut } from '../../services/api'
 import './SettingsManagementPage.css'
 
 const DEFAULT_TEMPLATE = {
@@ -64,6 +65,7 @@ function SettingInput({ label, value, onChange, unit = '', className = '' }) {
 }
 
 export default function SettingsManagementPage() {
+  const navigate = useNavigate()
   const [services, setServices] = useState([])
   const [pageInfo, setPageInfo] = useState({ number: 0, size: 20, totalElements: 0, totalPages: 0, first: true, last: true })
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE)
@@ -287,7 +289,13 @@ export default function SettingsManagementPage() {
                     </td>
                     <td className="settings-text-right">
                       <div className="settings-row-actions">
-                        <button type="button" className="settings-view-button" aria-label="Xem dịch vụ">
+                        <button
+                          type="button"
+                          className="settings-view-button"
+                          aria-label="Xem dịch vụ"
+                          onClick={() => navigate(`/settings-management/services/${service.id}`, { state: { service } })}
+                          disabled={!service.id}
+                        >
                           <span className="material-symbols-outlined">visibility</span>
                         </button>
                       </div>

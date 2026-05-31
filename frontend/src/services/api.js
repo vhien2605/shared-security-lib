@@ -69,6 +69,14 @@ export async function apiPut(path, body) {
   })
 }
 
+export async function apiPatch(path, body) {
+  return doFetch(path, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
 export async function apiDelete(path) {
   return doFetch(path, { method: 'DELETE' })
 }

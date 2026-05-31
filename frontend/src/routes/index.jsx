@@ -2,8 +2,9 @@ import { Navigate } from 'react-router-dom'
 import CallbackHandler from '../components/CallbackHandler'
 import ProtectedRoute from '../components/ProtectedRoute'
 import HeaderSidebarLayout from '../layouts/HeaderSidebarLayout'
-import LoginPage from '../pages/LoginPage'
-import SettingsManagementPage from '../pages/SettingsManagementPage'
+import LoginPage from '../pages/login/LoginPage'
+import SettingsManagementPage from '../pages/setting/SettingsManagementPage'
+import SettingDetailServicePage from '../pages/setting/SettingDetailService/SettingDetailServicePage'
 import ServicesPage from '../pages/ServicesPage'
 import EndpointsPage from '../pages/EndpointsPage'
 import SecurityPoliciesPage from '../pages/SecurityPoliciesPage'
@@ -13,6 +14,16 @@ const routes = [
   {
     path: '/',
     element: <LoginPage />,
+  },
+  {
+    path: '/settings-management/services/:serviceId',
+    element: (
+      <ProtectedRoute>
+        <HeaderSidebarLayout>
+          <SettingDetailServicePage />
+        </HeaderSidebarLayout>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/callback',
