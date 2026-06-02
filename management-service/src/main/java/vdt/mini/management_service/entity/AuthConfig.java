@@ -39,9 +39,6 @@ public class AuthConfig extends AbstractBase {
     @Column(name = "secret_ref", length = 255)
     private String secretRef;
 
-    @Column(name = "public_key", columnDefinition = "TEXT")
-    private String publicKey;
-
     @Column(name = "algorithm", length = 50)
     private String algorithm;
 
