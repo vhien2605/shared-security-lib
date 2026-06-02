@@ -1,6 +1,7 @@
 package vdt.mini.management_service.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -44,7 +45,7 @@ public class SettingTemplateBatchService {
             throw new vdt.mini.management_service.exception.AppException(vdt.mini.management_service.util.enums.ErrorCode.SETTING_TEMPLATE_VERSION_CONFLICT);
         }
         List<String> serviceIds = request == null ? null : request.getServiceIds();
-        List<vdt.mini.management_service.entity.SecureService> services = (serviceIds == null || serviceIds.isEmpty()) ? serviceRepository.findAll() : serviceRepository.findAllById(serviceIds);
+        List<vdt.mini.management_service.entity.SecureService> services = (serviceIds == null || serviceIds.isEmpty()) ? serviceRepository.findAll(Sort.by(Sort.Direction.ASC, "id")) : serviceRepository.findByIdInOrderByIdAsc(serviceIds);
         int affected = 0;
         for (vdt.mini.management_service.entity.SecureService service : services) {
             SettingTemplate serviceTemplate = settingTemplateService.ensureServiceTemplateExists(service.getId());
@@ -83,7 +84,7 @@ public class SettingTemplateBatchService {
         int outboundAffected = 0;
 
         if (endpointTypes.contains(EndpointType.INBOUND)) {
-            List<InboundEndpoint> inbounds = (serviceIds == null || serviceIds.isEmpty()) ? inboundEndpointRepository.findAll() : serviceIds.stream().flatMap(s -> inboundEndpointRepository.findBySecureServiceId(s).stream()).toList();
+            List<InboundEndpoint> inbounds = (serviceIds == null || serviceIds.isEmpty()) ? inboundEndpointRepository.findAll(Sort.by(Sort.Direction.ASC, "id")) : serviceIds.stream().flatMap(s -> inboundEndpointRepository.findBySecureServiceIdOrderByIdAsc(s).stream()).toList();
             for (InboundEndpoint inbound : inbounds) {
                 if (endpointIds != null && !endpointIds.isEmpty() && !endpointIds.contains(inbound.getId())) continue;
                 settingTemplateService.copyInboundDefaults(template, inbound);
@@ -94,7 +95,7 @@ public class SettingTemplateBatchService {
             inboundEndpointRepository.saveAll(inbounds);
         }
         if (endpointTypes.contains(EndpointType.OUTBOUND)) {
-            List<OutboundEndpoint> outbounds = (serviceIds == null || serviceIds.isEmpty()) ? outboundEndpointRepository.findAll() : serviceIds.stream().flatMap(s -> outboundEndpointRepository.findBySecureServiceId(s).stream()).toList();
+            List<OutboundEndpoint> outbounds = (serviceIds == null || serviceIds.isEmpty()) ? outboundEndpointRepository.findAll(Sort.by(Sort.Direction.ASC, "id")) : serviceIds.stream().flatMap(s -> outboundEndpointRepository.findBySecureServiceIdOrderByIdAsc(s).stream()).toList();
             for (OutboundEndpoint outbound : outbounds) {
                 if (endpointIds != null && !endpointIds.isEmpty() && !endpointIds.contains(outbound.getId())) continue;
                 settingTemplateService.copyOutboundDefaults(template, outbound);

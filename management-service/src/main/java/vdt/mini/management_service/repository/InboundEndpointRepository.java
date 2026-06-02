@@ -9,11 +9,11 @@ import java.util.List;
 import java.util.Optional;
 
 public interface InboundEndpointRepository extends JpaRepository<InboundEndpoint, String> {
-    List<InboundEndpoint> findBySecureServiceId(String serviceId);
+    List<InboundEndpoint> findBySecureServiceIdOrderByIdAsc(String serviceId);
 
-    List<InboundEndpoint> findBySecureServiceIdAndEnabledTrue(String serviceId);
+    List<InboundEndpoint> findBySecureServiceIdAndEnabledTrueOrderByIdAsc(String serviceId);
 
-    @Query("SELECT ie FROM InboundEndpoint ie JOIN FETCH ie.alertConfig WHERE ie.secureService.id = :serviceId AND ie.enabled = true")
+    @Query("SELECT ie FROM InboundEndpoint ie JOIN FETCH ie.alertConfig WHERE ie.secureService.id = :serviceId AND ie.enabled = true ORDER BY ie.id ASC")
     List<InboundEndpoint> findBySecureServiceIdWithAlert(@Param("serviceId") String serviceId);
 
     @Query("SELECT ie FROM InboundEndpoint ie JOIN FETCH ie.alertConfig WHERE ie.id = :id AND ie.enabled = true")
@@ -26,16 +26,18 @@ public interface InboundEndpointRepository extends JpaRepository<InboundEndpoint
          + "JOIN FETCH ie.alertConfig "
          + "LEFT JOIN FETCH ie.authConfigs "
          + "LEFT JOIN FETCH ie.accessRules "
-         + "WHERE ie.secureService.id = :serviceId AND ie.enabled = true")
+         + "WHERE ie.secureService.id = :serviceId AND ie.enabled = true "
+         + "ORDER BY ie.id ASC")
     List<InboundEndpoint> findBySecureServiceIdWithAll(@Param("serviceId") String serviceId);
 
-    @Query("SELECT ie FROM InboundEndpoint ie WHERE ie.secureService.id = :serviceId")
+    @Query("SELECT ie FROM InboundEndpoint ie WHERE ie.secureService.id = :serviceId ORDER BY ie.id ASC")
     List<InboundEndpoint> findAllBySecureServiceId(@Param("serviceId") String serviceId);
 
     @Query("SELECT DISTINCT ie FROM InboundEndpoint ie "
          + "JOIN FETCH ie.alertConfig "
          + "LEFT JOIN FETCH ie.authConfigs "
          + "LEFT JOIN FETCH ie.accessRules "
-         + "WHERE ie.secureService.id = :serviceId")
+         + "WHERE ie.secureService.id = :serviceId "
+         + "ORDER BY ie.id ASC")
     List<InboundEndpoint> findAllBySecureServiceIdWithAll(@Param("serviceId") String serviceId);
 }

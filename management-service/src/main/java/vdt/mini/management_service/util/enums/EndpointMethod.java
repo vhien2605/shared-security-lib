@@ -8,5 +8,7 @@ public enum EndpointMethod {
     PATCH,
     HEAD,
     OPTIONS,
-    TRACE
+    TRACE,
+    PUB,
+    SUB
 }

@@ -182,17 +182,15 @@ export default function SettingsManagementPage() {
         const expectedTemplateVersion = savedTemplate?.version ?? template.version ?? 0
 
         if (serviceIds.length > 0) {
-          await Promise.all([
-            apiPost('/central/api/configs/setting-templates/global/apply-to-services', {
-              serviceIds,
-              expectedTemplateVersion,
-            }),
-            apiPost('/central/api/configs/setting-templates/global/apply-to-endpoints', {
-              serviceIds,
-              endpointTypes: ['INBOUND', 'OUTBOUND'],
-              expectedTemplateVersion,
-            }),
-          ])
+          await apiPost('/central/api/configs/setting-templates/global/apply-to-services', {
+            serviceIds,
+            expectedTemplateVersion,
+          })
+          await apiPost('/central/api/configs/setting-templates/global/apply-to-endpoints', {
+            serviceIds,
+            endpointTypes: ['INBOUND', 'OUTBOUND'],
+            expectedTemplateVersion,
+          })
         }
       }
 

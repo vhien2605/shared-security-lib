@@ -138,7 +138,6 @@ public class RedisSettingsSyncService {
                     .map(ac -> new AuthConfigDTO(
                             ac.getType() != null ? ac.getType().name() : null,
                             ac.getSecretRef(),
-                            ac.getPublicKey(),
                             ac.getAlgorithm(),
                             ac.getExpiresAt() != null ? ac.getExpiresAt().toString() : null,
                             null))

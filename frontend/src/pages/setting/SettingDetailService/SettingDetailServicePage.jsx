@@ -546,30 +546,22 @@ export default function SettingDetailServicePage() {
     try {
       if (applyMode === "bulk") {
         const templateBody = buildTemplateBody();
-        const applyBody = {
-          endpointTypes: applyTypes,
-          endpointIds: endpointIdsForApply,
-          expectedTemplateVersion: template.version,
-        };
-        const [putResult, postResult] = await Promise.allSettled([
-          apiPut(
+        const savedTemplate = unwrapResponse(
+          await apiPut(
             `/central/api/configs/services/${serviceId}/setting-template`,
             templateBody,
           ),
-          apiPost(
-            `/central/api/configs/services/${serviceId}/setting-template/apply-to-endpoints`,
-            applyBody,
-          ),
-        ]);
-
-        const failures = [putResult, postResult].filter(
-          (result) => result.status === "rejected",
         );
-        if (failures.length > 0)
-          throw new Error("Một hoặc nhiều thao tác áp dụng template thất bại.");
-
-        unwrapResponse(putResult.value);
-        const applyResponse = unwrapResponse(postResult.value);
+        const applyResponse = unwrapResponse(
+          await apiPost(
+            `/central/api/configs/services/${serviceId}/setting-template/apply-to-endpoints`,
+            {
+              endpointTypes: applyTypes,
+              endpointIds: endpointIdsForApply,
+              expectedTemplateVersion: savedTemplate?.version ?? template.version,
+            },
+          ),
+        );
         const refreshResults = await Promise.allSettled([
           refreshTemplate(),
           refreshInbounds(),

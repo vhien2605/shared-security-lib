@@ -2,7 +2,9 @@ package vdt.mini.management_service.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vdt.mini.management_service.dto.response.InboundEndpointResponse;
@@ -32,7 +34,10 @@ public class ConfigQueryService {
     private final OutboundEndpointRepository outboundEndpointRepository;
 
     public Page<ServiceListResponse> getServices(Pageable pageable) {
-        Page<SecureService> page = serviceRepository.findAll(pageable);
+        Pageable effectivePageable = pageable.getSort().isSorted()
+                ? pageable
+                : PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.ASC, "id"));
+        Page<SecureService> page = serviceRepository.findAll(effectivePageable);
         List<String> ids = page.getContent().stream().map(SecureService::getId).toList();
         Map<String, Long> inboundCountMap = serviceRepository.countInboundsByServiceIds(ids);
         Map<String, Long> outboundCountMap = serviceRepository.countOutboundsByServiceIds(ids);

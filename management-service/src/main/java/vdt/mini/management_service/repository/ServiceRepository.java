@@ -5,11 +5,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import vdt.mini.management_service.entity.SecureService;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 public interface ServiceRepository extends JpaRepository<SecureService, String> {
+
+    List<SecureService> findByIdInOrderByIdAsc(Collection<String> ids);
 
     @Query("SELECT ie.secureService.id, COUNT(ie) FROM InboundEndpoint ie WHERE ie.secureService.id IN :ids AND ie.enabled = true GROUP BY ie.secureService.id")
     List<Object[]> countInboundsByServiceIdsRaw(@Param("ids") List<String> ids);

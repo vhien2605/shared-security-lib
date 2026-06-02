@@ -1,6 +1,7 @@
 package vdt.mini.management_service.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vdt.mini.management_service.dto.request.SettingTemplateUpdateRequest;
@@ -30,7 +31,7 @@ public class SettingTemplateService {
 
     @Transactional(readOnly = true)
     public SettingTemplate getGlobalTemplate() {
-        return settingTemplateRepository.findFirstByLevel(SettingTemplateLevel.GLOBAL)
+        return settingTemplateRepository.findFirstByLevelOrderByIdAsc(SettingTemplateLevel.GLOBAL)
                 .orElseThrow(() -> new AppException(ErrorCode.GLOBAL_TEMPLATE_NOT_FOUND));
     }
 
@@ -76,7 +77,7 @@ public class SettingTemplateService {
 
     @Transactional
     public void ensureServiceTemplatesForExistingServices() {
-        for (SecureService service : serviceRepository.findAll()) {
+        for (SecureService service : serviceRepository.findAll(Sort.by(Sort.Direction.ASC, "id"))) {
             ensureServiceTemplateExists(service.getId());
         }
     }
