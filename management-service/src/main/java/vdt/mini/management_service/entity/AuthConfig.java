@@ -29,8 +29,12 @@ public class AuthConfig extends AbstractAuditable {
     private Client client;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "inbound_endpoint_id", nullable = false)
+    @JoinColumn(name = "inbound_endpoint_id")
     private InboundEndpoint inboundEndpoint;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "service_id")
+    private SecureService service;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", length = 20, nullable = false)

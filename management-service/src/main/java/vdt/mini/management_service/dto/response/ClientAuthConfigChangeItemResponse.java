@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
 @Builder
 public class ClientAuthConfigChangeItemResponse {
     private String authConfigId;
+    private String serviceId;
+    private String serviceName;
     private String inboundEndpointId;
     private AuthType type;
     private Boolean enabled;

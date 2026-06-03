@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 public class ClientAuthConfigCreateRequest {
+    private String serviceId;
     private String inboundEndpointId;
     private String type;
     private String algorithm;

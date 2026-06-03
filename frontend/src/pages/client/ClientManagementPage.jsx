@@ -1,18 +1,18 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createClient, getClients, searchInbounds } from '../../services/clients'
+import { createClient, getClients, searchServices } from '../../services/clients'
 import './ClientManagementPage.css'
 
 const CLIENT_STATUSES = ['ACTIVE', 'INACTIVE', 'REVOKED']
 const CREATE_STATUSES = ['ACTIVE', 'INACTIVE']
 const AUTH_TYPES = ['API_KEY', 'HMAC_SIGNATURE']
-const AUTH_ALGORITHMS = ['HMAC_SHA256', 'HMAC_SHA512']
+const AUTH_ALGORITHMS = ['HmacSHA256', 'HmacSHA384', 'HmacSHA512']
 const DEFAULT_PAGE_SIZE = 20
 
 const emptyAuthConfig = () => ({
-  inboundEndpointName: '',
-  inboundEndpointId: '',
+  serviceName: '',
+  serviceId: '',
   type: 'API_KEY',
-  algorithm: 'HMAC_SHA256',
+  algorithm: 'HmacSHA256',
   expiresAt: '',
 })
 
@@ -96,21 +96,21 @@ function buildCreateBody(form) {
   if (!name) throw new Error('Tên client là bắt buộc.')
   if (contactEmail && !validateEmail(contactEmail)) throw new Error('Email liên hệ không hợp lệ.')
   if (!CREATE_STATUSES.includes(form.status)) throw new Error('Trạng thái tạo client không hợp lệ.')
-  if (form.authConfigs.some((config) => config.inboundEndpointName.trim() && !config.inboundEndpointId.trim())) {
-    throw new Error('Vui lòng chọn inbound từ danh sách gợi ý để tự điền Endpoint ID.')
+  if (form.authConfigs.some((config) => config.serviceName.trim() && !config.serviceId.trim())) {
+    throw new Error('Vui lòng chọn service từ danh sách gợi ý để tự điền Service ID.')
   }
 
   const authConfigs = form.authConfigs
-    .filter((config) => config.inboundEndpointId.trim())
+    .filter((config) => config.serviceId.trim())
     .map((config) => {
       if (!AUTH_TYPES.includes(config.type)) throw new Error('Loại auth config không hợp lệ.')
       const item = {
-        inboundEndpointId: config.inboundEndpointId.trim(),
+        serviceId: config.serviceId.trim(),
         type: config.type,
       }
       const expiresAt = toDateTime(config.expiresAt)
       if (expiresAt) item.expiresAt = expiresAt
-      if (config.type === 'HMAC_SIGNATURE') item.algorithm = config.algorithm || 'HMAC_SHA256'
+      if (config.type === 'HMAC_SIGNATURE') item.algorithm = config.algorithm || 'HmacSHA256'
       return item
     })
 
@@ -148,8 +148,8 @@ export default function ClientManagementPage() {
   const [formError, setFormError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createdCredential, setCreatedCredential] = useState(null)
-  const [inboundSuggestions, setInboundSuggestions] = useState({})
-  const inboundSearchRequestRef = useRef(0)
+  const [serviceSuggestions, setServiceSuggestions] = useState({})
+  const serviceSearchRequestRef = useRef(0)
 
   const loadClients = useCallback(async ({ page = pageInfo.number, size = pageInfo.size, nextFilters = filters } = {}) => {
     setIsLoading(true)
@@ -207,49 +207,51 @@ export default function ClientManagementPage() {
       authConfigs: current.authConfigs.map((config, configIndex) => {
         if (configIndex !== index) return config
         const nextConfig = { ...config, [field]: value }
-        if (field === 'type' && value === 'API_KEY') nextConfig.algorithm = 'HMAC_SHA256'
+        if (field === 'type' && value === 'API_KEY') nextConfig.algorithm = 'HmacSHA256'
         return nextConfig
       }),
     }))
   }, [])
 
-  const updateInboundName = useCallback(async (index, value) => {
+  const updateServiceName = useCallback(async (index, value) => {
     setForm((current) => ({
       ...current,
       authConfigs: current.authConfigs.map((config, configIndex) => (
-        configIndex === index ? { ...config, inboundEndpointName: value, inboundEndpointId: '' } : config
+        configIndex === index ? { ...config, serviceName: value, serviceId: '' } : config
       )),
     }))
 
     const keyword = value.trim()
-    const requestId = inboundSearchRequestRef.current + 1
-    inboundSearchRequestRef.current = requestId
+    const requestId = serviceSearchRequestRef.current + 1
+    serviceSearchRequestRef.current = requestId
     if (!keyword) {
-      setInboundSuggestions((current) => ({ ...current, [index]: [] }))
+      setServiceSuggestions((current) => ({ ...current, [index]: [] }))
       return
     }
 
     try {
-      const response = await searchInbounds({ name: keyword, size: 10 })
+      const response = await searchServices({ name: keyword, size: 10 })
       const items = unwrapResponse(response)
-      if (inboundSearchRequestRef.current !== requestId) return
-      setInboundSuggestions((current) => ({ ...current, [index]: Array.isArray(items) ? items : [] }))
-    } catch {
-      if (inboundSearchRequestRef.current !== requestId) return
-      setInboundSuggestions((current) => ({ ...current, [index]: [] }))
+      if (serviceSearchRequestRef.current !== requestId) return
+      setServiceSuggestions((current) => ({ ...current, [index]: Array.isArray(items) ? items : [] }))
+    } catch (searchError) {
+      if (serviceSearchRequestRef.current !== requestId) return
+      setServiceSuggestions((current) => ({ ...current, [index]: [] }))
+      setFormError(searchError.message || 'Không thể tìm service.')
     }
   }, [])
 
-  const selectInbound = useCallback((index, inbound) => {
+  const selectService = useCallback((index, service) => {
     setForm((current) => ({
       ...current,
       authConfigs: current.authConfigs.map((config, configIndex) => (
         configIndex === index
-          ? { ...config, inboundEndpointName: inbound?.name || '', inboundEndpointId: inbound?.id || '' }
+          ? { ...config, serviceName: service?.name || '', serviceId: service?.id || '' }
           : config
       )),
     }))
-    setInboundSuggestions((current) => ({ ...current, [index]: [] }))
+    setServiceSuggestions((current) => ({ ...current, [index]: [] }))
+    setFormError('')
   }, [])
 
   const addAuthConfig = useCallback(() => {
@@ -258,7 +260,7 @@ export default function ClientManagementPage() {
 
   const removeAuthConfig = useCallback((index) => {
     setForm((current) => ({ ...current, authConfigs: current.authConfigs.filter((_, configIndex) => configIndex !== index) }))
-    setInboundSuggestions((current) => Object.entries(current).reduce((nextSuggestions, [key, value]) => {
+    setServiceSuggestions((current) => Object.entries(current).reduce((nextSuggestions, [key, value]) => {
       const suggestionIndex = Number(key)
       if (suggestionIndex < index) nextSuggestions[suggestionIndex] = value
       if (suggestionIndex > index) nextSuggestions[suggestionIndex - 1] = value
@@ -270,7 +272,7 @@ export default function ClientManagementPage() {
     setForm(emptyForm())
     setFormError('')
     setCreatedCredential(null)
-    setInboundSuggestions({})
+    setServiceSuggestions({})
     setIsModalOpen(true)
   }, [])
 
@@ -390,9 +392,9 @@ export default function ClientManagementPage() {
           onSubmit={handleCreateClient}
           onFormChange={updateForm}
           onAuthConfigChange={updateAuthConfig}
-          onInboundNameChange={updateInboundName}
-          onInboundSelect={selectInbound}
-          inboundSuggestions={inboundSuggestions}
+          onServiceNameChange={updateServiceName}
+          onServiceSelect={selectService}
+          serviceSuggestions={serviceSuggestions}
           onAddAuthConfig={addAuthConfig}
           onRemoveAuthConfig={removeAuthConfig}
         />
@@ -487,7 +489,7 @@ function StatCard({ icon, label, value, variant }) {
   )
 }
 
-const ClientCreateModal = memo(function ClientCreateModal({ form, error, credential, isSubmitting, onClose, onSubmit, onFormChange, onAuthConfigChange, onInboundNameChange, onInboundSelect, inboundSuggestions, onAddAuthConfig, onRemoveAuthConfig }) {
+const ClientCreateModal = memo(function ClientCreateModal({ form, error, credential, isSubmitting, onClose, onSubmit, onFormChange, onAuthConfigChange, onServiceNameChange, onServiceSelect, serviceSuggestions, onAddAuthConfig, onRemoveAuthConfig }) {
   return (
     <div className="client-modal" role="dialog" aria-modal="true" aria-labelledby="client-modal-title">
       <button type="button" className="client-modal__backdrop" aria-label="Đóng modal" onClick={onClose} />
@@ -530,13 +532,13 @@ const ClientCreateModal = memo(function ClientCreateModal({ form, error, credent
             <div className="client-auth-list">
               {form.authConfigs.map((config, index) => (
                 <div className="client-auth-row" key={`${index}-${config.type}`}>
-                  <InboundSearchField
-                    value={config.inboundEndpointName}
-                    suggestions={inboundSuggestions[index] || []}
-                    onChange={(value) => onInboundNameChange(index, value)}
-                    onSelect={(inbound) => onInboundSelect(index, inbound)}
+                  <ServiceSearchField
+                    value={config.serviceName}
+                    suggestions={serviceSuggestions[index] || []}
+                    onChange={(value) => onServiceNameChange(index, value)}
+                    onSelect={(service) => onServiceSelect(index, service)}
                   />
-                  <TextField label="Endpoint ID" value={config.inboundEndpointId} onChange={(value) => onAuthConfigChange(index, 'inboundEndpointId', value)} placeholder="endpoint-id" />
+                  <TextField label="Service ID" value={config.serviceId} onChange={(value) => onAuthConfigChange(index, 'serviceId', value)} placeholder="service-id" readOnly />
                   <label className="client-field">
                     <span>Type</span>
                     <select value={config.type} onChange={(event) => onAuthConfigChange(index, 'type', event.target.value)}>
@@ -556,7 +558,7 @@ const ClientCreateModal = memo(function ClientCreateModal({ form, error, credent
                 </div>
               ))}
             </div>
-            <p className="client-form-hint">* Credential sẽ được backend khởi tạo tự động sau khi lưu và chỉ hiển thị một lần nếu API trả về.</p>
+            <p className="client-form-hint">* Auth config áp dụng cho toàn service; inbound access rules vẫn được quản lý riêng. Credential sẽ được backend khởi tạo tự động và chỉ hiển thị một lần nếu API trả về.</p>
           </section>
 
           {credential ? <CredentialBox credential={credential} /> : null}
@@ -575,17 +577,17 @@ const ClientCreateModal = memo(function ClientCreateModal({ form, error, credent
   )
 })
 
-function InboundSearchField({ value, suggestions, onChange, onSelect }) {
+function ServiceSearchField({ value, suggestions, onChange, onSelect }) {
   return (
     <div className="client-field client-inbound-search">
-      <span>Tên inbound</span>
-      <input type="text" value={value || ''} onChange={(event) => onChange(event.target.value)} placeholder="Nhập tên inbound" autoComplete="off" />
+      <span>Tên service</span>
+      <input type="text" value={value || ''} onChange={(event) => onChange(event.target.value)} placeholder="Nhập tên service" autoComplete="off" />
       {suggestions.length > 0 ? (
         <div className="client-inbound-suggestions">
-          {suggestions.map((inbound) => (
-            <button type="button" key={inbound.id} onClick={() => onSelect(inbound)}>
-              <strong>{inbound.name || inbound.id}</strong>
-              <span>{inbound.path || inbound.topic || inbound.serviceId || inbound.id}</span>
+          {suggestions.map((service) => (
+            <button type="button" key={service.id} onClick={() => onSelect(service)}>
+              <strong>{service.name || service.id}</strong>
+              <span>{[service.baseUrl, service.status, service.id].filter(Boolean).join(' · ')}</span>
             </button>
           ))}
         </div>
@@ -594,11 +596,11 @@ function InboundSearchField({ value, suggestions, onChange, onSelect }) {
   )
 }
 
-function TextField({ label, value, onChange, type = 'text', placeholder = '', required = false }) {
+function TextField({ label, value, onChange, type = 'text', placeholder = '', required = false, readOnly = false }) {
   return (
     <label className="client-field">
       <span>{label}</span>
-      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} required={required} />
+      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} required={required} readOnly={readOnly} />
     </label>
   )
 }

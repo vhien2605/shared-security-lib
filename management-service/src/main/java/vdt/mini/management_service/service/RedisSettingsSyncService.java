@@ -10,8 +10,10 @@ import vdt.mini.management_service.dto.sync.AuthConfigDTO;
 import vdt.mini.management_service.dto.sync.InboundSettingsSyncDTO;
 import vdt.mini.management_service.dto.sync.OutboundSettingsSyncDTO;
 import vdt.mini.management_service.dto.sync.SettingsChangeMessage;
+import vdt.mini.management_service.entity.AuthConfig;
 import vdt.mini.management_service.entity.InboundEndpoint;
 import vdt.mini.management_service.entity.OutboundEndpoint;
+import vdt.mini.management_service.repository.AuthConfigRepository;
 import vdt.mini.management_service.repository.InboundEndpointRepository;
 import vdt.mini.management_service.repository.OutboundEndpointRepository;
 import vdt.mini.management_service.util.enums.EndpointStatus;
@@ -27,15 +29,18 @@ public class RedisSettingsSyncService {
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final AuthConfigRepository authConfigRepository;
     private final InboundEndpointRepository inboundEndpointRepository;
     private final OutboundEndpointRepository outboundEndpointRepository;
 
     public RedisSettingsSyncService(StringRedisTemplate redisTemplate,
-                                    ObjectMapper objectMapper,
-                                    InboundEndpointRepository inboundEndpointRepository,
-                                    OutboundEndpointRepository outboundEndpointRepository) {
+                                     ObjectMapper objectMapper,
+                                     AuthConfigRepository authConfigRepository,
+                                     InboundEndpointRepository inboundEndpointRepository,
+                                     OutboundEndpointRepository outboundEndpointRepository) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.authConfigRepository = authConfigRepository;
         this.inboundEndpointRepository = inboundEndpointRepository;
         this.outboundEndpointRepository = outboundEndpointRepository;
     }
@@ -137,19 +142,18 @@ public class RedisSettingsSyncService {
             dto.setAlertThrottleMinutes(ep.getAlertConfig().getThrottleMinutes());
             dto.setAlertChannels(ep.getAlertConfig().getChannels());
         }
-        // Auth configs and access rules are loaded from entity relationships
-        if (ep.getAuthConfigs() != null) {
-            dto.setAuthConfigs(ep.getAuthConfigs().stream()
-                    .map(ac -> new AuthConfigDTO(
-                            ac.getType() != null ? ac.getType().name() : null,
-                            ac.getSecretRef(),
-                            ac.getAlgorithm(),
-                            ac.getExpiresAt() != null ? ac.getExpiresAt().toString() : null,
-                            null))
-                    .toList());
-        } else {
-            dto.setAuthConfigs(Collections.emptyList());
-        }
+        String serviceId = ep.getSecureService() != null ? ep.getSecureService().getId() : null;
+        List<AuthConfig> authConfigs = serviceId != null
+                ? authConfigRepository.findEnabledByServiceScope(serviceId)
+                : Collections.emptyList();
+        dto.setAuthConfigs(authConfigs.stream()
+                .map(ac -> new AuthConfigDTO(
+                        ac.getType() != null ? ac.getType().name() : null,
+                        ac.getSecretRef(),
+                        ac.getAlgorithm(),
+                        ac.getExpiresAt() != null ? ac.getExpiresAt().toString() : null,
+                        null))
+                .toList());
         if (ep.getAccessRules() != null) {
             dto.setAccessRules(ep.getAccessRules().stream()
                     .map(ar -> new AccessRuleDTO(ar.getType() != null ? ar.getType().name() : null,

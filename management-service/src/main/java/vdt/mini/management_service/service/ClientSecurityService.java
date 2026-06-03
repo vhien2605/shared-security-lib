@@ -29,11 +29,13 @@ import vdt.mini.management_service.entity.AuditLog;
 import vdt.mini.management_service.entity.AuthConfig;
 import vdt.mini.management_service.entity.Client;
 import vdt.mini.management_service.entity.InboundEndpoint;
+import vdt.mini.management_service.entity.SecureService;
 import vdt.mini.management_service.exception.AppException;
 import vdt.mini.management_service.repository.AuditLogRepository;
 import vdt.mini.management_service.repository.AuthConfigRepository;
 import vdt.mini.management_service.repository.ClientRepository;
 import vdt.mini.management_service.repository.InboundEndpointRepository;
+import vdt.mini.management_service.repository.ServiceRepository;
 import vdt.mini.management_service.util.enums.AuthType;
 import vdt.mini.management_service.util.enums.ClientStatus;
 import vdt.mini.management_service.util.enums.ErrorCode;
@@ -56,25 +58,33 @@ public class ClientSecurityService {
     private static final int CLIENT_CODE_MAX_ATTEMPTS = 10;
     private static final String CLIENT_CODE_PREFIX = "CLIENT-";
     private static final String HMAC_SHA256 = "HMAC_SHA256";
+    private static final String HMAC_SHA256_JCA = "HmacSHA256";
+    private static final String HMAC_SHA384 = "HMAC_SHA384";
+    private static final String HMAC_SHA384_JCA = "HmacSHA384";
+    private static final String HMAC_SHA512 = "HMAC_SHA512";
+    private static final String HMAC_SHA512_JCA = "HmacSHA512";
 
     private final ClientRepository clientRepository;
     private final AuthConfigRepository authConfigRepository;
     private final InboundEndpointRepository inboundEndpointRepository;
+    private final ServiceRepository serviceRepository;
     private final AuditLogRepository auditLogRepository;
     private final ClientCredentialService credentialService;
     private final ClientSecurityEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
 
     public ClientSecurityService(ClientRepository clientRepository,
-                                 AuthConfigRepository authConfigRepository,
-                                 InboundEndpointRepository inboundEndpointRepository,
-                                 AuditLogRepository auditLogRepository,
+                                  AuthConfigRepository authConfigRepository,
+                                  InboundEndpointRepository inboundEndpointRepository,
+                                  ServiceRepository serviceRepository,
+                                  AuditLogRepository auditLogRepository,
                                  ClientCredentialService credentialService,
                                  ClientSecurityEventPublisher eventPublisher,
                                  ObjectMapper objectMapper) {
         this.clientRepository = clientRepository;
         this.authConfigRepository = authConfigRepository;
         this.inboundEndpointRepository = inboundEndpointRepository;
+        this.serviceRepository = serviceRepository;
         this.auditLogRepository = auditLogRepository;
         this.credentialService = credentialService;
         this.eventPublisher = eventPublisher;
@@ -113,13 +123,15 @@ public class ClientSecurityService {
 
         List<ClientCredentialResponse> credentials = new ArrayList<>();
         List<String> authConfigIds = new ArrayList<>();
+        List<String> serviceIds = new ArrayList<>();
         for (ClientAuthConfigCreateRequest authConfigRequest : safeList(request.getAuthConfigs())) {
             AuthConfig authConfig = createAuthConfig(client, authConfigRequest, credentials);
             authConfigRepository.save(authConfig);
             authConfigIds.add(authConfig.getId());
+            serviceIds.add(resolveAuthConfigService(authConfig).getId());
         }
         writeAudit(actor(authentication), "CLIENT_CREATED", client.getId(), Map.of("authConfigIds", authConfigIds));
-        registerAfterCommit("CLIENT_CREATED", client.getId(), authConfigIds, List.of("client", "authConfigs"));
+        registerAfterCommit("CLIENT_CREATED", client.getId(), authConfigIds, serviceIds, List.of("client", "authConfigs"));
 
         return ClientCreateResponse.builder()
                 .clientId(client.getId())
@@ -153,7 +165,7 @@ public class ClientSecurityService {
         auditPayload.put("newStatus", client.getStatus());
         auditPayload.put("authConfigIds", changeSet.allIds());
         writeAudit(actor, "CLIENT_UPDATED", client.getId(), auditPayload);
-        registerAfterCommit("CLIENT_UPDATED", client.getId(), changeSet.allIds(), changedFields);
+        registerAfterCommit("CLIENT_UPDATED", client.getId(), changeSet.allIds(), changeSet.serviceIds(), changedFields);
 
         return ClientUpdateResponse.builder()
                 .id(client.getId())
@@ -176,11 +188,8 @@ public class ClientSecurityService {
         if (client.getStatus() == ClientStatus.REVOKED) {
             throw new AppException(ErrorCode.INVALID_CLIENT_STATUS_TRANSITION, "Cannot add auth config to revoked client");
         }
-        if (authConfigRepository.existsByClientIdAndInboundEndpointIdAndEnabledTrue(client.getId(), request.getInboundEndpointId())) {
-            throw new AppException(ErrorCode.AUTH_CONFIG_CONFLICT);
-        }
-        InboundEndpoint endpoint = inboundEndpointRepository.findById(request.getInboundEndpointId())
-                .orElseThrow(() -> new AppException(ErrorCode.INBOUND_ENDPOINT_NOT_FOUND));
+        AuthConfigScope scope = resolveAuthConfigScope(request);
+        ensureNoEnabledConflict(client.getId(), scope.service().getId(), null);
         AuthType type = parseAuthType(request.getType());
         ClientCredentialService.CredentialMaterial credential = credentialService.getOrCreateCredential(client.getId(), type);
         ClientCredentialResponse oneTimeCredential = credentialService.toOneTimeResponse(type, credential);
@@ -191,9 +200,10 @@ public class ClientSecurityService {
         AuthConfig authConfig = new AuthConfig();
         authConfig.setId(UUID.randomUUID().toString());
         authConfig.setClient(client);
-        authConfig.setInboundEndpoint(endpoint);
+        authConfig.setService(scope.service());
+        authConfig.setInboundEndpoint(scope.legacyInboundEndpoint());
         authConfig.setType(type);
-        authConfig.setAlgorithm(type == AuthType.HMAC_SIGNATURE ? HMAC_SHA256 : null);
+        authConfig.setAlgorithm(type == AuthType.HMAC_SIGNATURE ? normalizeHmacAlgorithm(request.getAlgorithm()) : null);
         authConfig.setExpiresAt(request.getExpiresAt());
         authConfig.setEnabled(true);
         authConfig.setSecretRef(credential.secretRef());
@@ -240,6 +250,7 @@ public class ClientSecurityService {
         List<ClientAuthConfigChangeItemResponse> updated = new ArrayList<>();
         List<ClientAuthConfigChangeItemResponse> removed = new ArrayList<>();
         List<ClientCredentialResponse> ignoredPlaintextCredentials = new ArrayList<>();
+        ensureNoDuplicateServices(safeList(request.getAdd()));
 
         for (String authConfigId : safeList(request.getRemoveAuthConfigIds())) {
             AuthConfig authConfig = loadOwnedAuthConfig(client.getId(), authConfigId);
@@ -254,7 +265,7 @@ public class ClientSecurityService {
             AuthConfig authConfig = loadOwnedAuthConfig(client.getId(), updateRequest.getAuthConfigId());
             if (updateRequest.getEnabled() != null) {
                 if (Boolean.TRUE.equals(updateRequest.getEnabled())) {
-                    ensureNoEnabledConflict(client.getId(), authConfig.getInboundEndpoint().getId(), authConfig.getId());
+                    ensureNoEnabledConflict(client.getId(), resolveAuthConfigService(authConfig).getId(), authConfig.getId());
                     authConfig.setDisabledAt(null);
                     authConfig.setDisabledBy(null);
                 } else {
@@ -286,8 +297,8 @@ public class ClientSecurityService {
         return authConfig;
     }
 
-    private void ensureNoEnabledConflict(String clientId, String endpointId, String excludeId) {
-        if (!authConfigRepository.findEnabledConflicts(clientId, endpointId, excludeId).isEmpty()) {
+    private void ensureNoEnabledConflict(String clientId, String serviceId, String excludeId) {
+        if (!authConfigRepository.findEnabledServiceConflicts(clientId, serviceId, excludeId).isEmpty()) {
             throw new AppException(ErrorCode.AUTH_CONFIG_CONFLICT);
         }
     }
@@ -298,7 +309,7 @@ public class ClientSecurityService {
         }
         requireNotBlank(request.getName(), "name is required");
         validateEmail(request.getContactEmail());
-        ensureNoDuplicateEndpoints(safeList(request.getAuthConfigs()));
+        ensureNoDuplicateServices(safeList(request.getAuthConfigs()));
     }
 
     private String generateUniqueClientCode() {
@@ -319,7 +330,9 @@ public class ClientSecurityService {
         if (request == null) {
             throw new AppException(ErrorCode.INVALID_INPUT, "authConfig is required");
         }
-        requireNotBlank(request.getInboundEndpointId(), "inboundEndpointId is required");
+        if (isBlank(request.getServiceId()) && isBlank(request.getInboundEndpointId())) {
+            throw new AppException(ErrorCode.INVALID_INPUT, "serviceId is required");
+        }
         AuthType type = parseAuthType(request.getType());
         if (type == AuthType.HMAC_SIGNATURE) {
             normalizeHmacAlgorithm(request.getAlgorithm());
@@ -335,13 +348,55 @@ public class ClientSecurityService {
         requireNotBlank(request.getAuthConfigId(), "authConfigId is required");
     }
 
-    private void ensureNoDuplicateEndpoints(List<ClientAuthConfigCreateRequest> requests) {
-        Set<String> endpointIds = new HashSet<>();
+    private void ensureNoDuplicateServices(List<ClientAuthConfigCreateRequest> requests) {
+        Set<String> serviceIds = new HashSet<>();
         for (ClientAuthConfigCreateRequest request : requests) {
-            if (request != null && request.getInboundEndpointId() != null && !endpointIds.add(request.getInboundEndpointId())) {
-                throw new AppException(ErrorCode.AUTH_CONFIG_CONFLICT, "Duplicate inboundEndpointId in request");
+            if (request == null) {
+                continue;
+            }
+            AuthConfigScope scope = resolveAuthConfigScope(request);
+            if (!serviceIds.add(scope.service().getId())) {
+                throw new AppException(ErrorCode.AUTH_CONFIG_CONFLICT, "Duplicate serviceId in request");
             }
         }
+    }
+
+    private AuthConfigScope resolveAuthConfigScope(ClientAuthConfigCreateRequest request) {
+        SecureService requestedService = null;
+        InboundEndpoint legacyEndpoint = null;
+
+        if (!isBlank(request.getServiceId())) {
+            requestedService = serviceRepository.findById(request.getServiceId().trim())
+                    .orElseThrow(() -> new AppException(ErrorCode.SERVICE_NOT_FOUND));
+        }
+        if (!isBlank(request.getInboundEndpointId())) {
+            legacyEndpoint = inboundEndpointRepository.findById(request.getInboundEndpointId().trim())
+                    .orElseThrow(() -> new AppException(ErrorCode.INBOUND_ENDPOINT_NOT_FOUND));
+            SecureService derivedService = legacyEndpoint.getSecureService();
+            if (derivedService == null) {
+                throw new AppException(ErrorCode.SERVICE_NOT_FOUND, "Inbound endpoint has no owning service");
+            }
+            if (requestedService != null && !requestedService.getId().equals(derivedService.getId())) {
+                throw new AppException(ErrorCode.INVALID_INPUT, "serviceId does not match inboundEndpointId owning service");
+            }
+            requestedService = derivedService;
+        }
+
+        if (requestedService == null) {
+            throw new AppException(ErrorCode.INVALID_INPUT, "serviceId is required");
+        }
+        return new AuthConfigScope(requestedService, legacyEndpoint);
+    }
+
+    private SecureService resolveAuthConfigService(AuthConfig authConfig) {
+        if (authConfig.getService() != null) {
+            return authConfig.getService();
+        }
+        InboundEndpoint endpoint = authConfig.getInboundEndpoint();
+        if (endpoint != null && endpoint.getSecureService() != null) {
+            return endpoint.getSecureService();
+        }
+        throw new AppException(ErrorCode.SERVICE_NOT_FOUND, "Auth config has no service scope");
     }
 
     private void validateStatusTransition(ClientStatus current, ClientStatus requested) {
@@ -352,10 +407,21 @@ public class ClientSecurityService {
 
     private String normalizeHmacAlgorithm(String algorithm) {
         requireNotBlank(algorithm, "algorithm is required for HMAC_SIGNATURE");
-        if (!HMAC_SHA256.equals(algorithm)) {
-            throw new AppException(ErrorCode.INVALID_INPUT, "algorithm must be HMAC_SHA256");
+        String trimmedAlgorithm = algorithm.trim();
+        if (!isSupportedHmacAlgorithm(trimmedAlgorithm)) {
+            throw new AppException(ErrorCode.INVALID_INPUT,
+                    "algorithm must be HmacSHA256, HmacSHA384, HmacSHA512 or legacy HMAC_SHA256/HMAC_SHA384/HMAC_SHA512");
         }
-        return HMAC_SHA256;
+        return trimmedAlgorithm;
+    }
+
+    private boolean isSupportedHmacAlgorithm(String algorithm) {
+        return HMAC_SHA256.equals(algorithm)
+                || HMAC_SHA256_JCA.equals(algorithm)
+                || HMAC_SHA384.equals(algorithm)
+                || HMAC_SHA384_JCA.equals(algorithm)
+                || HMAC_SHA512.equals(algorithm)
+                || HMAC_SHA512_JCA.equals(algorithm);
     }
 
     private ClientStatus parseStatus(String status, boolean defaultActive) {
@@ -371,10 +437,13 @@ public class ClientSecurityService {
 
     private AuthType parseAuthType(String type) {
         requireNotBlank(type, "type is required");
+        if ("HMAC".equals(type.trim())) {
+            return AuthType.HMAC_SIGNATURE;
+        }
         try {
-            return AuthType.valueOf(type);
+            return AuthType.valueOf(type.trim());
         } catch (IllegalArgumentException ex) {
-            throw new AppException(ErrorCode.INVALID_INPUT, "type must be API_KEY or HMAC_SIGNATURE");
+            throw new AppException(ErrorCode.INVALID_INPUT, "type must be API_KEY, HMAC, or HMAC_SIGNATURE");
         }
     }
 
@@ -385,9 +454,13 @@ public class ClientSecurityService {
     }
 
     private void requireNotBlank(String value, String message) {
-        if (value == null || value.isBlank()) {
+        if (isBlank(value)) {
             throw new AppException(ErrorCode.INVALID_INPUT, message);
         }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private String normalizeBlank(String value) {
@@ -422,13 +495,14 @@ public class ClientSecurityService {
         auditLogRepository.save(auditLog);
     }
 
-    private void registerAfterCommit(String eventType, String clientId, List<String> authConfigIds, List<String> changedFields) {
+    private void registerAfterCommit(String eventType, String clientId, List<String> authConfigIds, List<String> serviceIds, List<String> changedFields) {
         ClientSecurityConfigEvent event = ClientSecurityConfigEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType(eventType)
                 .occurredAt(LocalDateTime.now())
                 .clientId(clientId)
                 .authConfigIds(authConfigIds)
+                .serviceIds(serviceIds)
                 .changedFields(changedFields)
                 .version(System.currentTimeMillis())
                 .build();
@@ -467,10 +541,13 @@ public class ClientSecurityService {
 
     private ClientAuthConfigResponse toAuthConfigResponse(AuthConfig authConfig) {
         InboundEndpoint endpoint = authConfig.getInboundEndpoint();
+        SecureService service = resolveAuthConfigService(authConfig);
         return ClientAuthConfigResponse.builder()
                 .id(authConfig.getId())
-                .inboundEndpointId(endpoint.getId())
-                .endpointCode(endpoint.getName())
+                .serviceId(service.getId())
+                .serviceName(service.getName())
+                .inboundEndpointId(endpoint != null ? endpoint.getId() : null)
+                .endpointCode(endpoint != null ? endpoint.getName() : null)
                 .type(authConfig.getType())
                 .algorithm(authConfig.getAlgorithm())
                 .enabled(authConfig.getEnabled())
@@ -482,15 +559,22 @@ public class ClientSecurityService {
     }
 
     private ClientAuthConfigChangeItemResponse toChangeItem(AuthConfig authConfig) {
+        SecureService service = resolveAuthConfigService(authConfig);
+        InboundEndpoint endpoint = authConfig.getInboundEndpoint();
         return ClientAuthConfigChangeItemResponse.builder()
                 .authConfigId(authConfig.getId())
-                .inboundEndpointId(authConfig.getInboundEndpoint().getId())
+                .serviceId(service.getId())
+                .serviceName(service.getName())
+                .inboundEndpointId(endpoint != null ? endpoint.getId() : null)
                 .type(authConfig.getType())
                 .enabled(authConfig.getEnabled())
                 .secretRef(authConfig.getSecretRef())
                 .expiresAt(authConfig.getExpiresAt())
                 .disabledAt(authConfig.getDisabledAt())
                 .build();
+    }
+
+    private record AuthConfigScope(SecureService service, InboundEndpoint legacyInboundEndpoint) {
     }
 
     private record AuthChangeSet(List<ClientAuthConfigChangeItemResponse> created,
@@ -502,6 +586,14 @@ public class ClientSecurityService {
             updated.forEach(item -> ids.add(item.getAuthConfigId()));
             removed.forEach(item -> ids.add(item.getAuthConfigId()));
             return ids;
+        }
+
+        List<String> serviceIds() {
+            Set<String> ids = new HashSet<>();
+            created.forEach(item -> ids.add(item.getServiceId()));
+            updated.forEach(item -> ids.add(item.getServiceId()));
+            removed.forEach(item -> ids.add(item.getServiceId()));
+            return ids.stream().filter(id -> id != null && !id.isBlank()).toList();
         }
     }
 }

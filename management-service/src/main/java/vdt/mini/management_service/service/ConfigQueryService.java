@@ -33,6 +33,8 @@ import java.util.Map;
 public class ConfigQueryService {
     private static final int DEFAULT_INBOUND_SEARCH_SIZE = 10;
     private static final int MAX_INBOUND_SEARCH_SIZE = 20;
+    private static final int DEFAULT_SERVICE_SEARCH_SIZE = 10;
+    private static final int MAX_SERVICE_SEARCH_SIZE = 20;
 
     private final ServiceRepository serviceRepository;
     private final InboundEndpointRepository inboundEndpointRepository;
@@ -93,6 +95,17 @@ public class ConfigQueryService {
         return inboundEndpointRepository.searchEnabledByName(namePattern, PageRequest.of(0, safeSize))
                 .stream()
                 .map(this::toInboundResponse)
+                .toList();
+    }
+
+    public List<ServiceListResponse> searchServicesByName(String name, Integer size) {
+        int safeSize = size == null ? DEFAULT_SERVICE_SEARCH_SIZE : Math.min(Math.max(size, 1), MAX_SERVICE_SEARCH_SIZE);
+        List<SecureService> services = serviceRepository.searchByName(toNamePattern(name), PageRequest.of(0, safeSize));
+        List<String> ids = services.stream().map(SecureService::getId).toList();
+        Map<String, Long> inboundCountMap = ids.isEmpty() ? Collections.emptyMap() : serviceRepository.countInboundsByServiceIds(ids);
+        Map<String, Long> outboundCountMap = ids.isEmpty() ? Collections.emptyMap() : serviceRepository.countOutboundsByServiceIds(ids);
+        return services.stream()
+                .map(service -> toServiceListResponse(service, inboundCountMap, outboundCountMap))
                 .toList();
     }
 
@@ -172,6 +185,22 @@ public class ConfigQueryService {
                 .alertChannels(ep.getAlertConfig() != null ? ep.getAlertConfig().getChannels() : null)
                 .createdAt(ep.getCreatedAt())
                 .updatedAt(ep.getUpdatedAt())
+                .build();
+    }
+
+    private ServiceListResponse toServiceListResponse(SecureService service,
+                                                      Map<String, Long> inboundCountMap,
+                                                      Map<String, Long> outboundCountMap) {
+        return ServiceListResponse.builder()
+                .id(service.getId())
+                .name(service.getName())
+                .baseUrl(service.getBaseUrl())
+                .status(serviceStatus(service))
+                .description(service.getDescription())
+                .inboundCount(inboundCountMap.getOrDefault(service.getId(), 0L).intValue())
+                .outboundCount(outboundCountMap.getOrDefault(service.getId(), 0L).intValue())
+                .createdAt(service.getCreatedAt())
+                .updatedAt(service.getUpdatedAt())
                 .build();
     }
 

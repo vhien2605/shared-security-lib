@@ -26,6 +26,7 @@ public interface ClientRepository extends JpaRepository<Client, String> {
     @Query("SELECT DISTINCT c FROM Client c "
             + "LEFT JOIN FETCH c.authConfigs ac "
             + "LEFT JOIN FETCH ac.inboundEndpoint "
+            + "LEFT JOIN FETCH ac.service "
             + "WHERE c.id = :id")
     Optional<Client> findByIdWithAuthConfigs(@Param("id") String id);
 }

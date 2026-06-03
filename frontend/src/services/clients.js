@@ -2,6 +2,7 @@ import { apiGet, apiPost } from './api'
 
 const CLIENTS_PATH = '/api/admin/clients'
 const INBOUNDS_SEARCH_PATH = '/central/api/configs/inbound-endpoints/search'
+const SERVICES_SEARCH_PATH = '/central/api/configs/services/search'
 
 function buildQuery(params) {
   const query = new URLSearchParams()
@@ -26,4 +27,8 @@ export function createClient(body) {
 
 export function searchInbounds({ name = '', size = 10 } = {}) {
   return apiGet(`${INBOUNDS_SEARCH_PATH}${buildQuery({ name, size })}`)
+}
+
+export function searchServices({ name = '', size = 10 } = {}) {
+  return apiGet(`${SERVICES_SEARCH_PATH}${buildQuery({ name, size })}`)
 }

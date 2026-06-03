@@ -18,6 +18,7 @@ public class ClientSecurityConfigEvent {
     private String inboundEndpointId;
     private String accessRuleId;
     private List<String> authConfigIds;
+    private List<String> serviceIds;
     private List<String> changedFields;
     private long version;
 }
