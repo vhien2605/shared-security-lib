@@ -1,6 +1,7 @@
 package vdt.mini.management_service.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import vdt.mini.management_service.entity.InboundEndpoint;
@@ -32,6 +33,14 @@ public interface InboundEndpointRepository extends JpaRepository<InboundEndpoint
 
     @Query("SELECT ie FROM InboundEndpoint ie WHERE ie.secureService.id = :serviceId ORDER BY ie.id ASC")
     List<InboundEndpoint> findAllBySecureServiceId(@Param("serviceId") String serviceId);
+
+    @Query("SELECT ie FROM InboundEndpoint ie "
+         + "LEFT JOIN FETCH ie.secureService "
+         + "LEFT JOIN FETCH ie.alertConfig "
+         + "WHERE ie.enabled = true "
+         + "AND (:namePattern IS NULL OR LOWER(ie.name) LIKE :namePattern) "
+         + "ORDER BY ie.name ASC, ie.id ASC")
+    List<InboundEndpoint> searchEnabledByName(@Param("namePattern") String namePattern, Pageable pageable);
 
     @Query("SELECT DISTINCT ie FROM InboundEndpoint ie "
          + "LEFT JOIN FETCH ie.alertConfig "

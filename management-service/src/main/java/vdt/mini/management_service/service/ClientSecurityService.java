@@ -52,6 +52,9 @@ import java.util.UUID;
 @Service
 public class ClientSecurityService {
     private static final int MAX_PAGE_SIZE = 100;
+    private static final int CLIENT_CODE_RANDOM_LENGTH = 8;
+    private static final int CLIENT_CODE_MAX_ATTEMPTS = 10;
+    private static final String CLIENT_CODE_PREFIX = "CLIENT-";
     private static final String HMAC_SHA256 = "HMAC_SHA256";
 
     private final ClientRepository clientRepository;
@@ -97,10 +100,7 @@ public class ClientSecurityService {
     @Transactional
     public ClientCreateResponse createClient(ClientCreateRequest request, Authentication authentication) {
         validateCreateRequest(request);
-        String clientCode = request.getClientCode().trim();
-        if (clientRepository.existsByClientKey(clientCode)) {
-            throw new AppException(ErrorCode.CLIENT_CODE_ALREADY_EXISTS);
-        }
+        String clientCode = generateUniqueClientCode();
 
         Client client = new Client();
         client.setId(UUID.randomUUID().toString());
@@ -296,10 +296,23 @@ public class ClientSecurityService {
         if (request == null) {
             throw new AppException(ErrorCode.INVALID_INPUT, "Request body is required");
         }
-        requireNotBlank(request.getClientCode(), "clientCode is required");
         requireNotBlank(request.getName(), "name is required");
         validateEmail(request.getContactEmail());
         ensureNoDuplicateEndpoints(safeList(request.getAuthConfigs()));
+    }
+
+    private String generateUniqueClientCode() {
+        for (int attempt = 0; attempt < CLIENT_CODE_MAX_ATTEMPTS; attempt++) {
+            String clientCode = CLIENT_CODE_PREFIX + UUID.randomUUID()
+                    .toString()
+                    .replace("-", "")
+                    .substring(0, CLIENT_CODE_RANDOM_LENGTH)
+                    .toUpperCase(Locale.ROOT);
+            if (!clientRepository.existsByClientKey(clientCode)) {
+                return clientCode;
+            }
+        }
+        throw new AppException(ErrorCode.CLIENT_CODE_ALREADY_EXISTS, "Unable to generate unique clientCode");
     }
 
     private void validateAuthConfigCreate(ClientAuthConfigCreateRequest request) {

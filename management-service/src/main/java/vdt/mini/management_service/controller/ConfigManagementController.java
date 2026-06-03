@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vdt.mini.management_service.dto.request.EndpointStatusPatchRequest;
 import vdt.mini.management_service.dto.request.InboundSettingsPatchRequest;
@@ -102,6 +103,19 @@ public class ConfigManagementController {
     }
 
     // ==================== INBOUND ENDPOINTS ====================
+
+    @GetMapping("/inbound-endpoints/search")
+    @PreAuthorize("hasRole('admin')")
+    public ApiSuccessResponse<List<InboundEndpointResponse>> searchInbounds(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Integer size) {
+        List<InboundEndpointResponse> data = configQueryService.searchInboundsByName(name, size);
+        return ApiSuccessResponse.<List<InboundEndpointResponse>>builder()
+                .status(200)
+                .message("OK")
+                .data(data)
+                .build();
+    }
 
     @GetMapping("/inbounds/{endpointId}")
     @PreAuthorize("hasRole('admin')")

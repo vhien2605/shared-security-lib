@@ -24,12 +24,15 @@ import vdt.mini.management_service.util.enums.ServiceStatus;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ConfigQueryService {
+    private static final int DEFAULT_INBOUND_SEARCH_SIZE = 10;
+    private static final int MAX_INBOUND_SEARCH_SIZE = 20;
 
     private final ServiceRepository serviceRepository;
     private final InboundEndpointRepository inboundEndpointRepository;
@@ -80,6 +83,15 @@ public class ConfigQueryService {
         }
         List<InboundEndpoint> endpoints = inboundEndpointRepository.findBySecureServiceIdWithAlert(serviceId);
         return endpoints.stream()
+                .map(this::toInboundResponse)
+                .toList();
+    }
+
+    public List<InboundEndpointResponse> searchInboundsByName(String name, Integer size) {
+        int safeSize = size == null ? DEFAULT_INBOUND_SEARCH_SIZE : Math.min(Math.max(size, 1), MAX_INBOUND_SEARCH_SIZE);
+        String namePattern = toNamePattern(name);
+        return inboundEndpointRepository.searchEnabledByName(namePattern, PageRequest.of(0, safeSize))
+                .stream()
                 .map(this::toInboundResponse)
                 .toList();
     }
@@ -183,5 +195,12 @@ public class ConfigQueryService {
 
     private EndpointStatus endpointStatus(EndpointStatus status) {
         return status != null ? status : EndpointStatus.ACTIVE;
+    }
+
+    private String toNamePattern(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return "%" + value.trim().toLowerCase(Locale.ROOT) + "%";
     }
 }
