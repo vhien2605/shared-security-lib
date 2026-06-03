@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import vdt.mini.management_service.util.enums.EndpointMethod;
 import vdt.mini.management_service.util.enums.EndpointProtocol;
+import vdt.mini.management_service.util.enums.EndpointStatus;
+import vdt.mini.management_service.util.enums.ServiceStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,6 +22,10 @@ public class InboundEndpointResponse {
     private String topic;
     private EndpointMethod method;
     private EndpointProtocol protocol;
+    private Boolean enabled;
+    private EndpointStatus status;
+    private Boolean available;
+    private ServiceStatus serviceStatus;
     private Integer rateLimit;
     private Integer rateLimitWindowSeconds;
     private Integer timeoutMs;

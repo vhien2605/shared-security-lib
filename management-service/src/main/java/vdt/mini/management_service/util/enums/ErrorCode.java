@@ -23,6 +23,7 @@ public enum ErrorCode {
     INBOUND_ENDPOINT_NOT_FOUND(404, "Inbound endpoint not found", HttpStatus.NOT_FOUND),
     OUTBOUND_ENDPOINT_NOT_FOUND(404, "Outbound endpoint not found", HttpStatus.NOT_FOUND),
     INVALID_INPUT(400, "Invalid input value", HttpStatus.BAD_REQUEST),
+    ENDPOINT_NOT_DISCOVERED(409, "Endpoint is no longer discovered from code and cannot be activated", HttpStatus.CONFLICT),
     SETTING_TEMPLATE_NOT_FOUND(404, "Setting template not found", HttpStatus.NOT_FOUND),
     GLOBAL_TEMPLATE_NOT_FOUND(404, "Global template not found", HttpStatus.NOT_FOUND),
     SERVICE_TEMPLATE_NOT_FOUND(404, "Service template not found", HttpStatus.NOT_FOUND),

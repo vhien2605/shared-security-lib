@@ -14,6 +14,8 @@ import vdt.mini.management_service.entity.InboundEndpoint;
 import vdt.mini.management_service.entity.OutboundEndpoint;
 import vdt.mini.management_service.repository.InboundEndpointRepository;
 import vdt.mini.management_service.repository.OutboundEndpointRepository;
+import vdt.mini.management_service.util.enums.EndpointStatus;
+import vdt.mini.management_service.util.enums.ServiceStatus;
 
 import java.util.Collections;
 import java.util.List;
@@ -120,6 +122,9 @@ public class RedisSettingsSyncService {
         dto.setMethod(ep.getMethod() != null ? ep.getMethod().name() : null);
         dto.setProtocol(ep.getProtocol() != null ? ep.getProtocol().name() : null);
         dto.setEnabled(ep.getEnabled());
+        dto.setEndpointStatus(endpointStatus(ep.getStatus()).name());
+        dto.setServiceStatus(serviceStatus(ep.getSecureService()).name());
+        dto.setAvailable(isAvailable(ep.getSecureService(), ep.getEnabled(), ep.getStatus()));
         dto.setRateLimit(ep.getRateLimit());
         dto.setRateLimitWindowSeconds(ep.getRateLimitWindowSeconds());
         dto.setTimeoutMs(ep.getTimeoutMs());
@@ -168,6 +173,9 @@ public class RedisSettingsSyncService {
         dto.setMethod(ep.getMethod() != null ? ep.getMethod().name() : null);
         dto.setProtocol(ep.getProtocol() != null ? ep.getProtocol().name() : null);
         dto.setEnabled(ep.getEnabled());
+        dto.setEndpointStatus(endpointStatus(ep.getStatus()).name());
+        dto.setServiceStatus(serviceStatus(ep.getSecureService()).name());
+        dto.setAvailable(isAvailable(ep.getSecureService(), ep.getEnabled(), ep.getStatus()));
         dto.setTimeoutMs(ep.getTimeoutMs());
         dto.setRetryCount(ep.getRetryCount());
         dto.setRetryBackoffMs(ep.getRetryBackoffMs());
@@ -180,5 +188,21 @@ public class RedisSettingsSyncService {
             dto.setAlertChannels(ep.getAlertConfig().getChannels());
         }
         return dto;
+    }
+
+    private boolean isAvailable(vdt.mini.management_service.entity.SecureService service,
+                                Boolean enabled,
+                                EndpointStatus endpointStatus) {
+        return serviceStatus(service) == ServiceStatus.ACTIVE
+                && Boolean.TRUE.equals(enabled)
+                && endpointStatus(endpointStatus) == EndpointStatus.ACTIVE;
+    }
+
+    private ServiceStatus serviceStatus(vdt.mini.management_service.entity.SecureService service) {
+        return service != null && service.getStatus() != null ? service.getStatus() : ServiceStatus.INACTIVE;
+    }
+
+    private EndpointStatus endpointStatus(EndpointStatus status) {
+        return status != null ? status : EndpointStatus.ACTIVE;
     }
 }

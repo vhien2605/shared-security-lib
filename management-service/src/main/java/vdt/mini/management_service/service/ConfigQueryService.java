@@ -19,6 +19,8 @@ import vdt.mini.management_service.util.enums.ErrorCode;
 import vdt.mini.management_service.repository.InboundEndpointRepository;
 import vdt.mini.management_service.repository.OutboundEndpointRepository;
 import vdt.mini.management_service.repository.ServiceRepository;
+import vdt.mini.management_service.util.enums.EndpointStatus;
+import vdt.mini.management_service.util.enums.ServiceStatus;
 
 import java.util.Collections;
 import java.util.List;
@@ -45,7 +47,7 @@ public class ConfigQueryService {
                 .id(service.getId())
                 .name(service.getName())
                 .baseUrl(service.getBaseUrl())
-                .status(service.getStatus())
+                .status(serviceStatus(service))
                 .description(service.getDescription())
                 .inboundCount(inboundCountMap.getOrDefault(service.getId(), 0L).intValue())
                 .outboundCount(outboundCountMap.getOrDefault(service.getId(), 0L).intValue())
@@ -64,7 +66,7 @@ public class ConfigQueryService {
                 .name(service.getName())
                 .description(service.getDescription())
                 .baseUrl(service.getBaseUrl())
-                .status(service.getStatus())
+                .status(serviceStatus(service))
                 .inboundCount(inboundCountMap.getOrDefault(serviceId, 0L).intValue())
                 .outboundCount(outboundCountMap.getOrDefault(serviceId, 0L).intValue())
                 .createdAt(service.getCreatedAt())
@@ -113,6 +115,10 @@ public class ConfigQueryService {
                 .topic(ep.getTopic())
                 .method(ep.getMethod())
                 .protocol(ep.getProtocol())
+                .enabled(ep.getEnabled())
+                .status(endpointStatus(ep.getStatus()))
+                .available(isInboundAvailable(ep))
+                .serviceStatus(serviceStatus(ep.getSecureService()))
                 .rateLimit(ep.getRateLimit())
                 .rateLimitWindowSeconds(ep.getRateLimitWindowSeconds())
                 .timeoutMs(ep.getTimeoutMs())
@@ -138,6 +144,10 @@ public class ConfigQueryService {
                 .topic(ep.getTopic())
                 .method(ep.getMethod())
                 .protocol(ep.getProtocol())
+                .enabled(ep.getEnabled())
+                .status(endpointStatus(ep.getStatus()))
+                .available(isOutboundAvailable(ep))
+                .serviceStatus(serviceStatus(ep.getSecureService()))
                 .timeoutMs(ep.getTimeoutMs())
                 .retryCount(ep.getRetryCount())
                 .retryBackoffMs(ep.getRetryBackoffMs())
@@ -151,5 +161,27 @@ public class ConfigQueryService {
                 .createdAt(ep.getCreatedAt())
                 .updatedAt(ep.getUpdatedAt())
                 .build();
+    }
+
+    private boolean isInboundAvailable(InboundEndpoint endpoint) {
+        return isAvailable(endpoint.getSecureService(), endpoint.getEnabled(), endpoint.getStatus());
+    }
+
+    private boolean isOutboundAvailable(OutboundEndpoint endpoint) {
+        return isAvailable(endpoint.getSecureService(), endpoint.getEnabled(), endpoint.getStatus());
+    }
+
+    private boolean isAvailable(SecureService service, Boolean enabled, EndpointStatus endpointStatus) {
+        return serviceStatus(service) == ServiceStatus.ACTIVE
+                && Boolean.TRUE.equals(enabled)
+                && endpointStatus(endpointStatus) == EndpointStatus.ACTIVE;
+    }
+
+    private ServiceStatus serviceStatus(SecureService service) {
+        return service != null && service.getStatus() != null ? service.getStatus() : ServiceStatus.INACTIVE;
+    }
+
+    private EndpointStatus endpointStatus(EndpointStatus status) {
+        return status != null ? status : EndpointStatus.ACTIVE;
     }
 }

@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import vdt.mini.management_service.util.enums.EndpointMethod;
 import vdt.mini.management_service.util.enums.EndpointProtocol;
+import vdt.mini.management_service.util.enums.EndpointStatus;
 import vdt.mini.management_service.util.enums.RollbackStrategy;
 
 @Getter
@@ -23,7 +24,6 @@ import vdt.mini.management_service.util.enums.RollbackStrategy;
 @Entity
 @Table(name = "outbound_endpoint")
 public class OutboundEndpoint extends AbstractAuditable {
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "service_id", nullable = false)
     private SecureService secureService;
@@ -47,6 +47,10 @@ public class OutboundEndpoint extends AbstractAuditable {
 
     @Column(name = "enabled", nullable = false)
     private Boolean enabled = true;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20, nullable = false, columnDefinition = "varchar(20) default 'ACTIVE'")
+    private EndpointStatus status = EndpointStatus.ACTIVE;
 
     @Column(name = "response_time_threshold_ms")
     private Integer responseTimeThresholdMs;

@@ -19,6 +19,9 @@ public class InboundSettingsSyncDTO {
     private String method;
     private String protocol;
     private Boolean enabled;
+    private String endpointStatus;
+    private String serviceStatus;
+    private Boolean available;
     private Integer rateLimit;
     private Integer rateLimitWindowSeconds;
     private Integer timeoutMs;

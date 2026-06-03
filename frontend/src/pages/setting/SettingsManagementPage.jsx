@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { apiGet, apiPost, apiPut } from '../../services/api'
+import { apiGet, apiPatch, apiPost, apiPut } from '../../services/api'
 import './SettingsManagementPage.css'
 
 const DEFAULT_TEMPLATE = {
@@ -25,6 +25,14 @@ const DEFAULT_TEMPLATE = {
 
 const CHANNELS = ['SLACK', 'EMAIL', 'WEBHOOK']
 
+function normalizeService(service) {
+  if (!service) return service
+  return {
+    ...service,
+    status: service.status || 'ACTIVE',
+  }
+}
+
 function numberFromValue(value) {
   const parsed = Number(String(value).replace(/[^0-9-]/g, ''))
   return Number.isFinite(parsed) ? parsed : 0
@@ -33,6 +41,13 @@ function numberFromValue(value) {
 function textValue(value) {
   if (value === undefined || value === null || value === '') return ''
   return String(value).replace(/[^0-9-]/g, '')
+}
+
+function unwrapResponse(response) {
+  if (response && typeof response === 'object' && response.status !== undefined && response.status !== 200) {
+    throw new Error(response.message || 'API request failed')
+  }
+  return response?.data ?? response
 }
 
 function serviceStatusClass(status) {
@@ -72,6 +87,7 @@ export default function SettingsManagementPage() {
   const [applyMode, setApplyMode] = useState('new')
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [togglingServiceId, setTogglingServiceId] = useState('')
   const [message, setMessage] = useState('')
 
   const stats = useMemo(() => {
@@ -87,10 +103,7 @@ export default function SettingsManagementPage() {
     }
   }, [pageInfo.totalElements, services])
 
-  useEffect(() => {
-    let isMounted = true
-
-    async function loadSettings() {
+  const loadSettings = useCallback(async (isMounted = () => true) => {
       setIsLoading(true)
       setMessage('')
       try {
@@ -99,13 +112,13 @@ export default function SettingsManagementPage() {
           apiGet('/central/api/configs/setting-templates/global'),
         ])
 
-        if (!isMounted) return
+        if (!isMounted()) return
 
-        const servicesData = servicesResponse?.data
-        const templateData = templateResponse?.data
+        const servicesData = unwrapResponse(servicesResponse)
+        const templateData = unwrapResponse(templateResponse)
 
         if (servicesData) {
-          setServices(servicesData.content || [])
+          setServices((servicesData.content || []).map(normalizeService))
           setPageInfo({
             number: servicesData.number || 0,
             size: servicesData.size || 20,
@@ -120,18 +133,21 @@ export default function SettingsManagementPage() {
           setTemplate({ ...DEFAULT_TEMPLATE, ...templateData })
         }
       } catch {
-        if (isMounted) setMessage('Không thể tải dữ liệu cấu hình.')
+        if (isMounted()) setMessage('Không thể tải dữ liệu cấu hình.')
       } finally {
-        if (isMounted) setIsLoading(false)
+        if (isMounted()) setIsLoading(false)
       }
-    }
+  }, [])
 
-    loadSettings()
+  useEffect(() => {
+    let mounted = true
+
+    Promise.resolve().then(() => loadSettings(() => mounted))
 
     return () => {
-      isMounted = false
+      mounted = false
     }
-  }, [])
+  }, [loadSettings])
 
   function updateTemplate(field, value) {
     setTemplate((current) => ({ ...current, [field]: value }))
@@ -199,6 +215,23 @@ export default function SettingsManagementPage() {
       setMessage('Cập nhật cấu hình Global thất bại.')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  async function handleToggleService(service) {
+    if (!service?.id || togglingServiceId) return
+    const nextStatus = service.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+    setTogglingServiceId(service.id)
+    setMessage('')
+
+    try {
+      unwrapResponse(await apiPatch(`/central/api/configs/services/${service.id}/status`, { status: nextStatus }))
+      await loadSettings()
+      setMessage(`Đã ${nextStatus === 'ACTIVE' ? 'bật' : 'tắt'} service ${service.name || service.id}.`)
+    } catch (error) {
+      setMessage(error.message || 'Cập nhật trạng thái service thất bại.')
+    } finally {
+      setTogglingServiceId('')
     }
   }
 
@@ -287,6 +320,14 @@ export default function SettingsManagementPage() {
                     </td>
                     <td className="settings-text-right">
                       <div className="settings-row-actions">
+                        <button
+                          type="button"
+                          className={service.status === 'ACTIVE' ? 'settings-toggle-button settings-toggle-button--inactive' : 'settings-toggle-button settings-toggle-button--active'}
+                          onClick={() => handleToggleService(service)}
+                          disabled={!service.id || service.status === 'DEPRECATED' || togglingServiceId === service.id}
+                        >
+                          {togglingServiceId === service.id ? 'Đang cập nhật...' : service.status === 'ACTIVE' ? 'Tắt' : 'Bật'}
+                        </button>
                         <button
                           type="button"
                           className="settings-view-button"

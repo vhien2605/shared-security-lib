@@ -20,6 +20,7 @@ import vdt.mini.management_service.repository.OutboundEndpointRepository;
 import vdt.mini.management_service.repository.ServiceRepository;
 import vdt.mini.management_service.util.enums.EndpointMethod;
 import vdt.mini.management_service.util.enums.EndpointProtocol;
+import vdt.mini.management_service.util.enums.EndpointStatus;
 import vdt.mini.management_service.util.enums.RollbackStrategy;
 import vdt.mini.management_service.util.enums.ServiceStatus;
 
@@ -123,6 +124,9 @@ public class RegistrationService {
                     ? EndpointProtocol.valueOf(dto.getProtocol())
                     : null);
             ep.setEnabled(shouldEnable);
+            if (isNewEndpoint[0] || ep.getStatus() == null) {
+                ep.setStatus(EndpointStatus.ACTIVE);
+            }
 
             if (isNewEndpoint[0] && shouldEnable) {
                 settingTemplateService.copyInboundDefaults(serviceTemplate, ep);
@@ -167,6 +171,9 @@ public class RegistrationService {
                     ? EndpointProtocol.valueOf(dto.getProtocol())
                     : null);
             ep.setEnabled(shouldEnable);
+            if (isNewEndpoint[0] || ep.getStatus() == null) {
+                ep.setStatus(EndpointStatus.ACTIVE);
+            }
 
             if (isNewEndpoint[0] && shouldEnable) {
                 settingTemplateService.copyOutboundDefaults(serviceTemplate, ep);

@@ -12,13 +12,16 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import vdt.mini.management_service.dto.request.EndpointStatusPatchRequest;
 import vdt.mini.management_service.dto.request.InboundSettingsPatchRequest;
 import vdt.mini.management_service.dto.request.OutboundSettingsPatchRequest;
+import vdt.mini.management_service.dto.request.ServiceStatusPatchRequest;
 import vdt.mini.management_service.dto.response.ApiSuccessResponse;
 import vdt.mini.management_service.dto.response.InboundEndpointResponse;
 import vdt.mini.management_service.dto.response.OutboundEndpointResponse;
 import vdt.mini.management_service.dto.response.ServiceDetailResponse;
 import vdt.mini.management_service.dto.response.ServiceListResponse;
+import vdt.mini.management_service.service.AvailabilityManagementService;
 import vdt.mini.management_service.service.ConfigQueryService;
 import vdt.mini.management_service.service.EndpointSettingsService;
 
@@ -31,6 +34,7 @@ public class ConfigManagementController {
 
     private final ConfigQueryService configQueryService;
     private final EndpointSettingsService endpointSettingsService;
+    private final AvailabilityManagementService availabilityManagementService;
 
     @GetMapping("/test")
     public String test(Authentication authentication) {
@@ -53,6 +57,20 @@ public class ConfigManagementController {
     @GetMapping("/services/{serviceId}")
     @PreAuthorize("hasRole('admin')")
     public ApiSuccessResponse<ServiceDetailResponse> getServiceDetail(@PathVariable String serviceId) {
+        ServiceDetailResponse data = configQueryService.getServiceDetail(serviceId);
+        return ApiSuccessResponse.<ServiceDetailResponse>builder()
+                .status(200)
+                .message("OK")
+                .data(data)
+                .build();
+    }
+
+    @PatchMapping("/services/{serviceId}/status")
+    @PreAuthorize("hasRole('admin')")
+    public ApiSuccessResponse<ServiceDetailResponse> updateServiceStatus(
+            @PathVariable String serviceId,
+            @RequestBody ServiceStatusPatchRequest request) {
+        availabilityManagementService.updateServiceStatus(serviceId, request != null ? request.getStatus() : null);
         ServiceDetailResponse data = configQueryService.getServiceDetail(serviceId);
         return ApiSuccessResponse.<ServiceDetailResponse>builder()
                 .status(200)
@@ -108,6 +126,20 @@ public class ConfigManagementController {
                 .build();
     }
 
+    @PatchMapping("/inbounds/{endpointId}/status")
+    @PreAuthorize("hasRole('admin')")
+    public ApiSuccessResponse<InboundEndpointResponse> updateInboundStatus(
+            @PathVariable String endpointId,
+            @RequestBody EndpointStatusPatchRequest request) {
+        availabilityManagementService.updateInboundStatus(endpointId, request != null ? request.getStatus() : null);
+        InboundEndpointResponse data = configQueryService.getInboundDetail(endpointId);
+        return ApiSuccessResponse.<InboundEndpointResponse>builder()
+                .status(200)
+                .message("OK")
+                .data(data)
+                .build();
+    }
+
     // ==================== OUTBOUND ENDPOINTS ====================
 
     @GetMapping("/outbounds/{endpointId}")
@@ -130,6 +162,20 @@ public class ConfigManagementController {
         return ApiSuccessResponse.<Void>builder()
                 .status(200)
                 .message("OK")
+                .build();
+    }
+
+    @PatchMapping("/outbounds/{endpointId}/status")
+    @PreAuthorize("hasRole('admin')")
+    public ApiSuccessResponse<OutboundEndpointResponse> updateOutboundStatus(
+            @PathVariable String endpointId,
+            @RequestBody EndpointStatusPatchRequest request) {
+        availabilityManagementService.updateOutboundStatus(endpointId, request != null ? request.getStatus() : null);
+        OutboundEndpointResponse data = configQueryService.getOutboundDetail(endpointId);
+        return ApiSuccessResponse.<OutboundEndpointResponse>builder()
+                .status(200)
+                .message("OK")
+                .data(data)
                 .build();
     }
 }

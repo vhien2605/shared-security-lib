@@ -13,17 +13,17 @@ public interface InboundEndpointRepository extends JpaRepository<InboundEndpoint
 
     List<InboundEndpoint> findBySecureServiceIdAndEnabledTrueOrderByIdAsc(String serviceId);
 
-    @Query("SELECT ie FROM InboundEndpoint ie JOIN FETCH ie.alertConfig WHERE ie.secureService.id = :serviceId AND ie.enabled = true ORDER BY ie.id ASC")
+    @Query("SELECT ie FROM InboundEndpoint ie LEFT JOIN FETCH ie.alertConfig WHERE ie.secureService.id = :serviceId AND ie.enabled = true ORDER BY ie.id ASC")
     List<InboundEndpoint> findBySecureServiceIdWithAlert(@Param("serviceId") String serviceId);
 
-    @Query("SELECT ie FROM InboundEndpoint ie JOIN FETCH ie.alertConfig WHERE ie.id = :id AND ie.enabled = true")
+    @Query("SELECT ie FROM InboundEndpoint ie LEFT JOIN FETCH ie.alertConfig WHERE ie.id = :id AND ie.enabled = true")
     Optional<InboundEndpoint> findByIdWithAlert(@Param("id") String id);
 
-    @Query("SELECT ie FROM InboundEndpoint ie JOIN FETCH ie.alertConfig WHERE ie.id = :id")
+    @Query("SELECT ie FROM InboundEndpoint ie LEFT JOIN FETCH ie.alertConfig WHERE ie.id = :id")
     Optional<InboundEndpoint> findAnyByIdWithAlert(@Param("id") String id);
 
     @Query("SELECT DISTINCT ie FROM InboundEndpoint ie "
-         + "JOIN FETCH ie.alertConfig "
+         + "LEFT JOIN FETCH ie.alertConfig "
          + "LEFT JOIN FETCH ie.authConfigs "
          + "LEFT JOIN FETCH ie.accessRules "
          + "WHERE ie.secureService.id = :serviceId AND ie.enabled = true "
@@ -34,7 +34,7 @@ public interface InboundEndpointRepository extends JpaRepository<InboundEndpoint
     List<InboundEndpoint> findAllBySecureServiceId(@Param("serviceId") String serviceId);
 
     @Query("SELECT DISTINCT ie FROM InboundEndpoint ie "
-         + "JOIN FETCH ie.alertConfig "
+         + "LEFT JOIN FETCH ie.alertConfig "
          + "LEFT JOIN FETCH ie.authConfigs "
          + "LEFT JOIN FETCH ie.accessRules "
          + "WHERE ie.secureService.id = :serviceId "

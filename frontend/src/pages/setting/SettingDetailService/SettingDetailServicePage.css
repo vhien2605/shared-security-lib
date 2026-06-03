@@ -78,10 +78,33 @@
   transition: opacity 150ms ease, background-color 150ms ease;
 }
 
-.setting-detail-actions button:first-child {
-  border: 1px solid #8f6f6c;
+.setting-detail-action-secondary {
+  border: 1px solid #8f6f6c !important;
   background: #fff;
   color: #5b403d;
+}
+
+.setting-detail-actions .setting-detail-toggle {
+  border: 0;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 150ms ease, background-color 150ms ease;
+  white-space: nowrap;
+}
+
+.setting-detail-toggle--active {
+  border: 1px solid #af101a !important;
+  background: #fff !important;
+  color: #af101a !important;
+}
+
+.setting-detail-toggle--inactive {
+  background: #af101a !important;
+  color: #fff !important;
 }
 
 .setting-detail-actions button:disabled,
@@ -186,7 +209,7 @@
 
 .setting-detail-table {
   width: 100%;
-  min-width: 1480px;
+  min-width: 1680px;
   text-align: left;
   border-collapse: collapse;
 }
@@ -311,9 +334,46 @@
 }
 
 .setting-detail-save-row {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
+  padding: 0.625rem 1rem;
   white-space: nowrap;
+}
+
+.setting-detail-row-actions {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  min-width: max-content;
+  white-space: nowrap;
+}
+
+.setting-detail-toggle-row {
+  border: 0;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1rem;
+  color: #fff;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.setting-detail-toggle-row--success {
+  border: 1px solid #af101a;
+  background: #fff;
+  color: #af101a;
+}
+
+.setting-detail-toggle-row--danger {
+  background: #af101a;
+}
+
+.setting-detail-toggle-row:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .setting-detail-template {

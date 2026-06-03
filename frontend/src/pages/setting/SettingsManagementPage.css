@@ -295,7 +295,11 @@
 }
 
 .settings-row-actions {
+  display: inline-flex;
+  align-items: center;
   justify-content: flex-end;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .settings-view-button {
@@ -306,6 +310,34 @@
   border-radius: 0.25rem;
   transition: background-color 150ms ease, color 150ms ease;
   cursor: pointer;
+}
+
+.settings-toggle-button {
+  border: 0;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 150ms ease, background-color 150ms ease;
+  white-space: nowrap;
+}
+
+.settings-toggle-button--active {
+  border: 1px solid #af101a;
+  background: #fff;
+  color: #af101a;
+}
+
+.settings-toggle-button--inactive {
+  background: #af101a;
+  color: #ffffff;
+}
+
+.settings-toggle-button:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 .settings-view-button:hover {

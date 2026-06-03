@@ -76,6 +76,22 @@ function endpointId(endpoint) {
   return endpoint?.id ?? endpoint?.endpointId;
 }
 
+function normalizeService(service) {
+  if (!service) return service;
+  return {
+    ...service,
+    status: service.status || "ACTIVE",
+  };
+}
+
+function normalizeEndpoint(endpoint) {
+  if (!endpoint) return endpoint;
+  return {
+    ...endpoint,
+    status: endpoint.status || "ACTIVE",
+  };
+}
+
 function normalizeChannels(channels) {
   if (Array.isArray(channels)) {
     return channels
@@ -235,7 +251,7 @@ export default function SettingDetailServicePage() {
   const location = useLocation();
   const fallbackService = location.state?.service;
 
-  const [service, setService] = useState(fallbackService || null);
+  const [service, setService] = useState(normalizeService(fallbackService) || null);
   const [inbounds, setInbounds] = useState([]);
   const [outbounds, setOutbounds] = useState([]);
   const [template, setTemplate] = useState(null);
@@ -249,6 +265,8 @@ export default function SettingDetailServicePage() {
   const [isTemplateSubmitting, setIsTemplateSubmitting] = useState(false);
   const [savingInboundId, setSavingInboundId] = useState("");
   const [savingOutboundId, setSavingOutboundId] = useState("");
+  const [togglingService, setTogglingService] = useState(false);
+  const [togglingEndpointId, setTogglingEndpointId] = useState("");
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
 
@@ -284,10 +302,11 @@ export default function SettingDetailServicePage() {
   );
 
   const applyInboundRows = useCallback((rows) => {
-    setInbounds(rows);
+    const normalizedRows = rows.map(normalizeEndpoint);
+    setInbounds(normalizedRows);
     setInboundDrafts(
       Object.fromEntries(
-        rows
+        normalizedRows
           .map((row) => [
             endpointId(row),
             buildEndpointDraft(row, INBOUND_FIELDS),
@@ -298,10 +317,11 @@ export default function SettingDetailServicePage() {
   }, []);
 
   const applyOutboundRows = useCallback((rows) => {
-    setOutbounds(rows);
+    const normalizedRows = rows.map(normalizeEndpoint);
+    setOutbounds(normalizedRows);
     setOutboundDrafts(
       Object.fromEntries(
-        rows
+        normalizedRows
           .map((row) => [
             endpointId(row),
             buildEndpointDraft(row, OUTBOUND_FIELDS),
@@ -353,7 +373,7 @@ export default function SettingDetailServicePage() {
 
     if (results[0].status === "fulfilled") {
       try {
-        setService(unwrapResponse(results[0].value));
+        setService(normalizeService(unwrapResponse(results[0].value)));
       } catch (error) {
         nextErrors.service =
           error.message || "Không thể tải thông tin service.";
@@ -606,6 +626,57 @@ export default function SettingDetailServicePage() {
     }
   }
 
+  async function toggleServiceStatus() {
+    if (!service?.id || togglingService) return;
+    const nextStatus = service.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    setTogglingService(true);
+    setMessage("");
+    try {
+      const updatedService = normalizeService(unwrapResponse(
+        await apiPatch(`/central/api/configs/services/${service.id}/status`, {
+          status: nextStatus,
+        }),
+      ));
+      setService(updatedService);
+      await Promise.allSettled([refreshInbounds(), refreshOutbounds()]);
+      setMessage(`Đã ${nextStatus === "ACTIVE" ? "bật" : "tắt"} service.`);
+    } catch (error) {
+      setMessage(error.message || "Cập nhật trạng thái service thất bại.");
+    } finally {
+      setTogglingService(false);
+    }
+  }
+
+  async function toggleEndpointStatus(type, row) {
+    const id = endpointId(row);
+    if (!id || togglingEndpointId) return;
+    const nextStatus = row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    const currentServiceStatus = row.serviceStatus || service?.status || "ACTIVE";
+    if (nextStatus === "ACTIVE" && currentServiceStatus !== "ACTIVE") {
+      setMessage("Không thể bật endpoint khi service đang tắt.");
+      return;
+    }
+    setTogglingEndpointId(id);
+    setMessage("");
+    try {
+      unwrapResponse(
+        await apiPatch(`/central/api/configs/${type}s/${id}/status`, {
+          status: nextStatus,
+        }),
+      );
+      if (type === "inbound") {
+        await refreshInbounds();
+      } else {
+        await refreshOutbounds();
+      }
+      setMessage(`Đã ${nextStatus === "ACTIVE" ? "bật" : "tắt"} endpoint.`);
+    } catch (error) {
+      setMessage(error.message || "Cập nhật trạng thái endpoint thất bại.");
+    } finally {
+      setTogglingEndpointId("");
+    }
+  }
+
   function updateInboundDraft(id, field, value) {
     setInboundDrafts((current) => ({
       ...current,
@@ -665,7 +736,15 @@ export default function SettingDetailServicePage() {
               </p>
             </div>
             <div className="setting-detail-actions">
-              <button type="button" disabled>
+              <button
+                type="button"
+                className={service?.status === "ACTIVE" ? "setting-detail-toggle setting-detail-toggle--inactive" : "setting-detail-toggle setting-detail-toggle--active"}
+                onClick={toggleServiceStatus}
+                disabled={!service?.id || service?.status === "DEPRECATED" || togglingService}
+              >
+                {togglingService ? "Đang cập nhật..." : service?.status === "ACTIVE" ? "Tắt service" : "Bật service"}
+              </button>
+              <button type="button" className="setting-detail-action-secondary" disabled>
                 Export JSON
               </button>
             </div>
@@ -738,6 +817,9 @@ export default function SettingDetailServicePage() {
             onSave={saveInbound}
             savingId={savingInboundId}
             toggleChannels={toggleChannels}
+            onToggleStatus={toggleEndpointStatus}
+            togglingStatusId={togglingEndpointId}
+            serviceStatus={service?.status}
           />
         ) : (
           <EndpointTable
@@ -750,6 +832,9 @@ export default function SettingDetailServicePage() {
             onSave={saveOutbound}
             savingId={savingOutboundId}
             toggleChannels={toggleChannels}
+            onToggleStatus={toggleEndpointStatus}
+            togglingStatusId={togglingEndpointId}
+            serviceStatus={service?.status}
           />
         )}
 
@@ -784,10 +869,13 @@ function EndpointTable({
   onSave,
   savingId,
   toggleChannels,
+  onToggleStatus,
+  togglingStatusId,
+  serviceStatus,
 }) {
   const isInbound = type === "inbound";
   const numericFields = isInbound ? INBOUND_FIELDS : OUTBOUND_FIELDS;
-  const colSpan = isInbound ? 16 : 15;
+  const colSpan = isInbound ? 17 : 16;
 
   return (
     <section className="setting-detail-card setting-detail-table-card">
@@ -803,6 +891,7 @@ function EndpointTable({
               </th>
               <th>Phương thức</th>
               <th>Loại</th>
+              <th>Status</th>
               {numericFields.map((field) => (
                 <th key={field}>{field}</th>
               ))}
@@ -835,6 +924,9 @@ function EndpointTable({
                     </span>
                   </td>
                   <td>{row.protocol || row.type || "—"}</td>
+                  <td>
+                    <span className={statusClass(row.status)}>{row.status || "ACTIVE"}</span>
+                  </td>
                   {numericFields.map((field) => (
                     <td key={field}>
                       <NumericInput
@@ -907,6 +999,36 @@ function EndpointTable({
                     </div>
                   </td>
                   <td>
+                    <div className="setting-detail-row-actions">
+                      {(() => {
+                        const currentServiceStatus = row.serviceStatus || serviceStatus || "ACTIVE";
+                        const cannotActivateBecauseServiceInactive =
+                          row.status !== "ACTIVE" && currentServiceStatus !== "ACTIVE";
+                        const cannotActivateBecauseEndpointRemoved =
+                          row.status !== "ACTIVE" && row.enabled !== true;
+                        const disabled =
+                          togglingStatusId === id ||
+                          !id ||
+                          cannotActivateBecauseServiceInactive ||
+                          cannotActivateBecauseEndpointRemoved;
+                        const title = cannotActivateBecauseServiceInactive
+                          ? "Service đang tắt nên không thể bật endpoint"
+                          : cannotActivateBecauseEndpointRemoved
+                            ? "Endpoint không còn trong code nên không thể bật"
+                            : undefined;
+
+                        return (
+                      <button
+                        type="button"
+                        className={row.status === "ACTIVE" ? "setting-detail-toggle-row setting-detail-toggle-row--danger" : "setting-detail-toggle-row setting-detail-toggle-row--success"}
+                        onClick={() => onToggleStatus(type, row)}
+                        disabled={disabled}
+                        title={title}
+                      >
+                        {togglingStatusId === id ? "Đang cập nhật..." : row.status === "ACTIVE" ? "Tắt" : "Bật"}
+                      </button>
+                        );
+                      })()}
                     <button
                       type="button"
                       className="setting-detail-save-row"
@@ -915,6 +1037,7 @@ function EndpointTable({
                     >
                       {savingId === id ? "Đang lưu..." : "Lưu"}
                     </button>
+                    </div>
                   </td>
                 </tr>
               );

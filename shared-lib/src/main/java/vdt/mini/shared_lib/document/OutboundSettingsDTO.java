@@ -21,6 +21,9 @@ public class OutboundSettingsDTO {
     private String method;
     private String protocol;
     private Boolean enabled;
+    private String endpointStatus;
+    private String serviceStatus;
+    private Boolean available;
     private Integer timeoutMs;
     private Integer retryCount;
     private Integer retryBackoffMs;
