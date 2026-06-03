@@ -50,6 +50,9 @@ public class InboundAccessRule extends AbstractBase {
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
+    @Column(name = "reason", columnDefinition = "TEXT")
+    private String reason;
+
     @Column(name = "created_by", length = 100)
     private String createdBy;
 

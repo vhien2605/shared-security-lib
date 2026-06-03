@@ -23,7 +23,7 @@ import java.util.Objects;
 @AllArgsConstructor
 @Entity
 @Table(name = "auth_config")
-public class AuthConfig extends AbstractBase {
+public class AuthConfig extends AbstractAuditable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
@@ -39,11 +39,23 @@ public class AuthConfig extends AbstractBase {
     @Column(name = "secret_ref", length = 255)
     private String secretRef;
 
+    @Column(name = "credential_hash", length = 255)
+    private String credentialHash;
+
     @Column(name = "algorithm", length = 50)
     private String algorithm;
 
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
+
+    @Column(name = "enabled", nullable = false)
+    private Boolean enabled = true;
+
+    @Column(name = "disabled_at")
+    private LocalDateTime disabledAt;
+
+    @Column(name = "disabled_by", length = 100)
+    private String disabledBy;
 
     @Override
     public boolean equals(Object o) {

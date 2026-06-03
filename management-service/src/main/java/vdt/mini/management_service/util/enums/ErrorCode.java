@@ -29,7 +29,14 @@ public enum ErrorCode {
     SERVICE_TEMPLATE_NOT_FOUND(404, "Service template not found", HttpStatus.NOT_FOUND),
     SETTING_TEMPLATE_VERSION_CONFLICT(409, "Template version conflict", HttpStatus.CONFLICT),
     INVALID_SETTING_TEMPLATE(400, "Invalid setting template", HttpStatus.BAD_REQUEST),
-    BATCH_APPLY_FAILED(500, "Batch apply failed", HttpStatus.INTERNAL_SERVER_ERROR);
+    BATCH_APPLY_FAILED(500, "Batch apply failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    CLIENT_NOT_FOUND(404, "Client not found", HttpStatus.NOT_FOUND),
+    CLIENT_CODE_ALREADY_EXISTS(409, "Client code already exists", HttpStatus.CONFLICT),
+    INVALID_CLIENT_STATUS_TRANSITION(400, "Invalid client status transition", HttpStatus.BAD_REQUEST),
+    AUTH_CONFIG_NOT_FOUND(404, "Auth config not found", HttpStatus.NOT_FOUND),
+    AUTH_CONFIG_CONFLICT(409, "Auth config conflict", HttpStatus.CONFLICT),
+    ACCESS_RULE_NOT_FOUND(404, "Access rule not found", HttpStatus.NOT_FOUND),
+    CREDENTIAL_GENERATION_FAILED(500, "Credential generation failed", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;
     private final String message;

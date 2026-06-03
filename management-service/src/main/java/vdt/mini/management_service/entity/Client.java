@@ -14,6 +14,7 @@ import vdt.mini.management_service.util.enums.ClientStatus;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -25,11 +26,20 @@ public class Client extends AbstractAuditable {
     @Column(name = "name", length = 100, nullable = false)
     private String name;
 
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
     @Column(name = "client_key", length = 255, nullable = false, unique = true)
     private String clientKey;
-    
+
     @Column(name = "contact_email", length = 255)
     private String contactEmail;
+
+    @Column(name = "revoked_at")
+    private LocalDateTime revokedAt;
+
+    @Column(name = "revoked_by", length = 100)
+    private String revokedBy;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20, nullable = false)
