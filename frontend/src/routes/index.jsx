@@ -9,6 +9,7 @@ import ServicesPage from '../pages/ServicesPage'
 import EndpointsPage from '../pages/EndpointsPage'
 import SecurityPoliciesPage from '../pages/SecurityPoliciesPage'
 import AuditLogsPage from '../pages/AuditLogsPage'
+import ClientManagementPage from '../pages/client/ClientManagementPage'
 
 const routes = [
   {
@@ -75,6 +76,16 @@ const routes = [
       <ProtectedRoute>
         <HeaderSidebarLayout>
           <AuditLogsPage />
+        </HeaderSidebarLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/clients',
+    element: (
+      <ProtectedRoute>
+        <HeaderSidebarLayout>
+          <ClientManagementPage />
         </HeaderSidebarLayout>
       </ProtectedRoute>
     ),
