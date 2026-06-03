@@ -10,6 +10,7 @@ import EndpointsPage from '../pages/EndpointsPage'
 import SecurityPoliciesPage from '../pages/SecurityPoliciesPage'
 import AuditLogsPage from '../pages/AuditLogsPage'
 import ClientManagementPage from '../pages/client/ClientManagementPage'
+import ClientDetailPage from '../pages/client/ClientDetailPage'
 
 const routes = [
   {
@@ -86,6 +87,16 @@ const routes = [
       <ProtectedRoute>
         <HeaderSidebarLayout>
           <ClientManagementPage />
+        </HeaderSidebarLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/clients/:clientId',
+    element: (
+      <ProtectedRoute>
+        <HeaderSidebarLayout>
+          <ClientDetailPage />
         </HeaderSidebarLayout>
       </ProtectedRoute>
     ),

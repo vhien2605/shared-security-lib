@@ -14,8 +14,6 @@ public class ClientAuthConfigResponse {
     private String id;
     private String serviceId;
     private String serviceName;
-    private String inboundEndpointId;
-    private String endpointCode;
     private AuthType type;
     private String algorithm;
     private Boolean enabled;

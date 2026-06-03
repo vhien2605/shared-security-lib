@@ -179,7 +179,7 @@
 }
 
 .client-table-card {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .client-table-wrap {
@@ -257,12 +257,63 @@
   background: #fee2e2;
 }
 
-.client-row-actions button {
+.client-row-actions button,
+.client-row-actions a {
   border: 0;
   background: transparent;
   color: #5b403d;
   padding: 0.375rem;
   border-radius: 0.25rem;
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.client-row-actions button:not(:disabled) {
+  cursor: pointer;
+}
+
+.client-row-actions button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.client-status-action {
+  position: relative;
+  display: inline-flex;
+}
+
+.client-status-menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 5;
+  min-width: 9rem;
+  border: 1px solid #e4beba;
+  border-radius: 0.5rem;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(38, 50, 56, 0.16);
+  overflow: hidden;
+}
+
+.client-status-menu button {
+  width: 100%;
+  justify-content: flex-start;
+  border-radius: 0;
+  border-bottom: 1px solid #f1d8d5;
+  padding: 0.625rem 0.75rem;
+  color: #1a1c1c;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.client-status-menu button:last-child {
+  border-bottom: 0;
+}
+
+.client-status-menu button:hover:not(:disabled) {
+  background: #fff4f2;
+  color: #af101a;
 }
 
 .client-empty-cell {
