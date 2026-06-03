@@ -74,10 +74,10 @@ public class ClientSecurityService {
     private final ObjectMapper objectMapper;
 
     public ClientSecurityService(ClientRepository clientRepository,
-                                  AuthConfigRepository authConfigRepository,
-                                  InboundEndpointRepository inboundEndpointRepository,
-                                  ServiceRepository serviceRepository,
-                                  AuditLogRepository auditLogRepository,
+                                 AuthConfigRepository authConfigRepository,
+                                 InboundEndpointRepository inboundEndpointRepository,
+                                 ServiceRepository serviceRepository,
+                                 AuditLogRepository auditLogRepository,
                                  ClientCredentialService credentialService,
                                  ClientSecurityEventPublisher eventPublisher,
                                  ObjectMapper objectMapper) {
@@ -254,11 +254,9 @@ public class ClientSecurityService {
 
         for (String authConfigId : safeList(request.getRemoveAuthConfigIds())) {
             AuthConfig authConfig = loadOwnedAuthConfig(client.getId(), authConfigId);
-            authConfig.setEnabled(false);
-            authConfig.setDisabledAt(LocalDateTime.now());
-            authConfig.setDisabledBy(actor);
-            authConfigRepository.save(authConfig);
             removed.add(toChangeItem(authConfig));
+            client.getAuthConfigs().remove(authConfig);
+            authConfigRepository.delete(authConfig);
         }
         for (ClientAuthConfigUpdateRequest updateRequest : safeList(request.getUpdate())) {
             validateAuthConfigUpdate(updateRequest);
@@ -546,8 +544,6 @@ public class ClientSecurityService {
                 .id(authConfig.getId())
                 .serviceId(service.getId())
                 .serviceName(service.getName())
-                .inboundEndpointId(endpoint != null ? endpoint.getId() : null)
-                .endpointCode(endpoint != null ? endpoint.getName() : null)
                 .type(authConfig.getType())
                 .algorithm(authConfig.getAlgorithm())
                 .enabled(authConfig.getEnabled())
