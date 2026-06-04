@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 
-export default function AppHeader() {
+function AppHeader() {
   const { user, logout } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const userMenuRef = useRef(null)
@@ -98,3 +98,5 @@ export default function AppHeader() {
     </header>
   )
 }
+
+export default memo(AppHeader)

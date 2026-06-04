@@ -11,6 +11,7 @@ import SecurityPoliciesPage from '../pages/SecurityPoliciesPage'
 import AuditLogsPage from '../pages/AuditLogsPage'
 import ClientManagementPage from '../pages/client/ClientManagementPage'
 import ClientDetailPage from '../pages/client/ClientDetailPage'
+import PermissionControlPage from '../pages/access-control/PermissionControlPage'
 
 const routes = [
   {
@@ -97,6 +98,16 @@ const routes = [
       <ProtectedRoute>
         <HeaderSidebarLayout>
           <ClientDetailPage />
+        </HeaderSidebarLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/permissions',
+    element: (
+      <ProtectedRoute>
+        <HeaderSidebarLayout>
+          <PermissionControlPage />
         </HeaderSidebarLayout>
       </ProtectedRoute>
     ),

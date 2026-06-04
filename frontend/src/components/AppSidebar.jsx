@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { NavLink } from 'react-router-dom'
 import { SIDEBAR_ITEMS } from '../constants/sidebarItems'
 
@@ -39,6 +40,15 @@ function SidebarIcon({ type }) {
     )
   }
 
+  if (type === 'permissions') {
+    return (
+      <svg {...common}>
+        <path d="M12 3.5l6.5 2.4v5.4c0 4-2.6 7.5-6.5 9.2-3.9-1.7-6.5-5.2-6.5-9.2V5.9L12 3.5z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+        <path d="M9.5 12.2l1.8 1.8 3.5-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+
   if (type === 'warning') {
     return (
       <svg {...common}>
@@ -56,7 +66,7 @@ function SidebarIcon({ type }) {
   )
 }
 
-export default function AppSidebar() {
+export default memo(function AppSidebar() {
   return (
     <aside className="app-sidebar">
       <div className="app-sidebar__brand">
@@ -89,4 +99,4 @@ export default function AppSidebar() {
       </nav>
     </aside>
   )
-}
+})

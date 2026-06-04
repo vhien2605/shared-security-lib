@@ -1,10 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { AuthContext } from './authContext'
 import keycloak from '../keycloak'
 import { REDIRECT_URI, POST_LOGOUT_REDIRECT_URI } from '../constants'
 
 const DEFAULT_REDIRECT_PATH = '/settings-management'
+const LAST_PATH_STORAGE_KEY = 'lastVisitedPath'
+
+function pickPathFromLocation(location) {
+  if (!location) return null
+  const { pathname, search, hash } = location
+  if (!pathname) return null
+  if (pathname === '/') return null
+  if (pathname === '/callback') return null
+  return `${pathname}${search || ''}${hash || ''}`
+}
 
 function mapKeycloakUser() {
   const claims = keycloak.idTokenParsed || keycloak.tokenParsed
@@ -29,11 +39,35 @@ function mapKeycloakUser() {
 
 export function AuthProvider({ children }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [token, setToken] = useState(() => localStorage.getItem('access_token'))
   const [user, setUser] = useState(() => mapKeycloakUser())
   const [authError, setAuthError] = useState(null)
   const [initializing, setInitializing] = useState(true)
   const initStarted = useRef(false)
+  const initialRedirectDone = useRef(false)
+
+  useEffect(() => {
+    const rememberedPath = pickPathFromLocation(location) || sessionStorage.getItem(LAST_PATH_STORAGE_KEY)
+    if (rememberedPath) {
+      sessionStorage.setItem(LAST_PATH_STORAGE_KEY, rememberedPath)
+    }
+  }, [location])
+
+  useEffect(() => {
+    if (initialRedirectDone.current) return
+    if (initializing) return
+    if (!keycloak.authenticated) return
+    const targetPath = sessionStorage.getItem(LAST_PATH_STORAGE_KEY) || DEFAULT_REDIRECT_PATH
+    if (window.location.pathname !== targetPath) {
+      initialRedirectDone.current = true
+      sessionStorage.removeItem(LAST_PATH_STORAGE_KEY)
+      navigate(targetPath, { replace: true })
+    } else {
+      initialRedirectDone.current = true
+      sessionStorage.removeItem(LAST_PATH_STORAGE_KEY)
+    }
+  }, [initializing, navigate])
 
   useEffect(() => {
     if (initStarted.current) return
@@ -56,10 +90,6 @@ export function AuthProvider({ children }) {
           }
           setToken(keycloak.token)
           setUser(mapKeycloakUser())
-
-          if (window.location.pathname === '/callback') {
-            navigate(DEFAULT_REDIRECT_PATH, { replace: true })
-          }
         } else {
           setUser(null)
           if (window.location.pathname === '/callback') {
