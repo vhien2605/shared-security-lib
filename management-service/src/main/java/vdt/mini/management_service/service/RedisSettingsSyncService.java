@@ -6,19 +6,23 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import vdt.mini.management_service.dto.sync.AccessRuleDTO;
+import vdt.mini.management_service.dto.sync.AccessPermissionDTO;
 import vdt.mini.management_service.dto.sync.AuthConfigDTO;
 import vdt.mini.management_service.dto.sync.InboundSettingsSyncDTO;
 import vdt.mini.management_service.dto.sync.OutboundSettingsSyncDTO;
 import vdt.mini.management_service.dto.sync.SettingsChangeMessage;
+import vdt.mini.management_service.entity.AccessPermission;
 import vdt.mini.management_service.entity.AuthConfig;
 import vdt.mini.management_service.entity.InboundEndpoint;
 import vdt.mini.management_service.entity.OutboundEndpoint;
+import vdt.mini.management_service.repository.AccessPermissionRepository;
 import vdt.mini.management_service.repository.AuthConfigRepository;
 import vdt.mini.management_service.repository.InboundEndpointRepository;
 import vdt.mini.management_service.repository.OutboundEndpointRepository;
 import vdt.mini.management_service.util.enums.EndpointStatus;
 import vdt.mini.management_service.util.enums.ServiceStatus;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -30,17 +34,20 @@ public class RedisSettingsSyncService {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final AuthConfigRepository authConfigRepository;
+    private final AccessPermissionRepository accessPermissionRepository;
     private final InboundEndpointRepository inboundEndpointRepository;
     private final OutboundEndpointRepository outboundEndpointRepository;
 
     public RedisSettingsSyncService(StringRedisTemplate redisTemplate,
-                                     ObjectMapper objectMapper,
-                                     AuthConfigRepository authConfigRepository,
-                                     InboundEndpointRepository inboundEndpointRepository,
-                                     OutboundEndpointRepository outboundEndpointRepository) {
+                                      ObjectMapper objectMapper,
+                                      AuthConfigRepository authConfigRepository,
+                                      AccessPermissionRepository accessPermissionRepository,
+                                      InboundEndpointRepository inboundEndpointRepository,
+                                      OutboundEndpointRepository outboundEndpointRepository) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.authConfigRepository = authConfigRepository;
+        this.accessPermissionRepository = accessPermissionRepository;
         this.inboundEndpointRepository = inboundEndpointRepository;
         this.outboundEndpointRepository = outboundEndpointRepository;
     }
@@ -156,6 +163,8 @@ public class RedisSettingsSyncService {
                 .toList());
         if (ep.getAccessRules() != null) {
             dto.setAccessRules(ep.getAccessRules().stream()
+                    .filter(ar -> Boolean.TRUE.equals(ar.getEnable()))
+                    .filter(ar -> !isExpired(ar.getTemporary(), ar.getExpiresAt()))
                     .map(ar -> new AccessRuleDTO(ar.getType() != null ? ar.getType().name() : null,
                             ar.getValueType() != null ? ar.getValueType().name() : null,
                             ar.getValue(),
@@ -165,7 +174,21 @@ public class RedisSettingsSyncService {
         } else {
             dto.setAccessRules(Collections.emptyList());
         }
+        dto.setPermissions(accessPermissionRepository.findEnabledByInboundEndpointId(ep.getId()).stream()
+                .map(this::toPermissionDTO)
+                .toList());
         return dto;
+    }
+
+    private AccessPermissionDTO toPermissionDTO(AccessPermission permission) {
+        return new AccessPermissionDTO(permission.getId(),
+                permission.getClient().getId(),
+                permission.getClient().getClientKey(),
+                permission.getInboundEndpoint().getId());
+    }
+
+    private boolean isExpired(Boolean temporary, LocalDateTime expiresAt) {
+        return Boolean.TRUE.equals(temporary) && expiresAt != null && expiresAt.isBefore(LocalDateTime.now());
     }
 
     private OutboundSettingsSyncDTO buildOutboundSyncDTO(OutboundEndpoint ep) {

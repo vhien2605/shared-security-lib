@@ -34,4 +34,5 @@ public class InboundSettingsSyncDTO {
     private List<String> alertChannels;
     private List<AuthConfigDTO> authConfigs;
     private List<AccessRuleDTO> accessRules;
+    private List<AccessPermissionDTO> permissions;
 }

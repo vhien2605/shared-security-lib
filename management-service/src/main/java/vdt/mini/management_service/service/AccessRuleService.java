@@ -13,11 +13,13 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import vdt.mini.management_service.dto.event.ClientSecurityConfigEvent;
 import vdt.mini.management_service.dto.request.AccessRuleCreateRequest;
+import vdt.mini.management_service.dto.request.AccessRuleUpdateRequest;
 import vdt.mini.management_service.dto.response.AccessRuleDeleteResponse;
 import vdt.mini.management_service.dto.response.AccessRuleResponse;
 import vdt.mini.management_service.entity.AuditLog;
 import vdt.mini.management_service.entity.InboundAccessRule;
 import vdt.mini.management_service.entity.InboundEndpoint;
+import vdt.mini.management_service.entity.SecureService;
 import vdt.mini.management_service.exception.AppException;
 import vdt.mini.management_service.repository.AuditLogRepository;
 import vdt.mini.management_service.repository.InboundAccessRuleRepository;
@@ -40,17 +42,20 @@ public class AccessRuleService {
     private final InboundEndpointRepository inboundEndpointRepository;
     private final AuditLogRepository auditLogRepository;
     private final ClientSecurityEventPublisher eventPublisher;
+    private final RedisSettingsSyncService redisSettingsSyncService;
     private final ObjectMapper objectMapper;
 
     public AccessRuleService(InboundAccessRuleRepository accessRuleRepository,
-                             InboundEndpointRepository inboundEndpointRepository,
-                             AuditLogRepository auditLogRepository,
-                             ClientSecurityEventPublisher eventPublisher,
-                             ObjectMapper objectMapper) {
+                              InboundEndpointRepository inboundEndpointRepository,
+                              AuditLogRepository auditLogRepository,
+                              ClientSecurityEventPublisher eventPublisher,
+                              RedisSettingsSyncService redisSettingsSyncService,
+                              ObjectMapper objectMapper) {
         this.accessRuleRepository = accessRuleRepository;
         this.inboundEndpointRepository = inboundEndpointRepository;
         this.auditLogRepository = auditLogRepository;
         this.eventPublisher = eventPublisher;
+        this.redisSettingsSyncService = redisSettingsSyncService;
         this.objectMapper = objectMapper;
     }
 
@@ -69,6 +74,7 @@ public class AccessRuleService {
         rule.setValueType(parseValueType(request.getValueType()));
         rule.setValue(request.getValue().trim());
         rule.setTemporary(Boolean.TRUE.equals(request.getTemporary()));
+        rule.setEnable(request.getEnable() == null ? Boolean.TRUE : request.getEnable());
         rule.setExpiresAt(rule.getTemporary() ? request.getExpiresAt() : null);
         rule.setReason(normalizeBlank(request.getReason()));
         rule.setCreatedBy(actor(authentication));
@@ -78,9 +84,10 @@ public class AccessRuleService {
                 "inboundEndpointId", inboundEndpointId,
                 "type", savedRule.getType(),
                 "valueType", savedRule.getValueType(),
+                "enable", savedRule.getEnable(),
                 "temporary", savedRule.getTemporary()
         ));
-        registerAfterCommit("ACCESS_RULE_CREATED", inboundEndpointId, savedRule.getId());
+        registerAfterCommit("ACCESS_RULE_CREATED", endpoint, savedRule.getId());
 
         return toResponse(savedRule);
     }
@@ -88,20 +95,59 @@ public class AccessRuleService {
     @Transactional(readOnly = true)
     public Page<AccessRuleResponse> listAccessRules(String inboundEndpointId,
                                                     String type,
-                                                    String valueType,
-                                                    String keyword,
-                                                    Pageable pageable) {
+                                                     String valueType,
+                                                     Boolean enable,
+                                                     String keyword,
+                                                     Pageable pageable) {
         if (!inboundEndpointRepository.existsById(inboundEndpointId)) {
             throw new AppException(ErrorCode.INBOUND_ENDPOINT_NOT_FOUND);
         }
-        Pageable safePageable = PageRequest.of(Math.max(pageable.getPageNumber(), 0),
-                Math.min(Math.max(pageable.getPageSize(), 1), MAX_PAGE_SIZE),
-                pageable.getSort().isSorted() ? pageable.getSort() : Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable safePageable = toSafePageable(pageable);
         return accessRuleRepository.search(inboundEndpointId,
                 parseRuleTypeOptional(type),
                 parseValueTypeOptional(valueType),
+                enable,
                 toKeywordPattern(keyword),
                 safePageable).map(this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<AccessRuleResponse> listAllAccessRules(String type,
+                                                       String inboundEndpointId,
+                                                       String endpointKeyword,
+                                                       String valueType,
+                                                       Boolean enable,
+                                                       String keyword,
+                                                       Pageable pageable) {
+        Pageable safePageable = toSafePageable(pageable);
+        return accessRuleRepository.searchAll(parseRuleTypeOptional(type),
+                normalizeBlank(inboundEndpointId),
+                toKeywordPattern(endpointKeyword),
+                parseValueTypeOptional(valueType),
+                enable,
+                toKeywordPattern(keyword),
+                safePageable).map(this::toResponse);
+    }
+
+    @Transactional
+    public AccessRuleResponse updateAccessRule(String ruleId,
+                                               AccessRuleUpdateRequest request,
+                                               Authentication authentication) {
+        validateUpdateRequest(request);
+        InboundAccessRule rule = accessRuleRepository.findById(ruleId)
+                .orElseThrow(() -> new AppException(ErrorCode.ACCESS_RULE_NOT_FOUND));
+        Boolean oldEnable = rule.getEnable();
+        rule.setEnable(request.getEnable());
+        InboundAccessRule savedRule = accessRuleRepository.save(rule);
+
+        writeAudit(actor(authentication), "ACCESS_RULE_UPDATED", ruleId, Map.of(
+                "inboundEndpointId", savedRule.getInboundEndpoint().getId(),
+                "oldEnable", oldEnable,
+                "newEnable", savedRule.getEnable()
+        ));
+        registerAfterCommit("ACCESS_RULE_UPDATED", savedRule.getInboundEndpoint(), savedRule.getId());
+
+        return toResponse(savedRule);
     }
 
     @Transactional
@@ -109,14 +155,24 @@ public class AccessRuleService {
         InboundAccessRule rule = accessRuleRepository.findById(ruleId)
                 .orElseThrow(() -> new AppException(ErrorCode.ACCESS_RULE_NOT_FOUND));
         String inboundEndpointId = rule.getInboundEndpoint().getId();
+        InboundEndpoint inboundEndpoint = rule.getInboundEndpoint();
         accessRuleRepository.delete(rule);
 
         writeAudit(actor(authentication), "ACCESS_RULE_DELETED", ruleId, Map.of("inboundEndpointId", inboundEndpointId));
-        registerAfterCommit("ACCESS_RULE_DELETED", inboundEndpointId, ruleId);
+        registerAfterCommit("ACCESS_RULE_DELETED", inboundEndpoint, ruleId);
 
         return AccessRuleDeleteResponse.builder()
                 .message("Access rule deleted successfully")
                 .build();
+    }
+
+    private void validateUpdateRequest(AccessRuleUpdateRequest request) {
+        if (request == null) {
+            throw new AppException(ErrorCode.INVALID_INPUT, "Request body is required");
+        }
+        if (request.getEnable() == null) {
+            throw new AppException(ErrorCode.INVALID_INPUT, "enable is required");
+        }
     }
 
     private void validateCreateRequest(AccessRuleCreateRequest request) {
@@ -151,14 +207,16 @@ public class AccessRuleService {
 
     private AccessRuleValueType parseValueType(String valueType) {
         try {
-            AccessRuleValueType parsedValueType = AccessRuleValueType.valueOf(valueType);
-            if (parsedValueType == AccessRuleValueType.IP || parsedValueType == AccessRuleValueType.CLIENT_ID) {
-                return parsedValueType;
-            }
-            throw new IllegalArgumentException("Unsupported access rule valueType");
+            return AccessRuleValueType.valueOf(valueType);
         } catch (IllegalArgumentException ex) {
-            throw new AppException(ErrorCode.INVALID_INPUT, "valueType must be IP or CLIENT_ID");
+            throw new AppException(ErrorCode.INVALID_INPUT, "valueType must be IP, CIDR, CLIENT_ID, or HEADER");
         }
+    }
+
+    private Pageable toSafePageable(Pageable pageable) {
+        return PageRequest.of(Math.max(pageable.getPageNumber(), 0),
+                Math.min(Math.max(pageable.getPageSize(), 1), MAX_PAGE_SIZE),
+                pageable.getSort().isSorted() ? pageable.getSort() : Sort.by(Sort.Direction.DESC, "createdAt"));
     }
 
     private void requireNotBlank(String value, String message) {
@@ -195,7 +253,9 @@ public class AccessRuleService {
         auditLogRepository.save(auditLog);
     }
 
-    private void registerAfterCommit(String eventType, String inboundEndpointId, String accessRuleId) {
+    private void registerAfterCommit(String eventType, InboundEndpoint inboundEndpoint, String accessRuleId) {
+        String inboundEndpointId = inboundEndpoint.getId();
+        String serviceId = inboundEndpoint.getSecureService() != null ? inboundEndpoint.getSecureService().getId() : null;
         ClientSecurityConfigEvent event = ClientSecurityConfigEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType(eventType)
@@ -205,22 +265,39 @@ public class AccessRuleService {
                 .changedFields(List.of("accessRules"))
                 .version(System.currentTimeMillis())
                 .build();
+        Runnable afterCommit = () -> {
+            eventPublisher.publish(event);
+            if (serviceId != null && !serviceId.isBlank()) {
+                redisSettingsSyncService.syncAllEndpointsOfService(serviceId);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            afterCommit.run();
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                eventPublisher.publish(event);
+                afterCommit.run();
             }
         });
     }
 
     private AccessRuleResponse toResponse(InboundAccessRule rule) {
+        InboundEndpoint endpoint = rule.getInboundEndpoint();
+        SecureService secureService = endpoint.getSecureService();
         return AccessRuleResponse.builder()
                 .id(rule.getId())
-                .inboundEndpointId(rule.getInboundEndpoint().getId())
+                .inboundEndpointId(endpoint.getId())
+                .inboundEndpointName(endpoint.getName())
+                .inboundEndpointPath(endpoint.getPath())
+                .serviceId(secureService != null ? secureService.getId() : null)
+                .serviceName(secureService != null ? secureService.getName() : null)
                 .type(rule.getType())
                 .valueType(rule.getValueType())
                 .value(rule.getValue())
                 .temporary(rule.getTemporary())
+                .enable(rule.getEnable())
                 .expiresAt(rule.getExpiresAt())
                 .reason(rule.getReason())
                 .createdAt(rule.getCreatedAt())

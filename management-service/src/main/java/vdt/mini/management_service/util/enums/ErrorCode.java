@@ -36,6 +36,8 @@ public enum ErrorCode {
     AUTH_CONFIG_NOT_FOUND(404, "Auth config not found", HttpStatus.NOT_FOUND),
     AUTH_CONFIG_CONFLICT(409, "Auth config conflict", HttpStatus.CONFLICT),
     ACCESS_RULE_NOT_FOUND(404, "Access rule not found", HttpStatus.NOT_FOUND),
+    ACCESS_PERMISSION_NOT_FOUND(404, "Access permission not found", HttpStatus.NOT_FOUND),
+    ACCESS_PERMISSION_CONFLICT(409, "Access permission conflict", HttpStatus.CONFLICT),
     CREDENTIAL_GENERATION_FAILED(500, "Credential generation failed", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;

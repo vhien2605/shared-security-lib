@@ -47,6 +47,9 @@ public class InboundAccessRule extends AbstractBase {
     @Column(name = "temporary", nullable = false)
     private Boolean temporary = false;
 
+    @Column(name = "enable", nullable = false)
+    private Boolean enable = true;
+
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 

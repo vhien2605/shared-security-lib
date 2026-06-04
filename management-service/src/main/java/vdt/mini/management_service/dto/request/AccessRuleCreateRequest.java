@@ -12,6 +12,7 @@ public class AccessRuleCreateRequest {
     private String valueType;
     private String value;
     private Boolean temporary;
+    private Boolean enable;
     private LocalDateTime expiresAt;
     private String reason;
 }

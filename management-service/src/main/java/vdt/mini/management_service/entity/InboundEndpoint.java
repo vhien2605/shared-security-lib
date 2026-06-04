@@ -85,4 +85,7 @@ public class InboundEndpoint extends AbstractAuditable {
 
     @OneToMany(mappedBy = "inboundEndpoint")
     private Set<AuthConfig> authConfigs = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "inboundEndpoint")
+    private Set<AccessPermission> accessPermissions = new LinkedHashSet<>();
 }

@@ -47,4 +47,7 @@ public class Client extends AbstractAuditable {
 
     @OneToMany(mappedBy = "client")
     private List<AuthConfig> authConfigs = new ArrayList<>();
+
+    @OneToMany(mappedBy = "client")
+    private List<AccessPermission> accessPermissions = new ArrayList<>();
 }
