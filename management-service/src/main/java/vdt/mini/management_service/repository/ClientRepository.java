@@ -12,6 +12,7 @@ import vdt.mini.management_service.util.enums.ClientStatus;
 import java.time.LocalDateTime;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface ClientRepository extends JpaRepository<Client, String> {
     boolean existsByClientKey(String clientKey);
@@ -35,7 +36,15 @@ public interface ClientRepository extends JpaRepository<Client, String> {
     @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query("UPDATE Client c SET c.status = :status, c.revokedAt = :revokedAt, c.revokedBy = :revokedBy WHERE c.id = :id")
     int updateStatus(@Param("id") String id,
-                     @Param("status") ClientStatus status,
-                     @Param("revokedAt") LocalDateTime revokedAt,
-                     @Param("revokedBy") String revokedBy);
+                      @Param("status") ClientStatus status,
+                      @Param("revokedAt") LocalDateTime revokedAt,
+                      @Param("revokedBy") String revokedBy);
+
+    @Query("SELECT DISTINCT c FROM Client c "
+            + "LEFT JOIN c.authConfigs ac "
+            + "LEFT JOIN c.accessPermissions permission "
+            + "LEFT JOIN permission.inboundEndpoint endpoint "
+            + "WHERE ac.service.id = :serviceId OR endpoint.secureService.id = :serviceId "
+            + "ORDER BY c.createdAt ASC, c.id ASC")
+    List<Client> findRuntimeClientsByServiceId(@Param("serviceId") String serviceId);
 }

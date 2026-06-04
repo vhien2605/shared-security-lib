@@ -99,9 +99,9 @@ public class SecurityEndpointScanner {
                 List<String> outboundIds = outbounds.stream()
                         .map(OutboundEndpointDTO::getEndpointId)
                         .toList();
-                securitySettingsStore.pollFromRedis(inboundIds, outboundIds);
-                log.info("Polled Redis cache for {} inbound and {} outbound settings",
-                        inboundIds.size(), outboundIds.size());
+                securitySettingsStore.pollRuntimeFromRedis(serviceId, inboundIds, outboundIds);
+                log.info("Security endpoint scan completed serviceId={} inboundCount={} outboundCount={}",
+                        serviceId, inboundIds.size(), outboundIds.size());
             }
         } catch (Exception e) {
             log.error("Failed to register security endpoints", e);

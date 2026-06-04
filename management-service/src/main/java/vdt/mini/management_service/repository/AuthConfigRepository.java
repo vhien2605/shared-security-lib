@@ -29,4 +29,11 @@ public interface AuthConfigRepository extends JpaRepository<AuthConfig, String> 
             + "AND ac.service.id = :serviceId "
             + "ORDER BY ac.createdAt ASC, ac.id ASC")
     List<AuthConfig> findEnabledByServiceScope(@Param("serviceId") String serviceId);
+
+    @Query("SELECT ac FROM AuthConfig ac "
+            + "JOIN FETCH ac.client client "
+            + "LEFT JOIN FETCH ac.service service "
+            + "WHERE service.id = :serviceId "
+            + "ORDER BY ac.createdAt ASC, ac.id ASC")
+    List<AuthConfig> findRuntimeByServiceId(@Param("serviceId") String serviceId);
 }

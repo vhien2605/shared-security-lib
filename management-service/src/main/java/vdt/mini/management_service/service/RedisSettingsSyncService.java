@@ -1,6 +1,7 @@
 package vdt.mini.management_service.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -8,15 +9,25 @@ import org.springframework.stereotype.Service;
 import vdt.mini.management_service.dto.sync.AccessRuleDTO;
 import vdt.mini.management_service.dto.sync.AccessPermissionDTO;
 import vdt.mini.management_service.dto.sync.AuthConfigDTO;
+import vdt.mini.management_service.dto.sync.AuthConfigRuntimeDTO;
+import vdt.mini.management_service.dto.sync.ClientRuntimeDTO;
 import vdt.mini.management_service.dto.sync.InboundSettingsSyncDTO;
 import vdt.mini.management_service.dto.sync.OutboundSettingsSyncDTO;
+import vdt.mini.management_service.dto.sync.PermissionRuntimeDTO;
+import vdt.mini.management_service.dto.sync.RuntimeManifestDTO;
+import vdt.mini.management_service.dto.sync.SecurityRuntimeChangeMessage;
+import vdt.mini.management_service.dto.sync.ServiceAuthConfigsSnapshotDTO;
+import vdt.mini.management_service.dto.sync.ServiceClientsSnapshotDTO;
+import vdt.mini.management_service.dto.sync.ServicePermissionsSnapshotDTO;
 import vdt.mini.management_service.dto.sync.SettingsChangeMessage;
 import vdt.mini.management_service.entity.AccessPermission;
 import vdt.mini.management_service.entity.AuthConfig;
+import vdt.mini.management_service.entity.Client;
 import vdt.mini.management_service.entity.InboundEndpoint;
 import vdt.mini.management_service.entity.OutboundEndpoint;
 import vdt.mini.management_service.repository.AccessPermissionRepository;
 import vdt.mini.management_service.repository.AuthConfigRepository;
+import vdt.mini.management_service.repository.ClientRepository;
 import vdt.mini.management_service.repository.InboundEndpointRepository;
 import vdt.mini.management_service.repository.OutboundEndpointRepository;
 import vdt.mini.management_service.util.enums.AuthType;
@@ -25,7 +36,10 @@ import vdt.mini.management_service.util.enums.ServiceStatus;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class RedisSettingsSyncService {
@@ -36,21 +50,36 @@ public class RedisSettingsSyncService {
     private final ObjectMapper objectMapper;
     private final AuthConfigRepository authConfigRepository;
     private final AccessPermissionRepository accessPermissionRepository;
+    private final ClientRepository clientRepository;
     private final InboundEndpointRepository inboundEndpointRepository;
     private final OutboundEndpointRepository outboundEndpointRepository;
     private final SecretCipherService secretCipherService;
 
     public RedisSettingsSyncService(StringRedisTemplate redisTemplate,
-                                       ObjectMapper objectMapper,
-                                       AuthConfigRepository authConfigRepository,
-                                       AccessPermissionRepository accessPermissionRepository,
-                                       InboundEndpointRepository inboundEndpointRepository,
+                                        ObjectMapper objectMapper,
+                                        AuthConfigRepository authConfigRepository,
+                                        AccessPermissionRepository accessPermissionRepository,
+                                        InboundEndpointRepository inboundEndpointRepository,
+                                        OutboundEndpointRepository outboundEndpointRepository,
+                                        SecretCipherService secretCipherService) {
+        this(redisTemplate, objectMapper, authConfigRepository, accessPermissionRepository, null,
+                inboundEndpointRepository, outboundEndpointRepository, secretCipherService);
+    }
+
+    @Autowired
+    public RedisSettingsSyncService(StringRedisTemplate redisTemplate,
+                                        ObjectMapper objectMapper,
+                                        AuthConfigRepository authConfigRepository,
+                                        AccessPermissionRepository accessPermissionRepository,
+                                        ClientRepository clientRepository,
+                                        InboundEndpointRepository inboundEndpointRepository,
                                        OutboundEndpointRepository outboundEndpointRepository,
                                        SecretCipherService secretCipherService) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.authConfigRepository = authConfigRepository;
         this.accessPermissionRepository = accessPermissionRepository;
+        this.clientRepository = clientRepository;
         this.inboundEndpointRepository = inboundEndpointRepository;
         this.outboundEndpointRepository = outboundEndpointRepository;
         this.secretCipherService = secretCipherService;
@@ -59,7 +88,7 @@ public class RedisSettingsSyncService {
     public void syncInboundToRedis(InboundEndpoint endpoint) {
         try {
             InboundSettingsSyncDTO dto = buildInboundSyncDTO(endpoint);
-            String key = "security:config:inbound:" + endpoint.getId();
+            String key = RedisSecurityRuntimeKeys.inboundSettings(endpoint.getId());
             if (Boolean.TRUE.equals(endpoint.getEnabled())) {
                 String json = objectMapper.writeValueAsString(dto);
                 redisTemplate.opsForValue().set(key, json);
@@ -73,12 +102,13 @@ public class RedisSettingsSyncService {
                     endpoint.getSecureService().getId(),
                     dto
             );
-            String channel = "security:settings:" + endpoint.getSecureService().getId();
+            String serviceId = endpoint.getSecureService().getId();
+            String channel = RedisSecurityRuntimeKeys.legacySettingsChannel(serviceId);
             String messageJson = objectMapper.writeValueAsString(message);
             redisTemplate.convertAndSend(channel, messageJson);
 
-            log.debug("Synced inbound settings to Redis: endpointId={}, serviceId={}",
-                    endpoint.getId(), endpoint.getSecureService().getId());
+            log.info("Redis inbound settings sync completed endpointId={} serviceId={} channel={}",
+                    endpoint.getId(), serviceId, channel);
         } catch (Exception e) {
             log.error("Failed to sync inbound settings to Redis for endpointId={}", endpoint.getId(), e);
         }
@@ -87,7 +117,7 @@ public class RedisSettingsSyncService {
     public void syncOutboundToRedis(OutboundEndpoint endpoint) {
         try {
             OutboundSettingsSyncDTO dto = buildOutboundSyncDTO(endpoint);
-            String key = "security:config:outbound:" + endpoint.getId();
+            String key = RedisSecurityRuntimeKeys.outboundSettings(endpoint.getId());
             if (Boolean.TRUE.equals(endpoint.getEnabled())) {
                 String json = objectMapper.writeValueAsString(dto);
                 redisTemplate.opsForValue().set(key, json);
@@ -101,12 +131,13 @@ public class RedisSettingsSyncService {
                     endpoint.getSecureService().getId(),
                     dto
             );
-            String channel = "security:settings:" + endpoint.getSecureService().getId();
+            String serviceId = endpoint.getSecureService().getId();
+            String channel = RedisSecurityRuntimeKeys.legacySettingsChannel(serviceId);
             String messageJson = objectMapper.writeValueAsString(message);
             redisTemplate.convertAndSend(channel, messageJson);
 
-            log.debug("Synced outbound settings to Redis: endpointId={}, serviceId={}",
-                    endpoint.getId(), endpoint.getSecureService().getId());
+            log.info("Redis outbound settings sync completed endpointId={} serviceId={} channel={}",
+                    endpoint.getId(), serviceId, channel);
         } catch (Exception e) {
             log.error("Failed to sync outbound settings to Redis for endpointId={}", endpoint.getId(), e);
         }
@@ -122,6 +153,7 @@ public class RedisSettingsSyncService {
             for (OutboundEndpoint ep : outbounds) {
                 syncOutboundToRedis(ep);
             }
+            syncRuntimeSnapshotOfService(serviceId, inbounds.size(), outbounds.size());
             log.info("Synced all endpoints of service {} to Redis ({} inbound, {} outbound)",
                     serviceId, inbounds.size(), outbounds.size());
         } catch (Exception e) {
@@ -177,6 +209,129 @@ public class RedisSettingsSyncService {
                 .map(this::toPermissionDTO)
                 .toList());
         return dto;
+    }
+
+    public void syncRuntimeSnapshotOfService(String serviceId) {
+        syncRuntimeSnapshotOfService(serviceId,
+                inboundEndpointRepository.findAllBySecureServiceId(serviceId).size(),
+                outboundEndpointRepository.findAllBySecureServiceId(serviceId).size());
+    }
+
+    private void syncRuntimeSnapshotOfService(String serviceId, int inboundCount, int outboundCount) {
+        if (serviceId == null || serviceId.isBlank()) {
+            return;
+        }
+        if (clientRepository == null) {
+            log.warn("Redis runtime snapshot skipped because ClientRepository is unavailable serviceId={}", serviceId);
+            return;
+        }
+        long version = System.currentTimeMillis();
+        try {
+            log.info("Redis runtime snapshot write started serviceId={} version={}", serviceId, version);
+            List<ClientRuntimeDTO> clients = clientRepository.findRuntimeClientsByServiceId(serviceId).stream()
+                    .map(this::toClientRuntimeDTO)
+                    .toList();
+            List<AuthConfigRuntimeDTO> authConfigs = authConfigRepository.findRuntimeByServiceId(serviceId).stream()
+                    .map(this::toAuthConfigRuntimeDTO)
+                    .toList();
+            List<PermissionRuntimeDTO> permissions = accessPermissionRepository.findRuntimeByServiceId(serviceId).stream()
+                    .map(this::toPermissionRuntimeDTO)
+                    .toList();
+
+            redisTemplate.opsForValue().set(RedisSecurityRuntimeKeys.inboundEndpointIds(serviceId),
+                    objectMapper.writeValueAsString(inboundEndpointRepository.findAllBySecureServiceId(serviceId).stream().map(InboundEndpoint::getId).toList()));
+            redisTemplate.opsForValue().set(RedisSecurityRuntimeKeys.outboundEndpointIds(serviceId),
+                    objectMapper.writeValueAsString(outboundEndpointRepository.findAllBySecureServiceId(serviceId).stream().map(OutboundEndpoint::getId).toList()));
+            redisTemplate.opsForValue().set(RedisSecurityRuntimeKeys.clients(serviceId),
+                    objectMapper.writeValueAsString(new ServiceClientsSnapshotDTO(serviceId, version, clients)));
+            redisTemplate.opsForValue().set(RedisSecurityRuntimeKeys.authConfigs(serviceId),
+                    objectMapper.writeValueAsString(new ServiceAuthConfigsSnapshotDTO(serviceId, version, authConfigs)));
+            redisTemplate.opsForValue().set(RedisSecurityRuntimeKeys.permissions(serviceId),
+                    objectMapper.writeValueAsString(new ServicePermissionsSnapshotDTO(serviceId, version, permissions)));
+            RuntimeManifestDTO manifest = new RuntimeManifestDTO(serviceId, version, LocalDateTime.now().toString(),
+                    inboundCount, outboundCount, clients.size(), authConfigs.size(), permissions.size(), runtimeKeys(serviceId));
+            redisTemplate.opsForValue().set(RedisSecurityRuntimeKeys.manifest(serviceId), objectMapper.writeValueAsString(manifest));
+            log.info("Redis runtime manifest write completed serviceId={} version={} inboundCount={} outboundCount={} clientCount={} authConfigCount={} permissionCount={}",
+                    serviceId, version, inboundCount, outboundCount, clients.size(), authConfigs.size(), permissions.size());
+            publishRuntimeChange(new SecurityRuntimeChangeMessage(UUID.randomUUID().toString(), "SERVICE_SNAPSHOT_REFRESHED",
+                    serviceId, null, null, null, null, List.of("runtimeSnapshot"), version, LocalDateTime.now().toString(), null));
+            log.info("Redis runtime snapshot write completed serviceId={} version={}", serviceId, version);
+        } catch (Exception ex) {
+            log.error("Failed to write Redis runtime snapshot serviceId={} version={}", serviceId, version, ex);
+        }
+    }
+
+    public void publishRuntimeChange(SecurityRuntimeChangeMessage message) {
+        if (message == null || message.getServiceId() == null || message.getServiceId().isBlank()) {
+            return;
+        }
+        String channel = RedisSecurityRuntimeKeys.eventsChannel(message.getServiceId());
+        try {
+            log.info("Redis runtime event publish started eventType={} channel={} serviceId={} version={} endpointId={} clientId={} authConfigId={} permissionId={}",
+                    message.getEventType(), channel, message.getServiceId(), message.getVersion(), message.getEndpointId(), message.getClientId(), message.getAuthConfigId(), message.getPermissionId());
+            redisTemplate.convertAndSend(channel, objectMapper.writeValueAsString(message));
+            log.info("Redis runtime event publish completed eventType={} channel={} serviceId={} version={}",
+                    message.getEventType(), channel, message.getServiceId(), message.getVersion());
+        } catch (Exception ex) {
+            log.error("Failed to publish Redis runtime event eventType={} serviceId={} version={}",
+                    message.getEventType(), message.getServiceId(), message.getVersion(), ex);
+        }
+    }
+
+    private Map<String, String> runtimeKeys(String serviceId) {
+        Map<String, String> keys = new LinkedHashMap<>();
+        keys.put("clients", RedisSecurityRuntimeKeys.clients(serviceId));
+        keys.put("authConfigs", RedisSecurityRuntimeKeys.authConfigs(serviceId));
+        keys.put("permissions", RedisSecurityRuntimeKeys.permissions(serviceId));
+        keys.put("inboundEndpoints", RedisSecurityRuntimeKeys.inboundEndpointIds(serviceId));
+        keys.put("outboundEndpoints", RedisSecurityRuntimeKeys.outboundEndpointIds(serviceId));
+        return keys;
+    }
+
+    private ClientRuntimeDTO toClientRuntimeDTO(Client client) {
+        boolean active = client.getStatus() == vdt.mini.management_service.util.enums.ClientStatus.ACTIVE;
+        return new ClientRuntimeDTO(client.getId(), client.getClientKey(), client.getName(),
+                client.getStatus() != null ? client.getStatus().name() : null, active, active,
+                client.getRevokedAt() != null ? client.getRevokedAt().toString() : null,
+                client.getUpdatedAt() != null ? client.getUpdatedAt().toString() : null,
+                client.getUpdatedAt() != null ? toVersion(client.getUpdatedAt()) : null);
+    }
+
+    private AuthConfigRuntimeDTO toAuthConfigRuntimeDTO(AuthConfig authConfig) {
+        Client client = authConfig.getClient();
+        return new AuthConfigRuntimeDTO(authConfig.getId(),
+                authConfig.getService() != null ? authConfig.getService().getId() : null,
+                client != null ? client.getId() : null,
+                client != null ? client.getClientKey() : null,
+                authConfig.getType() != null ? authConfig.getType().name() : null,
+                authConfig.getSecretRef(), authConfig.getCredentialHash(), authConfig.getAlgorithm(), null,
+                resolveRuntimeSecretKey(authConfig),
+                authConfig.getExpiresAt() != null ? authConfig.getExpiresAt().toString() : null,
+                Boolean.TRUE.equals(authConfig.getEnabled()) && client != null && client.getStatus() == vdt.mini.management_service.util.enums.ClientStatus.ACTIVE,
+                client != null && client.getStatus() != null ? client.getStatus().name() : null,
+                authConfig.getUpdatedAt() != null ? toVersion(authConfig.getUpdatedAt()) : null);
+    }
+
+    private PermissionRuntimeDTO toPermissionRuntimeDTO(AccessPermission permission) {
+        Client client = permission.getClient();
+        InboundEndpoint endpoint = permission.getInboundEndpoint();
+        String serviceId = endpoint != null && endpoint.getSecureService() != null ? endpoint.getSecureService().getId() : null;
+        boolean enabled = Boolean.TRUE.equals(permission.getEnable()) && client != null && client.getStatus() == vdt.mini.management_service.util.enums.ClientStatus.ACTIVE;
+        return new PermissionRuntimeDTO(permission.getId(), serviceId, endpoint != null ? endpoint.getId() : null,
+                client != null ? client.getId() : null, client != null ? client.getClientKey() : null,
+                enabled, client != null && client.getStatus() != null ? client.getStatus().name() : null,
+                permission.getUpdatedAt() != null ? toVersion(permission.getUpdatedAt()) : null);
+    }
+
+    private long toVersion(LocalDateTime dateTime) {
+        return java.time.ZoneOffset.UTC != null ? dateTime.toInstant(java.time.ZoneOffset.UTC).toEpochMilli() : System.currentTimeMillis();
+    }
+
+    private String resolveRuntimeSecretKey(AuthConfig authConfig) {
+        if (authConfig.getType() != AuthType.HMAC_SIGNATURE) {
+            return null;
+        }
+        return resolveClientKey(authConfig);
     }
 
     private AuthConfigDTO toSyncAuthConfig(AuthConfig authConfig) {

@@ -56,12 +56,15 @@ class ClientSecurityServiceTest {
     @Mock
     private ClientSecurityEventPublisher eventPublisher;
 
+    @Mock
+    private RedisSettingsSyncService redisSettingsSyncService;
+
     private ClientSecurityService clientSecurityService;
 
     @BeforeEach
     void setUp() {
         clientSecurityService = new ClientSecurityService(clientRepository, authConfigRepository,
-                serviceRepository, auditLogRepository, credentialService, eventPublisher, new ObjectMapper());
+                serviceRepository, auditLogRepository, credentialService, eventPublisher, redisSettingsSyncService, new ObjectMapper());
         TransactionSynchronizationManager.initSynchronization();
     }
 

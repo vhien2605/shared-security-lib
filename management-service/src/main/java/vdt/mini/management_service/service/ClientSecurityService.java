@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import vdt.mini.management_service.dto.event.ClientSecurityConfigEvent;
+import vdt.mini.management_service.dto.sync.SecurityRuntimeChangeMessage;
 import vdt.mini.management_service.dto.request.ClientAuthConfigChangesRequest;
 import vdt.mini.management_service.dto.request.ClientAuthConfigCreateRequest;
 import vdt.mini.management_service.dto.request.ClientAuthConfigUpdateRequest;
@@ -48,6 +49,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ClientSecurityService {
@@ -64,6 +66,7 @@ public class ClientSecurityService {
     private final AuditLogRepository auditLogRepository;
     private final ClientCredentialService credentialService;
     private final ClientSecurityEventPublisher eventPublisher;
+    private final RedisSettingsSyncService redisSettingsSyncService;
     private final ObjectMapper objectMapper;
 
     public ClientSecurityService(ClientRepository clientRepository,
@@ -72,6 +75,7 @@ public class ClientSecurityService {
                                   AuditLogRepository auditLogRepository,
                                   ClientCredentialService credentialService,
                                  ClientSecurityEventPublisher eventPublisher,
+                                 RedisSettingsSyncService redisSettingsSyncService,
                                  ObjectMapper objectMapper) {
         this.clientRepository = clientRepository;
         this.authConfigRepository = authConfigRepository;
@@ -79,6 +83,7 @@ public class ClientSecurityService {
         this.auditLogRepository = auditLogRepository;
         this.credentialService = credentialService;
         this.eventPublisher = eventPublisher;
+        this.redisSettingsSyncService = redisSettingsSyncService;
         this.objectMapper = objectMapper;
     }
 
@@ -457,12 +462,33 @@ public class ClientSecurityService {
                 .changedFields(changedFields)
                 .version(System.currentTimeMillis())
                 .build();
+        Set<String> uniqueServiceIds = serviceIds == null ? Set.of() : serviceIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toSet());
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
+                String runtimeEventType = changedFields != null && changedFields.contains("status") ? "CLIENT_DISABLED" : "CLIENT_CHANGED";
+                logAfterCommitExecution(runtimeEventType, clientId, uniqueServiceIds);
                 eventPublisher.publish(event);
+                for (String serviceId : uniqueServiceIds) {
+                    redisSettingsSyncService.syncAllEndpointsOfService(serviceId);
+                    redisSettingsSyncService.publishRuntimeChange(new SecurityRuntimeChangeMessage(UUID.randomUUID().toString(),
+                            runtimeEventType, serviceId, null, clientId, null, null, changedFields,
+                            System.currentTimeMillis(), LocalDateTime.now().toString(), null));
+                    for (String authConfigId : authConfigIds == null ? List.<String>of() : authConfigIds) {
+                        redisSettingsSyncService.publishRuntimeChange(new SecurityRuntimeChangeMessage(UUID.randomUUID().toString(),
+                                "AUTH_CONFIG_CHANGED", serviceId, null, clientId, authConfigId, null, List.of("authConfig"),
+                                System.currentTimeMillis(), LocalDateTime.now().toString(), null));
+                    }
+                }
             }
         });
+    }
+
+    private void logAfterCommitExecution(String eventType, String clientId, Set<String> serviceIds) {
+        org.slf4j.LoggerFactory.getLogger(ClientSecurityService.class).info(
+                "After-commit callback executed eventType={} clientId={} serviceIds={}", eventType, clientId, serviceIds);
     }
 
     private ClientListItemResponse toListItem(Client client) {

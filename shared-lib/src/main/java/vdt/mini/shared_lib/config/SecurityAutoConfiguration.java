@@ -22,6 +22,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import vdt.mini.shared_lib.service.IdentityManager;
+import vdt.mini.shared_lib.service.RedisSecurityRuntimeSubscriber;
+import vdt.mini.shared_lib.service.RedisSecurityRuntimeKeys;
 import vdt.mini.shared_lib.service.RedisSettingsSubscriber;
 
 import java.util.HashMap;
@@ -84,11 +86,18 @@ public class SecurityAutoConfiguration {
         public RedisMessageListenerContainer securityRedisListenerContainer(
                 RedisConnectionFactory securityRedisConnectionFactory,
                 RedisSettingsSubscriber subscriber,
+                RedisSecurityRuntimeSubscriber runtimeSubscriber,
                 IdentityManager identityManager) {
             RedisMessageListenerContainer container = new RedisMessageListenerContainer();
             container.setConnectionFactory(securityRedisConnectionFactory);
             String serviceId = identityManager.getOrCreateServiceId();
-            container.addMessageListener(subscriber, new PatternTopic("security:settings:" + serviceId));
+            String settingsChannel = RedisSecurityRuntimeKeys.legacySettingsChannel(serviceId);
+            String runtimeChannel = RedisSecurityRuntimeKeys.eventsChannel(serviceId);
+            container.addMessageListener(subscriber, new PatternTopic(settingsChannel));
+            container.addMessageListener(runtimeSubscriber, new PatternTopic(runtimeChannel));
+            org.slf4j.LoggerFactory.getLogger(SecurityAutoConfiguration.class).info(
+                    "Redis security listeners subscribed serviceId={} settingsChannel={} runtimeChannel={}",
+                    serviceId, settingsChannel, runtimeChannel);
             return container;
         }
     }

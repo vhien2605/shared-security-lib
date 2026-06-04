@@ -14,15 +14,18 @@ import vdt.mini.management_service.entity.AuthConfig;
 import vdt.mini.management_service.entity.Client;
 import vdt.mini.management_service.entity.InboundAccessRule;
 import vdt.mini.management_service.entity.InboundEndpoint;
+import vdt.mini.management_service.entity.OutboundEndpoint;
 import vdt.mini.management_service.entity.SecureService;
 import vdt.mini.management_service.repository.AccessPermissionRepository;
 import vdt.mini.management_service.repository.AuthConfigRepository;
+import vdt.mini.management_service.repository.ClientRepository;
 import vdt.mini.management_service.repository.InboundEndpointRepository;
 import vdt.mini.management_service.repository.OutboundEndpointRepository;
 import vdt.mini.management_service.util.enums.AccessRuleType;
 import vdt.mini.management_service.util.enums.AccessRuleValueType;
 import vdt.mini.management_service.util.enums.EndpointProtocol;
 import vdt.mini.management_service.util.enums.AuthType;
+import vdt.mini.management_service.util.enums.ClientStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,8 +33,10 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -45,6 +50,8 @@ class RedisSettingsSyncServiceTest {
     private AuthConfigRepository authConfigRepository;
     @Mock
     private AccessPermissionRepository accessPermissionRepository;
+    @Mock
+    private ClientRepository clientRepository;
     @Mock
     private InboundEndpointRepository inboundEndpointRepository;
     @Mock
@@ -76,12 +83,14 @@ class RedisSettingsSyncServiceTest {
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
         verify(valueOperations).set(eq("security:config:inbound:endpoint-1"), jsonCaptor.capture());
-        JsonNode payload = objectMapper.readTree(jsonCaptor.getValue());
-        assertEquals(1, payload.get("accessRules").size());
-        assertEquals("enabled-rule", payload.get("accessRules").get(0).get("value").asText());
-        assertEquals(1, payload.get("permissions").size());
-        assertEquals("permission-1", payload.get("permissions").get(0).get("permissionId").asText());
+        JsonNode inboundPayload = objectMapper.readTree(jsonCaptor.getValue());
+        assertEquals(1, inboundPayload.get("accessRules").size());
+        assertEquals("enabled-rule", inboundPayload.get("accessRules").get(0).get("value").asText());
+        assertEquals(1, inboundPayload.get("permissions").size());
+        assertEquals("permission-1", inboundPayload.get("permissions").get(0).get("permissionId").asText());
         verify(redisTemplate).convertAndSend(eq("security:settings:service-1"), anyString());
+        verify(redisTemplate, never()).convertAndSend(eq("security:runtime:v1:service:service-1:events"),
+                argThat((String payload) -> payload != null && payload.contains("INBOUND_SETTINGS_CHANGED")));
     }
 
     @Test
@@ -113,6 +122,63 @@ class RedisSettingsSyncServiceTest {
     }
 
     @Test
+    void syncOutboundToRedis_shouldPublishOnlyLegacySettingsMessage() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        RedisSettingsSyncService service = new RedisSettingsSyncService(redisTemplate,
+                objectMapper,
+                authConfigRepository,
+                accessPermissionRepository,
+                inboundEndpointRepository,
+                outboundEndpointRepository,
+                secretCipherService);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        service.syncOutboundToRedis(outboundEndpoint());
+
+        verify(redisTemplate).convertAndSend(eq("security:settings:service-1"), anyString());
+        verify(redisTemplate, never()).convertAndSend(eq("security:runtime:v1:service:service-1:events"),
+                argThat((String payload) -> payload != null && payload.contains("OUTBOUND_SETTINGS_CHANGED")));
+    }
+
+    @Test
+    void syncRuntimeSnapshotOfService_shouldPropagateCredentialHashAndKeepSnapshotEvent() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        RedisSettingsSyncService service = new RedisSettingsSyncService(redisTemplate,
+                objectMapper,
+                authConfigRepository,
+                accessPermissionRepository,
+                clientRepository,
+                inboundEndpointRepository,
+                outboundEndpointRepository,
+                secretCipherService);
+        AuthConfig apiKey = authConfig("auth-api", AuthType.API_KEY, "api-ref", null);
+        apiKey.setCredentialHash("api-hash");
+        apiKey.setService(secureService());
+        AuthConfig hmac = authConfig("auth-hmac", AuthType.HMAC_SIGNATURE, "hmac-ref", "ciphertext");
+        hmac.setCredentialHash("hmac-hash");
+        hmac.setService(secureService());
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(inboundEndpointRepository.findAllBySecureServiceId("service-1")).thenReturn(List.of(endpoint()));
+        when(outboundEndpointRepository.findAllBySecureServiceId("service-1")).thenReturn(List.of(outboundEndpoint()));
+        when(clientRepository.findRuntimeClientsByServiceId("service-1")).thenReturn(List.of(client()));
+        when(authConfigRepository.findRuntimeByServiceId("service-1")).thenReturn(List.of(apiKey, hmac));
+        when(accessPermissionRepository.findRuntimeByServiceId("service-1")).thenReturn(List.of());
+        when(secretCipherService.decrypt("ciphertext")).thenReturn("hmac-secret");
+
+        service.syncRuntimeSnapshotOfService("service-1");
+
+        ArgumentCaptor<String> authSnapshotCaptor = ArgumentCaptor.forClass(String.class);
+        verify(valueOperations).set(eq("security:runtime:v1:service:service-1:auth-configs"), authSnapshotCaptor.capture());
+        JsonNode authConfigs = objectMapper.readTree(authSnapshotCaptor.getValue()).get("authConfigs");
+        assertEquals("api-hash", authConfigs.get(0).get("credentialHash").asText());
+        assertEquals(true, authConfigs.get(0).get("secretKey").isNull());
+        assertEquals("hmac-hash", authConfigs.get(1).get("credentialHash").asText());
+        assertEquals("hmac-secret", authConfigs.get(1).get("secretKey").asText());
+        verify(redisTemplate).convertAndSend(eq("security:runtime:v1:service:service-1:events"),
+                argThat((String payload) -> payload != null && payload.contains("SERVICE_SNAPSHOT_REFRESHED")));
+    }
+
+    @Test
     void syncInboundToRedis_shouldContinue_whenHmacCiphertextMissingOrMalformed() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         RedisSettingsSyncService service = new RedisSettingsSyncService(redisTemplate,
@@ -140,16 +206,40 @@ class RedisSettingsSyncServiceTest {
     }
 
     private InboundEndpoint endpoint() {
-        SecureService secureService = new SecureService();
-        secureService.setId("service-1");
         InboundEndpoint endpoint = new InboundEndpoint();
         endpoint.setId("endpoint-1");
         endpoint.setName("Endpoint One");
         endpoint.setPath("/api/one");
         endpoint.setProtocol(EndpointProtocol.HTTP);
         endpoint.setEnabled(true);
-        endpoint.setSecureService(secureService);
+        endpoint.setSecureService(secureService());
         return endpoint;
+    }
+
+    private OutboundEndpoint outboundEndpoint() {
+        OutboundEndpoint endpoint = new OutboundEndpoint();
+        endpoint.setId("outbound-1");
+        endpoint.setName("Outbound One");
+        endpoint.setTargetUrl("https://example.test/api");
+        endpoint.setProtocol(EndpointProtocol.HTTP);
+        endpoint.setEnabled(true);
+        endpoint.setSecureService(secureService());
+        return endpoint;
+    }
+
+    private SecureService secureService() {
+        SecureService secureService = new SecureService();
+        secureService.setId("service-1");
+        return secureService;
+    }
+
+    private Client client() {
+        Client client = new Client();
+        client.setId("client-1");
+        client.setClientKey("client-key-1");
+        client.setName("Client One");
+        client.setStatus(ClientStatus.ACTIVE);
+        return client;
     }
 
     private InboundAccessRule rule(String value, boolean enable, LocalDateTime expiresAt) {
@@ -179,10 +269,12 @@ class RedisSettingsSyncServiceTest {
     private AuthConfig authConfig(String id, AuthType type, String secretRef, String secretCiphertext) {
         AuthConfig authConfig = new AuthConfig();
         authConfig.setId(id);
+        authConfig.setClient(client());
         authConfig.setType(type);
         authConfig.setSecretRef(secretRef);
         authConfig.setAlgorithm(type == AuthType.HMAC_SIGNATURE ? "HmacSHA256" : null);
         authConfig.setSecretCiphertext(secretCiphertext);
+        authConfig.setEnabled(true);
         return authConfig;
     }
 }
