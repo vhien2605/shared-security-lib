@@ -6,12 +6,13 @@ import {
   searchServices,
   updateClient,
 } from "../../services/clients";
+import ClientCredentialBox from "./ClientCredentialBox";
 import "./ClientManagementPage.css";
 
 const CLIENT_STATUSES = ["ACTIVE", "INACTIVE", "REVOKED"];
 const CREATE_STATUSES = ["ACTIVE", "INACTIVE"];
 const AUTH_TYPES = ["API_KEY", "HMAC_SIGNATURE"];
-const AUTH_ALGORITHMS = ["HmacSHA256", "HmacSHA384", "HmacSHA512"];
+const AUTH_ALGORITHMS = ["HmacSHA256"];
 const DEFAULT_PAGE_SIZE = 20;
 
 const emptyAuthConfig = () => ({
@@ -141,6 +142,12 @@ function buildCreateBody(form) {
       };
       const expiresAt = toDateTime(config.expiresAt);
       if (expiresAt) item.expiresAt = expiresAt;
+      if (
+        config.type === "HMAC_SIGNATURE" &&
+        !AUTH_ALGORITHMS.includes(config.algorithm)
+      ) {
+        throw new Error("Thuật toán HMAC không hợp lệ.");
+      }
       if (config.type === "HMAC_SIGNATURE")
         item.algorithm = config.algorithm || "HmacSHA256";
       return item;
@@ -418,7 +425,7 @@ export default function ClientManagementPage() {
     setOpenStatusClientId("");
     setUpdatingStatusClientId(client.id);
     try {
-      await updateClient(client.id, { status: nextStatus });
+      unwrapResponse(await updateClient(client.id, { status: nextStatus }));
       setMessage(`Đã cập nhật trạng thái client ${client.clientCode || client.name || client.id} thành ${nextStatus}.`);
       await loadClients({ page: pageInfo.number, size: pageInfo.size });
     } catch (submitError) {
@@ -915,7 +922,7 @@ const ClientCreateModal = memo(function ClientCreateModal({
             </p>
           </section>
 
-          {credential ? <CredentialBox credential={credential} /> : null}
+          {credential ? <ClientCredentialBox credential={credential} /> : null}
         </div>
 
         <footer className="client-modal__footer">
@@ -1007,26 +1014,3 @@ function TextField({
   );
 }
 
-function CredentialBox({ credential }) {
-  const entries = Array.isArray(credential)
-    ? credential.flatMap((item, index) =>
-        Object.entries(item || {}).map(([key, value]) => [
-          `${index + 1}.${key}`,
-          value,
-        ]),
-      )
-    : Object.entries(credential || {});
-
-  if (entries.length === 0) return null;
-  return (
-    <section className="client-credential-box">
-      <h4>Credential trả về một lần</h4>
-      {entries.map(([key, value]) => (
-        <p key={key}>
-          <span>{key}</span>
-          <code>{String(value)}</code>
-        </p>
-      ))}
-    </section>
-  );
-}

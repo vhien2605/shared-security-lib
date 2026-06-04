@@ -6,6 +6,7 @@ import lombok.Setter;
 import vdt.mini.management_service.util.enums.ClientStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -18,5 +19,6 @@ public class ClientUpdateResponse {
     private String contactEmail;
     private ClientStatus status;
     private ClientAuthConfigChangesResponse authConfigChanges;
+    private List<ClientCredentialResponse> credentials;
     private LocalDateTime updatedAt;
 }

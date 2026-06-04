@@ -29,10 +29,6 @@ public class AuthConfig extends AbstractAuditable {
     private Client client;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "inbound_endpoint_id")
-    private InboundEndpoint inboundEndpoint;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "service_id")
     private SecureService service;
 
@@ -45,6 +41,9 @@ public class AuthConfig extends AbstractAuditable {
 
     @Column(name = "credential_hash", length = 255)
     private String credentialHash;
+
+    @Column(name = "secret_ciphertext", columnDefinition = "TEXT")
+    private String secretCiphertext;
 
     @Column(name = "algorithm", length = 50)
     private String algorithm;

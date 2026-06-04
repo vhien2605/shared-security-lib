@@ -5,11 +5,12 @@ import {
   searchServices,
   updateClient,
 } from "../../services/clients";
+import ClientCredentialBox from "./ClientCredentialBox";
 import "./ClientDetailPage.css";
 
 const CLIENT_STATUSES = ["ACTIVE", "INACTIVE", "REVOKED"];
 const AUTH_TYPES = ["API_KEY", "HMAC_SIGNATURE"];
-const AUTH_ALGORITHMS = ["HmacSHA256", "HmacSHA384", "HmacSHA512"];
+const AUTH_ALGORITHMS = ["HmacSHA256"];
 
 const emptyAuthConfig = () => ({
   serviceName: "",
@@ -58,8 +59,6 @@ function normalizeAuthConfig(config) {
     id: config?.id ?? config?.authConfigId ?? "",
     serviceId: config?.serviceId ?? "",
     serviceName: config?.serviceName ?? "",
-    inboundEndpointId: config?.inboundEndpointId ?? "",
-    endpointCode: config?.endpointCode ?? "",
     type: config?.type || "API_KEY",
     algorithm: config?.algorithm ?? "",
     enabled: Boolean(config?.enabled),
@@ -177,8 +176,6 @@ function statusClass(status) {
 
 function serviceLabel(config) {
   if (config.serviceName) return config.serviceName;
-  if (config.endpointCode) return config.endpointCode;
-  if (config.inboundEndpointId) return config.inboundEndpointId;
   return "—";
 }
 
@@ -202,6 +199,7 @@ export default function ClientDetailPage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authForm, setAuthForm] = useState(emptyAuthForm);
   const [authError, setAuthError] = useState("");
+  const [createdCredential, setCreatedCredential] = useState(null);
   const [serviceSuggestions, setServiceSuggestions] = useState({});
   const searchRequestRef = useRef(0);
 
@@ -272,7 +270,7 @@ export default function ClientDetailPage() {
     setIsSubmitting(true);
 
     try {
-      await updateClient(clientId, validateMetadata(draft));
+      unwrapResponse(await updateClient(clientId, validateMetadata(draft)));
       await loadClient();
       setIsEditing(false);
       setMessage("Đã cập nhật thông tin client thành công.");
@@ -286,13 +284,24 @@ export default function ClientDetailPage() {
   const openAuthModal = useCallback(() => {
     setAuthForm(emptyAuthForm());
     setAuthError("");
+    setCreatedCredential(null);
     setServiceSuggestions({});
     setIsAuthModalOpen(true);
   }, []);
 
   const closeAuthModal = useCallback(() => {
-    if (!isSubmitting) setIsAuthModalOpen(false);
+    if (isSubmitting) return;
+    setIsAuthModalOpen(false);
+    setCreatedCredential(null);
   }, [isSubmitting]);
+
+  const completeAuthModal = useCallback(() => {
+    setIsAuthModalOpen(false);
+    setCreatedCredential(null);
+    setAuthForm(emptyAuthForm());
+    setServiceSuggestions({});
+    setMessage("Đã thêm auth config thành công.");
+  }, []);
 
   const updateAuthConfig = useCallback((index, field, value) => {
     setAuthForm((current) => {
@@ -388,14 +397,25 @@ export default function ClientDetailPage() {
   async function submitAuthConfig(event) {
     event.preventDefault();
     setAuthError("");
+    setCreatedCredential(null);
     setMessage("");
     setIsSubmitting(true);
 
     try {
-      await updateClient(clientId, buildAddAuthBody(authForm));
+      const response = await updateClient(clientId, buildAddAuthBody(authForm));
+      const data = unwrapResponse(response);
+      const credentials = data?.credential || data?.credentials || null;
       await loadClient();
-      setIsAuthModalOpen(false);
-      setMessage("Đã thêm auth config thành công.");
+      if (
+        credentials &&
+        (!Array.isArray(credentials) || credentials.length > 0)
+      ) {
+        setCreatedCredential(credentials);
+        setMessage("");
+      } else {
+        setIsAuthModalOpen(false);
+        setMessage("Đã thêm auth config thành công.");
+      }
     } catch (submitError) {
       setAuthError(submitError.message || "Thêm auth config thất bại.");
     } finally {
@@ -504,9 +524,11 @@ export default function ClientDetailPage() {
         <AuthConfigModal
           form={authForm}
           error={authError}
+          credential={createdCredential}
           isSubmitting={isSubmitting}
           serviceSuggestions={serviceSuggestions}
           onClose={closeAuthModal}
+          onComplete={completeAuthModal}
           onSubmit={submitAuthConfig}
           onAuthConfigChange={updateAuthConfig}
           onServiceNameChange={updateServiceName}
@@ -709,9 +731,6 @@ function AuthConfigSection({
                 </td>
                 <td>
                   <strong>{serviceLabel(config)}</strong>
-                  <span>
-                    {config.endpointCode || config.inboundEndpointId || ""}
-                  </span>
                 </td>
                 <td>
                   <code>{config.serviceId || "—"}</code>
@@ -772,9 +791,11 @@ function AuthConfigSection({
 function AuthConfigModal({
   form,
   error,
+  credential,
   isSubmitting,
   serviceSuggestions,
   onClose,
+  onComplete,
   onSubmit,
   onAuthConfigChange,
   onServiceNameChange,
@@ -782,6 +803,10 @@ function AuthConfigModal({
   onAddAuthConfig,
   onRemoveAuthConfig,
 }) {
+  const hasCredential = Boolean(
+    credential && (!Array.isArray(credential) || credential.length > 0),
+  );
+
   return (
     <div
       className="client-detail-modal"
@@ -793,7 +818,7 @@ function AuthConfigModal({
         type="button"
         className="client-detail-modal-backdrop"
         aria-label="Đóng modal"
-        onClick={onClose}
+        onClick={hasCredential ? undefined : onClose}
       />
       <form className="client-detail-modal-panel" onSubmit={onSubmit}>
         <header className="client-detail-modal-header">
@@ -819,7 +844,7 @@ function AuthConfigModal({
               <button
                 type="button"
                 onClick={onAddAuthConfig}
-                disabled={isSubmitting}
+                disabled={isSubmitting || hasCredential}
               >
                 <span className="material-symbols-outlined">add_circle</span>
                 Thêm cấu hình
@@ -834,6 +859,7 @@ function AuthConfigModal({
                   <ServiceSearchField
                     value={config.serviceName}
                     suggestions={serviceSuggestions[index] || []}
+                    disabled={isSubmitting || hasCredential}
                     onChange={(value) => onServiceNameChange(index, value)}
                     onSelect={(service) => onServiceSelect(index, service)}
                   />
@@ -845,6 +871,7 @@ function AuthConfigModal({
                     }
                     placeholder="service-id"
                     readOnly
+                    disabled={isSubmitting || hasCredential}
                   />
                   <label className="client-field">
                     <span>Type</span>
@@ -853,7 +880,7 @@ function AuthConfigModal({
                       onChange={(event) =>
                         onAuthConfigChange(index, "type", event.target.value)
                       }
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || hasCredential}
                     >
                       {AUTH_TYPES.map((type) => (
                         <option key={type}>{type}</option>
@@ -871,7 +898,11 @@ function AuthConfigModal({
                           event.target.value,
                         )
                       }
-                      disabled={isSubmitting || config.type === "API_KEY"}
+                      disabled={
+                        isSubmitting ||
+                        hasCredential ||
+                        config.type === "API_KEY"
+                      }
                     >
                       {AUTH_ALGORITHMS.map((algorithm) => (
                         <option key={algorithm}>{algorithm}</option>
@@ -885,12 +916,17 @@ function AuthConfigModal({
                     onChange={(value) =>
                       onAuthConfigChange(index, "expiresAt", value)
                     }
+                    disabled={isSubmitting || hasCredential}
                   />
                   <button
                     type="button"
                     className="client-auth-remove"
                     onClick={() => onRemoveAuthConfig(index)}
-                    disabled={isSubmitting || form.authConfigs.length === 1}
+                    disabled={
+                      isSubmitting ||
+                      hasCredential ||
+                      form.authConfigs.length === 1
+                    }
                     aria-label="Xóa auth config"
                   >
                     <span className="material-symbols-outlined">delete</span>
@@ -904,6 +940,9 @@ function AuthConfigModal({
               chỉ hiển thị một lần nếu API trả về.
             </p>
           </section>
+          {hasCredential ? (
+            <ClientCredentialBox credential={credential} />
+          ) : null}
         </div>
         <footer className="client-detail-modal-footer">
           <button
@@ -912,22 +951,38 @@ function AuthConfigModal({
             onClick={onClose}
             disabled={isSubmitting}
           >
-            Hủy
+            {hasCredential ? "Đóng" : "Hủy"}
           </button>
-          <button
-            type="submit"
-            className="client-detail-primary-button"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Đang tạo..." : "Tạo auth config"}
-          </button>
+          {hasCredential ? (
+            <button
+              type="button"
+              className="client-detail-primary-button"
+              onClick={onComplete}
+            >
+              Hoàn tất
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="client-detail-primary-button"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Đang tạo..." : "Tạo auth config"}
+            </button>
+          )}
         </footer>
       </form>
     </div>
   );
 }
 
-function ServiceSearchField({ value, suggestions, onChange, onSelect }) {
+function ServiceSearchField({
+  value,
+  suggestions,
+  disabled = false,
+  onChange,
+  onSelect,
+}) {
   return (
     <div className="client-field client-inbound-search">
       <span>Tên service</span>
@@ -937,6 +992,7 @@ function ServiceSearchField({ value, suggestions, onChange, onSelect }) {
         onChange={(event) => onChange(event.target.value)}
         placeholder="Nhập tên service"
         autoComplete="off"
+        disabled={disabled}
       />
       {suggestions.length > 0 ? (
         <div className="client-inbound-suggestions">
@@ -967,6 +1023,7 @@ function TextField({
   type = "text",
   placeholder = "",
   readOnly = false,
+  disabled = false,
 }) {
   return (
     <label className="client-field">
@@ -977,6 +1034,7 @@ function TextField({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         readOnly={readOnly}
+        disabled={disabled}
       />
     </label>
   );

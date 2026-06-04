@@ -610,6 +610,12 @@
   margin: 0.75rem 0;
 }
 
+.client-credential-box__warning {
+  display: block !important;
+  color: #166534;
+  font-size: 13px;
+}
+
 .client-credential-box p > span {
   min-width: 0;
   color: #166534;

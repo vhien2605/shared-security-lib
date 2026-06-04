@@ -9,7 +9,6 @@ import java.time.LocalDateTime;
 @Setter
 public class ClientAuthConfigCreateRequest {
     private String serviceId;
-    private String inboundEndpointId;
     private String type;
     private String algorithm;
     private LocalDateTime expiresAt;

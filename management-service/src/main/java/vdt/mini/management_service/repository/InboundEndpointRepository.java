@@ -24,10 +24,9 @@ public interface InboundEndpointRepository extends JpaRepository<InboundEndpoint
     Optional<InboundEndpoint> findAnyByIdWithAlert(@Param("id") String id);
 
     @Query("SELECT DISTINCT ie FROM InboundEndpoint ie "
-         + "LEFT JOIN FETCH ie.alertConfig "
-         + "LEFT JOIN FETCH ie.authConfigs "
-         + "LEFT JOIN FETCH ie.accessRules "
-         + "WHERE ie.secureService.id = :serviceId AND ie.enabled = true "
+          + "LEFT JOIN FETCH ie.alertConfig "
+          + "LEFT JOIN FETCH ie.accessRules "
+          + "WHERE ie.secureService.id = :serviceId AND ie.enabled = true "
          + "ORDER BY ie.id ASC")
     List<InboundEndpoint> findBySecureServiceIdWithAll(@Param("serviceId") String serviceId);
 
@@ -43,10 +42,9 @@ public interface InboundEndpointRepository extends JpaRepository<InboundEndpoint
     List<InboundEndpoint> searchEnabledByName(@Param("namePattern") String namePattern, Pageable pageable);
 
     @Query("SELECT DISTINCT ie FROM InboundEndpoint ie "
-         + "LEFT JOIN FETCH ie.alertConfig "
-         + "LEFT JOIN FETCH ie.authConfigs "
-         + "LEFT JOIN FETCH ie.accessRules "
-         + "WHERE ie.secureService.id = :serviceId "
+          + "LEFT JOIN FETCH ie.alertConfig "
+          + "LEFT JOIN FETCH ie.accessRules "
+          + "WHERE ie.secureService.id = :serviceId "
          + "ORDER BY ie.id ASC")
     List<InboundEndpoint> findAllBySecureServiceIdWithAll(@Param("serviceId") String serviceId);
 }

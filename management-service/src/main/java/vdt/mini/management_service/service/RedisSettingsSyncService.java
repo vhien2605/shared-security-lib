@@ -19,6 +19,7 @@ import vdt.mini.management_service.repository.AccessPermissionRepository;
 import vdt.mini.management_service.repository.AuthConfigRepository;
 import vdt.mini.management_service.repository.InboundEndpointRepository;
 import vdt.mini.management_service.repository.OutboundEndpointRepository;
+import vdt.mini.management_service.util.enums.AuthType;
 import vdt.mini.management_service.util.enums.EndpointStatus;
 import vdt.mini.management_service.util.enums.ServiceStatus;
 
@@ -37,19 +38,22 @@ public class RedisSettingsSyncService {
     private final AccessPermissionRepository accessPermissionRepository;
     private final InboundEndpointRepository inboundEndpointRepository;
     private final OutboundEndpointRepository outboundEndpointRepository;
+    private final SecretCipherService secretCipherService;
 
     public RedisSettingsSyncService(StringRedisTemplate redisTemplate,
-                                      ObjectMapper objectMapper,
-                                      AuthConfigRepository authConfigRepository,
-                                      AccessPermissionRepository accessPermissionRepository,
-                                      InboundEndpointRepository inboundEndpointRepository,
-                                      OutboundEndpointRepository outboundEndpointRepository) {
+                                       ObjectMapper objectMapper,
+                                       AuthConfigRepository authConfigRepository,
+                                       AccessPermissionRepository accessPermissionRepository,
+                                       InboundEndpointRepository inboundEndpointRepository,
+                                       OutboundEndpointRepository outboundEndpointRepository,
+                                       SecretCipherService secretCipherService) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.authConfigRepository = authConfigRepository;
         this.accessPermissionRepository = accessPermissionRepository;
         this.inboundEndpointRepository = inboundEndpointRepository;
         this.outboundEndpointRepository = outboundEndpointRepository;
+        this.secretCipherService = secretCipherService;
     }
 
     public void syncInboundToRedis(InboundEndpoint endpoint) {
@@ -154,12 +158,7 @@ public class RedisSettingsSyncService {
                 ? authConfigRepository.findEnabledByServiceScope(serviceId)
                 : Collections.emptyList();
         dto.setAuthConfigs(authConfigs.stream()
-                .map(ac -> new AuthConfigDTO(
-                        ac.getType() != null ? ac.getType().name() : null,
-                        ac.getSecretRef(),
-                        ac.getAlgorithm(),
-                        ac.getExpiresAt() != null ? ac.getExpiresAt().toString() : null,
-                        null))
+                .map(this::toSyncAuthConfig)
                 .toList());
         if (ep.getAccessRules() != null) {
             dto.setAccessRules(ep.getAccessRules().stream()
@@ -178,6 +177,33 @@ public class RedisSettingsSyncService {
                 .map(this::toPermissionDTO)
                 .toList());
         return dto;
+    }
+
+    private AuthConfigDTO toSyncAuthConfig(AuthConfig authConfig) {
+        return new AuthConfigDTO(
+                authConfig.getType() != null ? authConfig.getType().name() : null,
+                authConfig.getSecretRef(),
+                authConfig.getAlgorithm(),
+                authConfig.getExpiresAt() != null ? authConfig.getExpiresAt().toString() : null,
+                resolveClientKey(authConfig));
+    }
+
+    private String resolveClientKey(AuthConfig authConfig) {
+        if (authConfig.getType() != AuthType.HMAC_SIGNATURE) {
+            return null;
+        }
+        if (authConfig.getSecretCiphertext() == null || authConfig.getSecretCiphertext().isBlank()) {
+            log.warn("HMAC auth config missing secret ciphertext: authConfigId={}, secretRef={}",
+                    authConfig.getId(), authConfig.getSecretRef());
+            return null;
+        }
+        try {
+            return secretCipherService.decrypt(authConfig.getSecretCiphertext());
+        } catch (RuntimeException ex) {
+            log.warn("HMAC auth config secret ciphertext could not be decrypted: authConfigId={}, secretRef={}",
+                    authConfig.getId(), authConfig.getSecretRef(), ex);
+            return null;
+        }
     }
 
     private AccessPermissionDTO toPermissionDTO(AccessPermission permission) {

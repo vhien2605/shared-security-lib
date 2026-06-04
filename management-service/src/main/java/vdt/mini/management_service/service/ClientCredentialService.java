@@ -1,5 +1,7 @@
 package vdt.mini.management_service.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import vdt.mini.management_service.dto.response.ClientCredentialResponse;
 import vdt.mini.management_service.entity.AuthConfig;
@@ -17,12 +19,15 @@ import java.util.UUID;
 
 @Service
 public class ClientCredentialService {
+    private static final Logger log = LoggerFactory.getLogger(ClientCredentialService.class);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final AuthConfigRepository authConfigRepository;
+    private final SecretCipherService secretCipherService;
 
-    public ClientCredentialService(AuthConfigRepository authConfigRepository) {
+    public ClientCredentialService(AuthConfigRepository authConfigRepository, SecretCipherService secretCipherService) {
         this.authConfigRepository = authConfigRepository;
+        this.secretCipherService = secretCipherService;
     }
 
     public CredentialMaterial getOrCreateCredential(String clientId, AuthType type) {
@@ -30,12 +35,17 @@ public class ClientCredentialService {
                 .findFirstByClientIdAndTypeAndSecretRefIsNotNullOrderByCreatedAtAsc(clientId, type);
         if (existing.isPresent()) {
             AuthConfig authConfig = existing.get();
-            return new CredentialMaterial(authConfig.getSecretRef(), authConfig.getCredentialHash(), null, false);
+            if (type == AuthType.API_KEY || hasText(authConfig.getSecretCiphertext())) {
+                return new CredentialMaterial(authConfig.getSecretRef(), authConfig.getCredentialHash(),
+                        authConfig.getSecretCiphertext(), null, false);
+            }
+            log.warn("Existing HMAC credential for clientId={} has no ciphertext; generating new HMAC credential", clientId);
         }
 
         String plaintext = generateSecret(type);
+        String secretCiphertext = type == AuthType.HMAC_SIGNATURE ? secretCipherService.encrypt(plaintext) : null;
         return new CredentialMaterial("client-security:" + clientId + ":" + type.name().toLowerCase() + ":" + UUID.randomUUID(),
-                sha256(plaintext), plaintext, true);
+                sha256(plaintext), secretCiphertext, plaintext, true);
     }
 
     public ClientCredentialResponse toOneTimeResponse(AuthType type, CredentialMaterial material) {
@@ -66,6 +76,11 @@ public class ClientCredentialService {
         }
     }
 
-    public record CredentialMaterial(String secretRef, String credentialHash, String plaintext, boolean newlyGenerated) {
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    public record CredentialMaterial(String secretRef, String credentialHash, String secretCiphertext, String plaintext,
+                                     boolean newlyGenerated) {
     }
 }
