@@ -36,4 +36,9 @@ public interface AuthConfigRepository extends JpaRepository<AuthConfig, String> 
             + "WHERE service.id = :serviceId "
             + "ORDER BY ac.createdAt ASC, ac.id ASC")
     List<AuthConfig> findRuntimeByServiceId(@Param("serviceId") String serviceId);
+
+    @Query("SELECT DISTINCT service.id FROM AuthConfig ac "
+            + "JOIN ac.service service "
+            + "WHERE ac.client.id = :clientId")
+    List<String> findServiceIdsByClientId(@Param("clientId") String clientId);
 }

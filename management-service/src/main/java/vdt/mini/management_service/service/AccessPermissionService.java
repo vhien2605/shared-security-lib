@@ -11,8 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import vdt.mini.management_service.dto.event.ClientSecurityConfigEvent;
-import vdt.mini.management_service.dto.sync.SecurityRuntimeChangeMessage;
 import vdt.mini.management_service.dto.request.AccessPermissionCreateRequest;
 import vdt.mini.management_service.dto.request.AccessPermissionUpdateRequest;
 import vdt.mini.management_service.dto.response.AccessPermissionDeleteResponse;
@@ -30,7 +28,6 @@ import vdt.mini.management_service.repository.InboundEndpointRepository;
 import vdt.mini.management_service.util.enums.ClientStatus;
 import vdt.mini.management_service.util.enums.ErrorCode;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -44,22 +41,19 @@ public class AccessPermissionService {
     private final ClientRepository clientRepository;
     private final InboundEndpointRepository inboundEndpointRepository;
     private final AuditLogRepository auditLogRepository;
-    private final ClientSecurityEventPublisher eventPublisher;
     private final RedisSettingsSyncService redisSettingsSyncService;
     private final ObjectMapper objectMapper;
 
     public AccessPermissionService(AccessPermissionRepository accessPermissionRepository,
                                    ClientRepository clientRepository,
                                    InboundEndpointRepository inboundEndpointRepository,
-                                   AuditLogRepository auditLogRepository,
-                                   ClientSecurityEventPublisher eventPublisher,
-                                   RedisSettingsSyncService redisSettingsSyncService,
-                                   ObjectMapper objectMapper) {
+                                    AuditLogRepository auditLogRepository,
+                                    RedisSettingsSyncService redisSettingsSyncService,
+                                    ObjectMapper objectMapper) {
         this.accessPermissionRepository = accessPermissionRepository;
         this.clientRepository = clientRepository;
         this.inboundEndpointRepository = inboundEndpointRepository;
         this.auditLogRepository = auditLogRepository;
-        this.eventPublisher = eventPublisher;
         this.redisSettingsSyncService = redisSettingsSyncService;
         this.objectMapper = objectMapper;
     }
@@ -224,27 +218,19 @@ public class AccessPermissionService {
         String serviceId = permission.getInboundEndpoint().getSecureService() != null
                 ? permission.getInboundEndpoint().getSecureService().getId()
                 : null;
-        ClientSecurityConfigEvent event = ClientSecurityConfigEvent.builder()
-                .eventId(UUID.randomUUID().toString())
-                .eventType(eventType)
-                .occurredAt(LocalDateTime.now())
-                .clientId(clientId)
-                .inboundEndpointId(inboundEndpointId)
-                .changedFields(List.of("permissions"))
-                .version(System.currentTimeMillis())
-                .build();
         Runnable afterCommit = () -> {
             String runtimeEventType = "ACCESS_PERMISSION_DELETED".equals(eventType) ? "PERMISSION_DELETED"
                     : Boolean.FALSE.equals(permission.getEnable()) ? "PERMISSION_DISABLED" : "PERMISSION_CHANGED";
             org.slf4j.LoggerFactory.getLogger(AccessPermissionService.class).info(
                     "After-commit callback executed eventType={} serviceId={} endpointId={} clientId={} permissionId={}",
                     runtimeEventType, serviceId, inboundEndpointId, clientId, permission.getId());
-            eventPublisher.publish(event);
             if (serviceId != null && !serviceId.isBlank()) {
-                redisSettingsSyncService.syncAllEndpointsOfService(serviceId);
-                redisSettingsSyncService.publishRuntimeChange(new SecurityRuntimeChangeMessage(UUID.randomUUID().toString(),
-                        runtimeEventType, serviceId, inboundEndpointId, clientId, null, permission.getId(), List.of("permissions"),
-                        System.currentTimeMillis(), LocalDateTime.now().toString(), null));
+                if ("PERMISSION_CHANGED".equals(runtimeEventType)) {
+                    redisSettingsSyncService.publishPermissionRuntimeChange(permission, runtimeEventType, null);
+                } else {
+                    redisSettingsSyncService.publishPermissionRuntimeChange(permission, runtimeEventType,
+                            "PERMISSION_DELETED".equals(runtimeEventType) ? "DELETED" : "DISABLED");
+                }
             }
         };
         org.slf4j.LoggerFactory.getLogger(AccessPermissionService.class).info(

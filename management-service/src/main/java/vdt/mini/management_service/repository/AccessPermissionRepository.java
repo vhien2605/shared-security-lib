@@ -38,6 +38,12 @@ public interface AccessPermissionRepository extends JpaRepository<AccessPermissi
             + "ORDER BY endpoint.id ASC, permission.createdAt ASC, permission.id ASC")
     List<AccessPermission> findRuntimeByServiceId(@Param("serviceId") String serviceId);
 
+    @Query("SELECT DISTINCT service.id FROM AccessPermission permission "
+            + "JOIN permission.inboundEndpoint endpoint "
+            + "JOIN endpoint.secureService service "
+            + "WHERE permission.client.id = :clientId")
+    List<String> findServiceIdsByClientId(@Param("clientId") String clientId);
+
     @Query("SELECT permission FROM AccessPermission permission "
             + "JOIN FETCH permission.client client "
             + "JOIN FETCH permission.inboundEndpoint endpoint "

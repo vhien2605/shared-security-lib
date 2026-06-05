@@ -52,8 +52,7 @@ public class AvailabilityManagementService {
         validateActivation(status, endpoint.getEnabled());
         endpoint.setStatus(status);
         InboundEndpoint saved = inboundEndpointRepository.save(endpoint);
-        String serviceId = saved.getSecureService().getId();
-        runAfterCommit(() -> redisSettingsSyncService.syncAllEndpointsOfService(serviceId));
+        runAfterCommit(() -> redisSettingsSyncService.syncInboundToRedis(saved));
         return saved;
     }
 
@@ -68,8 +67,7 @@ public class AvailabilityManagementService {
         validateActivation(status, endpoint.getEnabled());
         endpoint.setStatus(status);
         OutboundEndpoint saved = outboundEndpointRepository.save(endpoint);
-        String serviceId = saved.getSecureService().getId();
-        runAfterCommit(() -> redisSettingsSyncService.syncAllEndpointsOfService(serviceId));
+        runAfterCommit(() -> redisSettingsSyncService.syncOutboundToRedis(saved));
         return saved;
     }
 

@@ -47,8 +47,6 @@ class AccessPermissionServiceTest {
     @Mock
     private AuditLogRepository auditLogRepository;
     @Mock
-    private ClientSecurityEventPublisher eventPublisher;
-    @Mock
     private RedisSettingsSyncService redisSettingsSyncService;
     @Mock
     private Authentication authentication;
@@ -78,7 +76,7 @@ class AccessPermissionServiceTest {
         assertEquals(true, response.getEnable());
         assertEquals("service-1", response.getServiceId());
         assertEquals("Service One", response.getServiceName());
-        verify(redisSettingsSyncService).syncAllEndpointsOfService("service-1");
+        verify(redisSettingsSyncService).publishPermissionRuntimeChange(any(AccessPermission.class), eq("PERMISSION_CHANGED"), eq(null));
     }
 
     @Test
@@ -170,7 +168,6 @@ class AccessPermissionServiceTest {
                 clientRepository,
                 inboundEndpointRepository,
                 auditLogRepository,
-                eventPublisher,
                 redisSettingsSyncService,
                 new ObjectMapper());
     }

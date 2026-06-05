@@ -51,9 +51,6 @@ class AccessRuleServiceTest {
     private AuditLogRepository auditLogRepository;
 
     @Mock
-    private ClientSecurityEventPublisher eventPublisher;
-
-    @Mock
     private RedisSettingsSyncService redisSettingsSyncService;
 
     @Mock
@@ -178,7 +175,7 @@ class AccessRuleServiceTest {
         assertEquals(false, response.getEnable());
         assertEquals("service-1", response.getServiceId());
         assertEquals("Service One", response.getServiceName());
-        verify(redisSettingsSyncService).syncAllEndpointsOfService("service-1");
+        verify(redisSettingsSyncService).syncInboundToRedis(endpoint);
     }
 
     @Test
@@ -278,7 +275,6 @@ class AccessRuleServiceTest {
         return new AccessRuleService(accessRuleRepository,
                 inboundEndpointRepository,
                 auditLogRepository,
-                eventPublisher,
                 redisSettingsSyncService,
                 new ObjectMapper());
     }

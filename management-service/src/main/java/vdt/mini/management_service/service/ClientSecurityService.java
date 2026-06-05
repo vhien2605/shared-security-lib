@@ -11,8 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import vdt.mini.management_service.dto.event.ClientSecurityConfigEvent;
-import vdt.mini.management_service.dto.sync.SecurityRuntimeChangeMessage;
 import vdt.mini.management_service.dto.request.ClientAuthConfigChangesRequest;
 import vdt.mini.management_service.dto.request.ClientAuthConfigCreateRequest;
 import vdt.mini.management_service.dto.request.ClientAuthConfigUpdateRequest;
@@ -32,6 +30,7 @@ import vdt.mini.management_service.entity.Client;
 import vdt.mini.management_service.entity.SecureService;
 import vdt.mini.management_service.exception.AppException;
 import vdt.mini.management_service.repository.AuditLogRepository;
+import vdt.mini.management_service.repository.AccessPermissionRepository;
 import vdt.mini.management_service.repository.AuthConfigRepository;
 import vdt.mini.management_service.repository.ClientRepository;
 import vdt.mini.management_service.repository.ServiceRepository;
@@ -62,27 +61,27 @@ public class ClientSecurityService {
 
     private final ClientRepository clientRepository;
     private final AuthConfigRepository authConfigRepository;
+    private final AccessPermissionRepository accessPermissionRepository;
     private final ServiceRepository serviceRepository;
     private final AuditLogRepository auditLogRepository;
     private final ClientCredentialService credentialService;
-    private final ClientSecurityEventPublisher eventPublisher;
     private final RedisSettingsSyncService redisSettingsSyncService;
     private final ObjectMapper objectMapper;
 
     public ClientSecurityService(ClientRepository clientRepository,
                                   AuthConfigRepository authConfigRepository,
+                                  AccessPermissionRepository accessPermissionRepository,
                                   ServiceRepository serviceRepository,
                                   AuditLogRepository auditLogRepository,
                                   ClientCredentialService credentialService,
-                                 ClientSecurityEventPublisher eventPublisher,
-                                 RedisSettingsSyncService redisSettingsSyncService,
-                                 ObjectMapper objectMapper) {
+                                  RedisSettingsSyncService redisSettingsSyncService,
+                                  ObjectMapper objectMapper) {
         this.clientRepository = clientRepository;
         this.authConfigRepository = authConfigRepository;
+        this.accessPermissionRepository = accessPermissionRepository;
         this.serviceRepository = serviceRepository;
         this.auditLogRepository = auditLogRepository;
         this.credentialService = credentialService;
-        this.eventPublisher = eventPublisher;
         this.redisSettingsSyncService = redisSettingsSyncService;
         this.objectMapper = objectMapper;
     }
@@ -127,7 +126,7 @@ public class ClientSecurityService {
             serviceIds.add(resolveAuthConfigService(authConfig).getId());
         }
         writeAudit(actor(authentication), "CLIENT_CREATED", client.getId(), Map.of("authConfigIds", authConfigIds));
-        registerAfterCommit("CLIENT_CREATED", client.getId(), authConfigIds, serviceIds, List.of("client", "authConfigs"));
+        registerAfterCommit("CLIENT_CREATED", client.getId(), authConfigIds, serviceIds, List.of("client", "authConfigs"), List.of());
 
         return ClientCreateResponse.builder()
                 .clientId(client.getId())
@@ -161,7 +160,7 @@ public class ClientSecurityService {
         auditPayload.put("newStatus", client.getStatus());
         auditPayload.put("authConfigIds", changeSet.allIds());
         writeAudit(actor, "CLIENT_UPDATED", client.getId(), auditPayload);
-        registerAfterCommit("CLIENT_UPDATED", client.getId(), changeSet.allIds(), changeSet.serviceIds(), changedFields);
+        registerAfterCommit("CLIENT_UPDATED", client.getId(), changeSet.changedIds(), changeSet.serviceIds(), changedFields, changeSet.removed());
 
         return ClientUpdateResponse.builder()
                 .id(client.getId())
@@ -451,35 +450,29 @@ public class ClientSecurityService {
         auditLogRepository.save(auditLog);
     }
 
-    private void registerAfterCommit(String eventType, String clientId, List<String> authConfigIds, List<String> serviceIds, List<String> changedFields) {
-        ClientSecurityConfigEvent event = ClientSecurityConfigEvent.builder()
-                .eventId(UUID.randomUUID().toString())
-                .eventType(eventType)
-                .occurredAt(LocalDateTime.now())
-                .clientId(clientId)
-                .authConfigIds(authConfigIds)
-                .serviceIds(serviceIds)
-                .changedFields(changedFields)
-                .version(System.currentTimeMillis())
-                .build();
-        Set<String> uniqueServiceIds = serviceIds == null ? Set.of() : serviceIds.stream()
+    private void registerAfterCommit(String eventType, String clientId, List<String> authConfigIds, List<String> serviceIds,
+                                     List<String> changedFields, List<ClientAuthConfigChangeItemResponse> removedAuthConfigs) {
+        Set<String> uniqueServiceIds = new HashSet<>();
+        if (serviceIds != null) {
+            uniqueServiceIds.addAll(serviceIds);
+        }
+        uniqueServiceIds.addAll(authConfigRepository.findServiceIdsByClientId(clientId));
+        uniqueServiceIds.addAll(accessPermissionRepository.findServiceIdsByClientId(clientId));
+        Set<String> finalServiceIds = uniqueServiceIds.stream()
                 .filter(id -> id != null && !id.isBlank())
                 .collect(Collectors.toSet());
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 String runtimeEventType = changedFields != null && changedFields.contains("status") ? "CLIENT_DISABLED" : "CLIENT_CHANGED";
-                logAfterCommitExecution(runtimeEventType, clientId, uniqueServiceIds);
-                eventPublisher.publish(event);
-                for (String serviceId : uniqueServiceIds) {
-                    redisSettingsSyncService.syncAllEndpointsOfService(serviceId);
-                    redisSettingsSyncService.publishRuntimeChange(new SecurityRuntimeChangeMessage(UUID.randomUUID().toString(),
-                            runtimeEventType, serviceId, null, clientId, null, null, changedFields,
-                            System.currentTimeMillis(), LocalDateTime.now().toString(), null));
+                logAfterCommitExecution(runtimeEventType, clientId, finalServiceIds);
+                for (String serviceId : finalServiceIds) {
+                    redisSettingsSyncService.publishClientRuntimeChange(serviceId, clientId, runtimeEventType, changedFields);
                     for (String authConfigId : authConfigIds == null ? List.<String>of() : authConfigIds) {
-                        redisSettingsSyncService.publishRuntimeChange(new SecurityRuntimeChangeMessage(UUID.randomUUID().toString(),
-                                "AUTH_CONFIG_CHANGED", serviceId, null, clientId, authConfigId, null, List.of("authConfig"),
-                                System.currentTimeMillis(), LocalDateTime.now().toString(), null));
+                        redisSettingsSyncService.publishAuthConfigRuntimeChange(authConfigId, "AUTH_CONFIG_CHANGED", null);
+                    }
+                    for (ClientAuthConfigChangeItemResponse removed : removedAuthConfigs == null ? List.<ClientAuthConfigChangeItemResponse>of() : removedAuthConfigs) {
+                        redisSettingsSyncService.publishAuthConfigDeleted(removed.getServiceId(), clientId, removed.getAuthConfigId());
                     }
                 }
             }
@@ -555,6 +548,13 @@ public class ClientSecurityService {
             created.forEach(item -> ids.add(item.getAuthConfigId()));
             updated.forEach(item -> ids.add(item.getAuthConfigId()));
             removed.forEach(item -> ids.add(item.getAuthConfigId()));
+            return ids;
+        }
+
+        List<String> changedIds() {
+            List<String> ids = new ArrayList<>();
+            created.forEach(item -> ids.add(item.getAuthConfigId()));
+            updated.forEach(item -> ids.add(item.getAuthConfigId()));
             return ids;
         }
 

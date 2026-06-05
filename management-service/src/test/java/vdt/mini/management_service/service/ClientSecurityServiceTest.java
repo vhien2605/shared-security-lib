@@ -20,6 +20,7 @@ import vdt.mini.management_service.entity.Client;
 import vdt.mini.management_service.entity.SecureService;
 import vdt.mini.management_service.exception.AppException;
 import vdt.mini.management_service.repository.AuditLogRepository;
+import vdt.mini.management_service.repository.AccessPermissionRepository;
 import vdt.mini.management_service.repository.AuthConfigRepository;
 import vdt.mini.management_service.repository.ClientRepository;
 import vdt.mini.management_service.repository.ServiceRepository;
@@ -48,14 +49,13 @@ class ClientSecurityServiceTest {
     @Mock
     private AuthConfigRepository authConfigRepository;
     @Mock
+    private AccessPermissionRepository accessPermissionRepository;
+    @Mock
     private ServiceRepository serviceRepository;
     @Mock
     private AuditLogRepository auditLogRepository;
     @Mock
     private ClientCredentialService credentialService;
-    @Mock
-    private ClientSecurityEventPublisher eventPublisher;
-
     @Mock
     private RedisSettingsSyncService redisSettingsSyncService;
 
@@ -64,7 +64,7 @@ class ClientSecurityServiceTest {
     @BeforeEach
     void setUp() {
         clientSecurityService = new ClientSecurityService(clientRepository, authConfigRepository,
-                serviceRepository, auditLogRepository, credentialService, eventPublisher, redisSettingsSyncService, new ObjectMapper());
+                accessPermissionRepository, serviceRepository, auditLogRepository, credentialService, redisSettingsSyncService, new ObjectMapper());
         TransactionSynchronizationManager.initSynchronization();
     }
 

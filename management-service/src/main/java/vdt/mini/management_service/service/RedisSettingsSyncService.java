@@ -14,7 +14,9 @@ import vdt.mini.management_service.dto.sync.ClientRuntimeDTO;
 import vdt.mini.management_service.dto.sync.InboundSettingsSyncDTO;
 import vdt.mini.management_service.dto.sync.OutboundSettingsSyncDTO;
 import vdt.mini.management_service.dto.sync.PermissionRuntimeDTO;
+import vdt.mini.management_service.dto.sync.RuntimeChangePayloadDTO;
 import vdt.mini.management_service.dto.sync.RuntimeManifestDTO;
+import vdt.mini.management_service.dto.sync.RuntimeTombstoneDTO;
 import vdt.mini.management_service.dto.sync.SecurityRuntimeChangeMessage;
 import vdt.mini.management_service.dto.sync.ServiceAuthConfigsSnapshotDTO;
 import vdt.mini.management_service.dto.sync.ServiceClientsSnapshotDTO;
@@ -96,19 +98,16 @@ public class RedisSettingsSyncService {
                 redisTemplate.delete(key);
             }
 
-            SettingsChangeMessage message = new SettingsChangeMessage(
-                    "INBOUND",
-                    endpoint.getId(),
-                    endpoint.getSecureService().getId(),
-                    dto
-            );
+            String operation = Boolean.TRUE.equals(endpoint.getEnabled()) ? "UPSERT" : "REMOVE";
+            SettingsChangeMessage message = settingsMessage("INBOUND", endpoint.getId(), endpoint.getSecureService().getId(),
+                    Boolean.TRUE.equals(endpoint.getEnabled()) ? dto : null, operation, List.of("inboundSettings"));
             String serviceId = endpoint.getSecureService().getId();
             String channel = RedisSecurityRuntimeKeys.legacySettingsChannel(serviceId);
             String messageJson = objectMapper.writeValueAsString(message);
             redisTemplate.convertAndSend(channel, messageJson);
 
-            log.info("Redis inbound settings sync completed endpointId={} serviceId={} channel={}",
-                    endpoint.getId(), serviceId, channel);
+            log.info("Redis endpoint settings v2 publish completed type=INBOUND operation={} endpointId={} serviceId={} channel={}",
+                    operation, endpoint.getId(), serviceId, channel);
         } catch (Exception e) {
             log.error("Failed to sync inbound settings to Redis for endpointId={}", endpoint.getId(), e);
         }
@@ -125,19 +124,16 @@ public class RedisSettingsSyncService {
                 redisTemplate.delete(key);
             }
 
-            SettingsChangeMessage message = new SettingsChangeMessage(
-                    "OUTBOUND",
-                    endpoint.getId(),
-                    endpoint.getSecureService().getId(),
-                    dto
-            );
+            String operation = Boolean.TRUE.equals(endpoint.getEnabled()) ? "UPSERT" : "REMOVE";
+            SettingsChangeMessage message = settingsMessage("OUTBOUND", endpoint.getId(), endpoint.getSecureService().getId(),
+                    Boolean.TRUE.equals(endpoint.getEnabled()) ? dto : null, operation, List.of("outboundSettings"));
             String serviceId = endpoint.getSecureService().getId();
             String channel = RedisSecurityRuntimeKeys.legacySettingsChannel(serviceId);
             String messageJson = objectMapper.writeValueAsString(message);
             redisTemplate.convertAndSend(channel, messageJson);
 
-            log.info("Redis outbound settings sync completed endpointId={} serviceId={} channel={}",
-                    endpoint.getId(), serviceId, channel);
+            log.info("Redis endpoint settings v2 publish completed type=OUTBOUND operation={} endpointId={} serviceId={} channel={}",
+                    operation, endpoint.getId(), serviceId, channel);
         } catch (Exception e) {
             log.error("Failed to sync outbound settings to Redis for endpointId={}", endpoint.getId(), e);
         }
@@ -153,8 +149,7 @@ public class RedisSettingsSyncService {
             for (OutboundEndpoint ep : outbounds) {
                 syncOutboundToRedis(ep);
             }
-            syncRuntimeSnapshotOfService(serviceId, inbounds.size(), outbounds.size());
-            log.info("Synced all endpoints of service {} to Redis ({} inbound, {} outbound)",
+            log.info("Synced all endpoint settings of service {} to Redis without runtime snapshot ({} inbound, {} outbound)",
                     serviceId, inbounds.size(), outbounds.size());
         } catch (Exception e) {
             log.error("Failed to sync all endpoints of service {} to Redis", serviceId, e);
@@ -209,6 +204,12 @@ public class RedisSettingsSyncService {
                 .map(this::toPermissionDTO)
                 .toList());
         return dto;
+    }
+
+    private SettingsChangeMessage settingsMessage(String type, String endpointId, String serviceId, Object config,
+                                                  String operation, List<String> changedFields) {
+        return new SettingsChangeMessage(type, endpointId, serviceId, config, operation,
+                System.currentTimeMillis(), LocalDateTime.now().toString(), changedFields);
     }
 
     public void syncRuntimeSnapshotOfService(String serviceId) {
@@ -276,6 +277,67 @@ public class RedisSettingsSyncService {
             log.error("Failed to publish Redis runtime event eventType={} serviceId={} version={}",
                     message.getEventType(), message.getServiceId(), message.getVersion(), ex);
         }
+    }
+
+    public void publishClientRuntimeChange(String serviceId, String clientId, String eventType, List<String> changedFields) {
+        if (clientRepository == null || serviceId == null || serviceId.isBlank() || clientId == null || clientId.isBlank()) {
+            return;
+        }
+        clientRepository.findById(clientId).ifPresentOrElse(client -> {
+            RuntimeChangePayloadDTO payload = new RuntimeChangePayloadDTO(toClientRuntimeDTO(client),
+                    authConfigRepository.findRuntimeByServiceId(serviceId).stream()
+                            .filter(auth -> auth.getClient() != null && clientId.equals(auth.getClient().getId()))
+                            .map(this::toAuthConfigRuntimeDTO)
+                            .toList(),
+                    accessPermissionRepository.findRuntimeByServiceId(serviceId).stream()
+                            .filter(permission -> permission.getClient() != null && clientId.equals(permission.getClient().getId()))
+                            .map(this::toPermissionRuntimeDTO)
+                            .toList(),
+                    List.of());
+            publishRuntimeChange(new SecurityRuntimeChangeMessage(UUID.randomUUID().toString(), eventType, serviceId,
+                    null, clientId, null, null, changedFields, eventVersion(payload.getClient().getVersion()),
+                    LocalDateTime.now().toString(), payload));
+        }, () -> log.warn("Runtime client event skipped because client not found serviceId={} clientId={}", serviceId, clientId));
+    }
+
+    public void publishAuthConfigRuntimeChange(String authConfigId, String eventType, String tombstoneReason) {
+        authConfigRepository.findById(authConfigId).ifPresentOrElse(authConfig -> {
+            AuthConfigRuntimeDTO auth = toAuthConfigRuntimeDTO(authConfig);
+            RuntimeChangePayloadDTO payload = new RuntimeChangePayloadDTO(null,
+                    "AUTH_CONFIG_CHANGED".equals(eventType) ? List.of(auth) : List.of(), List.of(),
+                    "AUTH_CONFIG_CHANGED".equals(eventType) ? List.of() : List.of(tombstone("AUTH_CONFIG", auth.getServiceId(), null,
+                            auth.getClientId(), authConfigId, null, tombstoneReason)));
+            publishRuntimeChange(new SecurityRuntimeChangeMessage(UUID.randomUUID().toString(), eventType, auth.getServiceId(),
+                    null, auth.getClientId(), authConfigId, null, List.of("authConfig"), eventVersion(auth.getVersion()),
+                    LocalDateTime.now().toString(), payload));
+        }, () -> log.warn("Runtime auth event skipped because authConfig not found authConfigId={} eventType={}", authConfigId, eventType));
+    }
+
+    public void publishAuthConfigDeleted(String serviceId, String clientId, String authConfigId) {
+        RuntimeChangePayloadDTO payload = new RuntimeChangePayloadDTO(null, List.of(), List.of(),
+                List.of(tombstone("AUTH_CONFIG", serviceId, null, clientId, authConfigId, null, "DELETED")));
+        publishRuntimeChange(new SecurityRuntimeChangeMessage(UUID.randomUUID().toString(), "AUTH_CONFIG_DELETED", serviceId,
+                null, clientId, authConfigId, null, List.of("authConfig"), System.currentTimeMillis(), LocalDateTime.now().toString(), payload));
+    }
+
+    public void publishPermissionRuntimeChange(AccessPermission permission, String eventType, String tombstoneReason) {
+        PermissionRuntimeDTO dto = toPermissionRuntimeDTO(permission);
+        RuntimeChangePayloadDTO payload = new RuntimeChangePayloadDTO(null, List.of(),
+                "PERMISSION_CHANGED".equals(eventType) ? List.of(dto) : List.of(),
+                "PERMISSION_CHANGED".equals(eventType) ? List.of() : List.of(tombstone("PERMISSION", dto.getServiceId(), dto.getInboundEndpointId(),
+                        dto.getClientId(), null, dto.getPermissionId(), tombstoneReason)));
+        publishRuntimeChange(new SecurityRuntimeChangeMessage(UUID.randomUUID().toString(), eventType, dto.getServiceId(),
+                dto.getInboundEndpointId(), dto.getClientId(), null, dto.getPermissionId(), List.of("permissions"), eventVersion(dto.getVersion()),
+                LocalDateTime.now().toString(), payload));
+    }
+
+    private RuntimeTombstoneDTO tombstone(String resourceType, String serviceId, String endpointId, String clientId,
+                                          String authConfigId, String permissionId, String reason) {
+        return new RuntimeTombstoneDTO(resourceType, serviceId, endpointId, clientId, authConfigId, permissionId, reason);
+    }
+
+    private long eventVersion(Long dtoVersion) {
+        return dtoVersion != null ? dtoVersion : System.currentTimeMillis();
     }
 
     private Map<String, String> runtimeKeys(String serviceId) {

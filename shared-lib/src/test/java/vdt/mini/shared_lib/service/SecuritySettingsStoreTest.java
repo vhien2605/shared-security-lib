@@ -12,6 +12,8 @@ import vdt.mini.shared_lib.document.AuthConfigRuntimeDTO;
 import vdt.mini.shared_lib.document.ClientRuntimeDTO;
 import vdt.mini.shared_lib.document.PermissionRuntimeDTO;
 import vdt.mini.shared_lib.document.RuntimeManifestDTO;
+import vdt.mini.shared_lib.document.RuntimeChangePayloadDTO;
+import vdt.mini.shared_lib.document.RuntimeTombstoneDTO;
 import vdt.mini.shared_lib.document.SecurityRuntimeChangeMessage;
 import vdt.mini.shared_lib.document.ServiceAuthConfigsSnapshotDTO;
 import vdt.mini.shared_lib.document.ServiceClientsSnapshotDTO;
@@ -137,6 +139,32 @@ class SecuritySettingsStoreTest {
         assertThat(dto.getCredentialHash()).isEqualTo("credential-hash");
     }
 
+    @Test
+    void onRuntimeChange_shouldApplyDirectPayloadAndIgnoreStaleTombstone() {
+        RuntimeChangePayloadDTO payload = new RuntimeChangePayloadDTO(client(), List.of(authConfig()), List.of(permission()), List.of());
+        store.onRuntimeChange(runtimeEvent("CLIENT_CHANGED", 10L, payload));
+
+        assertThat(store.resolveClientId(SERVICE_ID, CLIENT_KEY)).contains(CLIENT_ID);
+        assertThat(store.getAuthConfig(SERVICE_ID, null, CLIENT_ID)).isPresent();
+        assertThat(store.getPermission(SERVICE_ID, ENDPOINT_ID, CLIENT_ID)).isPresent();
+
+        RuntimeChangePayloadDTO staleDelete = new RuntimeChangePayloadDTO(null, List.of(), List.of(),
+                List.of(new RuntimeTombstoneDTO("AUTH_CONFIG", SERVICE_ID, null, CLIENT_ID, "auth-1", null, "DELETED")));
+        store.onRuntimeChange(runtimeEvent("AUTH_CONFIG_DELETED", 9L, staleDelete));
+
+        assertThat(store.getAuthConfig(SERVICE_ID, null, CLIENT_ID)).isPresent();
+    }
+
+    @Test
+    void getAuthConfig_shouldRemoveExpiredAuth() {
+        AuthConfigRuntimeDTO expired = authConfig();
+        expired.setExpiresAt("2020-01-01T00:00:00");
+        store.onRuntimeChange(runtimeEvent("AUTH_CONFIG_CHANGED", 11L,
+                new RuntimeChangePayloadDTO(null, List.of(expired), List.of(), List.of())));
+
+        assertThat(store.getAuthConfig(SERVICE_ID, null, CLIENT_ID)).isEmpty();
+    }
+
     private void arrangeRuntimeSnapshot() throws Exception {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(RedisSecurityRuntimeKeys.manifest(SERVICE_ID))).thenReturn(objectMapper.writeValueAsString(
@@ -150,8 +178,12 @@ class SecuritySettingsStoreTest {
     }
 
     private SecurityRuntimeChangeMessage runtimeEvent(String eventType, long version) {
+        return runtimeEvent(eventType, version, null);
+    }
+
+    private SecurityRuntimeChangeMessage runtimeEvent(String eventType, long version, RuntimeChangePayloadDTO payload) {
         return new SecurityRuntimeChangeMessage("event-" + version, eventType, SERVICE_ID, ENDPOINT_ID, CLIENT_ID,
-                "auth-1", "permission-1", List.of("runtimeSnapshot"), version, "2026-06-04T00:00:00", null);
+                "auth-1", "permission-1", List.of("runtimeSnapshot"), version, "2026-06-04T00:00:00", payload);
     }
 
     private ClientRuntimeDTO client() {

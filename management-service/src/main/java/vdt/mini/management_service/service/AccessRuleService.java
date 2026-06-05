@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import vdt.mini.management_service.dto.event.ClientSecurityConfigEvent;
 import vdt.mini.management_service.dto.request.AccessRuleCreateRequest;
 import vdt.mini.management_service.dto.request.AccessRuleUpdateRequest;
 import vdt.mini.management_service.dto.response.AccessRuleDeleteResponse;
@@ -28,8 +27,6 @@ import vdt.mini.management_service.util.enums.AccessRuleType;
 import vdt.mini.management_service.util.enums.AccessRuleValueType;
 import vdt.mini.management_service.util.enums.ErrorCode;
 
-import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -41,20 +38,17 @@ public class AccessRuleService {
     private final InboundAccessRuleRepository accessRuleRepository;
     private final InboundEndpointRepository inboundEndpointRepository;
     private final AuditLogRepository auditLogRepository;
-    private final ClientSecurityEventPublisher eventPublisher;
     private final RedisSettingsSyncService redisSettingsSyncService;
     private final ObjectMapper objectMapper;
 
     public AccessRuleService(InboundAccessRuleRepository accessRuleRepository,
                               InboundEndpointRepository inboundEndpointRepository,
                               AuditLogRepository auditLogRepository,
-                              ClientSecurityEventPublisher eventPublisher,
                               RedisSettingsSyncService redisSettingsSyncService,
                               ObjectMapper objectMapper) {
         this.accessRuleRepository = accessRuleRepository;
         this.inboundEndpointRepository = inboundEndpointRepository;
         this.auditLogRepository = auditLogRepository;
-        this.eventPublisher = eventPublisher;
         this.redisSettingsSyncService = redisSettingsSyncService;
         this.objectMapper = objectMapper;
     }
@@ -256,19 +250,9 @@ public class AccessRuleService {
     private void registerAfterCommit(String eventType, InboundEndpoint inboundEndpoint, String accessRuleId) {
         String inboundEndpointId = inboundEndpoint.getId();
         String serviceId = inboundEndpoint.getSecureService() != null ? inboundEndpoint.getSecureService().getId() : null;
-        ClientSecurityConfigEvent event = ClientSecurityConfigEvent.builder()
-                .eventId(UUID.randomUUID().toString())
-                .eventType(eventType)
-                .occurredAt(LocalDateTime.now())
-                .inboundEndpointId(inboundEndpointId)
-                .accessRuleId(accessRuleId)
-                .changedFields(List.of("accessRules"))
-                .version(System.currentTimeMillis())
-                .build();
         Runnable afterCommit = () -> {
-            eventPublisher.publish(event);
             if (serviceId != null && !serviceId.isBlank()) {
-                redisSettingsSyncService.syncAllEndpointsOfService(serviceId);
+                redisSettingsSyncService.syncInboundToRedis(inboundEndpoint);
             }
         };
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {

@@ -12,7 +12,9 @@ import vdt.mini.shared_lib.document.OutboundSettingsDTO;
 import vdt.mini.shared_lib.document.AuthConfigRuntimeDTO;
 import vdt.mini.shared_lib.document.ClientRuntimeDTO;
 import vdt.mini.shared_lib.document.PermissionRuntimeDTO;
+import vdt.mini.shared_lib.document.RuntimeChangePayloadDTO;
 import vdt.mini.shared_lib.document.RuntimeManifestDTO;
+import vdt.mini.shared_lib.document.RuntimeTombstoneDTO;
 import vdt.mini.shared_lib.document.SecurityRuntimeChangeMessage;
 import vdt.mini.shared_lib.document.ServiceAuthConfigsSnapshotDTO;
 import vdt.mini.shared_lib.document.ServiceClientsSnapshotDTO;
@@ -21,6 +23,7 @@ import vdt.mini.shared_lib.document.SettingsChangeMessage;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -150,27 +153,45 @@ public class SecuritySettingsStore {
         log.info("Redis runtime event received eventType={} serviceId={} version={} endpointId={} clientId={} authConfigId={} permissionId={}",
                 message.getEventType(), message.getServiceId(), message.getVersion(), message.getEndpointId(), message.getClientId(),
                 message.getAuthConfigId(), message.getPermissionId());
-        if (isStale(message)) {
-            return;
-        }
         String eventType = message.getEventType();
         if ("SERVICE_SNAPSHOT_REFRESHED".equals(eventType)) {
+            if (isStale(eventVersionKey(message), message.getVersion(), eventType, message.getServiceId())) {
+                return;
+            }
             pollRuntimeFromRedis(message.getServiceId(), lastInboundIds, lastOutboundIds, "snapshot refresh");
             markVersion(message);
             return;
         }
-        if (eventType != null && eventType.startsWith("CLIENT_")) {
-            evictClientRelated(message.getServiceId(), message.getClientId());
-        } else if (eventType != null && eventType.startsWith("AUTH_CONFIG_")) {
-            evictAuthForClient(message.getServiceId(), message.getClientId());
-        } else if (eventType != null && eventType.startsWith("PERMISSION_")) {
-            evictPermission(message.getServiceId(), message.getEndpointId(), message.getClientId());
-        } else {
-            log.warn("Unknown Redis runtime event type ignored eventType={} serviceId={} version={}",
+        RuntimeChangePayloadDTO payload = message.getPayload();
+        if (payload == null) {
+            log.warn("Redis runtime legacy/null payload event received; applying eviction fallback eventType={} serviceId={} version={}",
                     eventType, message.getServiceId(), message.getVersion());
+            applyLegacyEviction(message);
+            markVersion(message);
+            return;
         }
-        markVersion(message);
-        log.info("Redis runtime event applied eventType={} serviceId={} version={}", eventType, message.getServiceId(), message.getVersion());
+        boolean clientRemoved = false;
+        if (payload.getClient() != null) {
+            if ((eventType != null && (eventType.endsWith("DISABLED") || eventType.endsWith("REVOKED")))
+                    || !Boolean.TRUE.equals(payload.getClient().getEnabled()) || !Boolean.TRUE.equals(payload.getClient().getActive())) {
+                removeClientCascade(message.getServiceId(), payload.getClient().getClientId(), message.getVersion(), eventType);
+                clientRemoved = true;
+            } else {
+                upsertClient(message.getServiceId(), payload.getClient(), message.getVersion(), eventType);
+            }
+        }
+        if (!clientRemoved) {
+            for (AuthConfigRuntimeDTO auth : safeList(payload.getAuthConfigs())) {
+                upsertAuth(auth, message.getVersion(), eventType);
+            }
+            for (PermissionRuntimeDTO permission : safeList(payload.getPermissions())) {
+                upsertPermission(permission, message.getVersion(), eventType);
+            }
+        }
+        for (RuntimeTombstoneDTO tombstone : safeList(payload.getTombstones())) {
+            applyTombstone(message.getServiceId(), tombstone, message.getVersion(), eventType);
+        }
+        log.info("Redis runtime event applied direct eventType={} serviceId={} version={}", eventType, message.getServiceId(), message.getVersion());
     }
 
     public Optional<ClientRuntimeDTO> getClient(String serviceId, String clientId) {
@@ -183,6 +204,12 @@ public class SecuritySettingsStore {
 
     public Optional<AuthConfigRuntimeDTO> getAuthConfig(String serviceId, String endpointId, String clientId) {
         AuthConfigRuntimeDTO value = serviceMap(authByServiceThenClient, serviceId).get(clientId);
+        if (value != null && isAuthExpired(value)) {
+            removeAuth(serviceId, clientId, value.getAuthConfigId(), System.currentTimeMillis(), "AUTH_CONFIG_EXPIRED");
+            log.info("Runtime auth expired and removed serviceId={} endpointId={} clientId={} authConfigId={}",
+                    serviceId, endpointId, clientId, value.getAuthConfigId());
+            value = null;
+        }
         if (value == null) {
             log.debug("Runtime auth lookup miss serviceId={} endpointId={} clientId={}", serviceId, endpointId, clientId);
         }
@@ -255,8 +282,11 @@ public class SecuritySettingsStore {
         ServiceAuthConfigsSnapshotDTO snapshot = objectMapper.readValue(json, ServiceAuthConfigsSnapshotDTO.class);
         Map<String, AuthConfigRuntimeDTO> result = new HashMap<>();
         for (AuthConfigRuntimeDTO auth : safeList(snapshot.getAuthConfigs())) {
-            if (auth.getClientId() != null && Boolean.TRUE.equals(auth.getEnabled())) {
+            if (auth.getClientId() != null && Boolean.TRUE.equals(auth.getEnabled()) && !isAuthExpired(auth)) {
                 result.put(auth.getClientId(), auth);
+            } else if (auth.getClientId() != null && isAuthExpired(auth)) {
+                log.info("Runtime auth snapshot item ignored because expired serviceId={} clientId={} authConfigId={}",
+                        serviceId, auth.getClientId(), auth.getAuthConfigId());
             }
         }
         return result;
@@ -282,9 +312,18 @@ public class SecuritySettingsStore {
             log.warn("Received null settings change message");
             return;
         }
+        String operation = inferSettingsOperation(message);
+        String versionKey = settingsVersionKey(message.getType(), message.getEndpointId());
+        if (isStale(versionKey, message.getVersion(), "SETTINGS_" + operation, message.getServiceId())) {
+            return;
+        }
         if ("INBOUND".equals(message.getType())) {
             InboundSettingsDTO config = objectMapper.convertValue(message.getConfig(), InboundSettingsDTO.class);
-            if (config != null) {
+            if ("REMOVE".equals(operation)) {
+                inboundSettings.remove(message.getEndpointId());
+                markVersion(versionKey, message.getVersion());
+                log.info("Removed inbound settings from pub/sub operation=REMOVE endpointId={}", message.getEndpointId());
+            } else if (config != null) {
                 if (Boolean.FALSE.equals(config.getEnabled())) {
                     inboundSettings.remove(message.getEndpointId());
                     log.info("Removed inbound settings from pub/sub: endpointId={}", message.getEndpointId());
@@ -292,10 +331,15 @@ public class SecuritySettingsStore {
                     inboundSettings.put(message.getEndpointId(), config);
                     log.info("Updated inbound settings from pub/sub: endpointId={} serviceId={}", message.getEndpointId(), message.getServiceId());
                 }
+                markVersion(versionKey, message.getVersion());
             }
         } else if ("OUTBOUND".equals(message.getType())) {
             OutboundSettingsDTO config = objectMapper.convertValue(message.getConfig(), OutboundSettingsDTO.class);
-            if (config != null) {
+            if ("REMOVE".equals(operation)) {
+                outboundSettings.remove(message.getEndpointId());
+                markVersion(versionKey, message.getVersion());
+                log.info("Removed outbound settings from pub/sub operation=REMOVE endpointId={}", message.getEndpointId());
+            } else if (config != null) {
                 if (Boolean.FALSE.equals(config.getEnabled())) {
                     outboundSettings.remove(message.getEndpointId());
                     log.info("Removed outbound settings from pub/sub: endpointId={}", message.getEndpointId());
@@ -303,22 +347,21 @@ public class SecuritySettingsStore {
                     outboundSettings.put(message.getEndpointId(), config);
                     log.info("Updated outbound settings from pub/sub: endpointId={} serviceId={}", message.getEndpointId(), message.getServiceId());
                 }
+                markVersion(versionKey, message.getVersion());
             }
         } else {
             log.warn("Unknown settings change message type: {}", message.getType());
         }
     }
 
-    private boolean isStale(SecurityRuntimeChangeMessage message) {
-        Long incoming = message.getVersion();
+    private boolean isStale(String key, Long incoming, String eventType, String serviceId) {
         if (incoming == null) {
             return false;
         }
-        String key = eventVersionKey(message);
         Long current = lastVersionByKey.get(key);
         if (current != null && incoming <= current) {
-            log.info("Redis runtime event skipped stale eventType={} serviceId={} incomingVersion={} currentVersion={}",
-                    message.getEventType(), message.getServiceId(), incoming, current);
+            log.info("Redis runtime event skipped stale eventType={} serviceId={} versionKey={} incomingVersion={} currentVersion={}",
+                    eventType, serviceId, key, incoming, current);
             return true;
         }
         return false;
@@ -330,12 +373,127 @@ public class SecuritySettingsStore {
         }
     }
 
+    private void markVersion(String key, Long version) {
+        if (version != null) {
+            lastVersionByKey.put(key, version);
+        }
+    }
+
     private String eventVersionKey(SecurityRuntimeChangeMessage message) {
         return String.join(":", message.getServiceId(), nullToBlank(message.getEventType()), nullToBlank(message.getEndpointId()),
                 nullToBlank(message.getClientId()), nullToBlank(message.getAuthConfigId()), nullToBlank(message.getPermissionId()));
     }
 
     private String nullToBlank(String value) { return value == null ? "" : value; }
+
+    private void applyLegacyEviction(SecurityRuntimeChangeMessage message) {
+        String eventType = message.getEventType();
+        if (eventType != null && eventType.startsWith("CLIENT_")) {
+            removeClientCascade(message.getServiceId(), message.getClientId(), message.getVersion(), eventType);
+        } else if (eventType != null && eventType.startsWith("AUTH_CONFIG_")) {
+            removeAuth(message.getServiceId(), message.getClientId(), message.getAuthConfigId(), message.getVersion(), eventType);
+        } else if (eventType != null && eventType.startsWith("PERMISSION_")) {
+            removePermission(message.getServiceId(), message.getEndpointId(), message.getClientId(), message.getPermissionId(), message.getVersion(), eventType);
+        } else {
+            log.warn("Unknown Redis runtime event type ignored eventType={} serviceId={} version={}",
+                    eventType, message.getServiceId(), message.getVersion());
+        }
+    }
+
+    private void upsertClient(String serviceId, ClientRuntimeDTO client, Long messageVersion, String eventType) {
+        String key = clientVersionKey(serviceId, client.getClientId());
+        Long version = resolveVersion(messageVersion, client.getVersion());
+        if (isStale(key, version, eventType, serviceId)) { return; }
+        serviceMap(clientsByServiceThenClient, serviceId).put(client.getClientId(), client);
+        if (client.getClientKey() != null && !client.getClientKey().isBlank()) {
+            serviceMap(clientKeyToClientIdByService, serviceId).put(client.getClientKey(), client.getClientId());
+        }
+        markVersion(key, version);
+        log.info("Runtime client applied direct serviceId={} clientId={} version={}", serviceId, client.getClientId(), version);
+    }
+
+    private void removeClientCascade(String serviceId, String clientId, Long version, String eventType) {
+        if (clientId == null) { return; }
+        String key = clientVersionKey(serviceId, clientId);
+        if (isStale(key, version, eventType, serviceId)) { return; }
+        evictClientRelated(serviceId, clientId);
+        markVersion(key, version);
+        log.info("Runtime client removed with cascade serviceId={} clientId={} version={}", serviceId, clientId, version);
+    }
+
+    private void upsertAuth(AuthConfigRuntimeDTO auth, Long messageVersion, String eventType) {
+        String serviceId = auth.getServiceId();
+        String clientId = auth.getClientId();
+        if (serviceId == null || clientId == null) { return; }
+        Long version = resolveVersion(messageVersion, auth.getVersion());
+        String key = authVersionKey(serviceId, clientId);
+        if (isStale(key, version, eventType, serviceId)) { return; }
+        if (!Boolean.TRUE.equals(auth.getEnabled()) || isAuthExpired(auth)) {
+            removeAuth(serviceId, clientId, auth.getAuthConfigId(), version, isAuthExpired(auth) ? "AUTH_CONFIG_EXPIRED" : eventType);
+            return;
+        }
+        authByServiceThenClient.computeIfAbsent(serviceId, ignored -> new ConcurrentHashMap<>()).put(clientId, auth);
+        markVersion(key, version);
+        log.info("Runtime auth applied direct serviceId={} clientId={} authConfigId={} version={}", serviceId, clientId, auth.getAuthConfigId(), version);
+    }
+
+    private void removeAuth(String serviceId, String clientId, String authConfigId, Long version, String eventType) {
+        if (serviceId == null) { return; }
+        if (clientId != null) {
+            String key = authVersionKey(serviceId, clientId);
+            if (isStale(key, version, eventType, serviceId)) { return; }
+            serviceMap(authByServiceThenClient, serviceId).remove(clientId);
+            markVersion(key, version);
+        } else if (authConfigId != null) {
+            serviceMap(authByServiceThenClient, serviceId).entrySet().removeIf(entry -> authConfigId.equals(entry.getValue().getAuthConfigId()));
+        }
+        log.info("Runtime auth removed serviceId={} clientId={} authConfigId={} eventType={} version={}", serviceId, clientId, authConfigId, eventType, version);
+    }
+
+    private void upsertPermission(PermissionRuntimeDTO permission, Long messageVersion, String eventType) {
+        String serviceId = permission.getServiceId();
+        String endpointId = permission.getInboundEndpointId();
+        String clientId = permission.getClientId();
+        if (serviceId == null || endpointId == null || clientId == null) { return; }
+        Long version = resolveVersion(messageVersion, permission.getVersion());
+        String key = permissionVersionKey(serviceId, endpointId, clientId);
+        if (isStale(key, version, eventType, serviceId)) { return; }
+        if (!Boolean.TRUE.equals(permission.getEnabled())) {
+            removePermission(serviceId, endpointId, clientId, permission.getPermissionId(), version, eventType);
+            return;
+        }
+        serviceMap(permissionsByServiceEndpointClient, serviceId).put(permissionKey(endpointId, clientId), permission);
+        markVersion(key, version);
+        log.info("Runtime permission applied direct serviceId={} endpointId={} clientId={} permissionId={} version={}",
+                serviceId, endpointId, clientId, permission.getPermissionId(), version);
+    }
+
+    private void removePermission(String serviceId, String endpointId, String clientId, String permissionId, Long version, String eventType) {
+        if (serviceId == null) { return; }
+        if (endpointId != null && clientId != null) {
+            String key = permissionVersionKey(serviceId, endpointId, clientId);
+            if (isStale(key, version, eventType, serviceId)) { return; }
+            serviceMap(permissionsByServiceEndpointClient, serviceId).remove(permissionKey(endpointId, clientId));
+            markVersion(key, version);
+        } else if (permissionId != null) {
+            serviceMap(permissionsByServiceEndpointClient, serviceId).entrySet().removeIf(entry -> permissionId.equals(entry.getValue().getPermissionId()));
+        }
+        log.info("Runtime permission tombstone removed serviceId={} endpointId={} clientId={} permissionId={} eventType={} version={}",
+                serviceId, endpointId, clientId, permissionId, eventType, version);
+    }
+
+    private void applyTombstone(String fallbackServiceId, RuntimeTombstoneDTO tombstone, Long version, String eventType) {
+        String serviceId = tombstone.getServiceId() != null ? tombstone.getServiceId() : fallbackServiceId;
+        if ("CLIENT".equals(tombstone.getResourceType())) {
+            removeClientCascade(serviceId, tombstone.getClientId(), version, eventType);
+        } else if ("AUTH_CONFIG".equals(tombstone.getResourceType())) {
+            removeAuth(serviceId, tombstone.getClientId(), tombstone.getAuthConfigId(), version, eventType);
+        } else if ("PERMISSION".equals(tombstone.getResourceType())) {
+            removePermission(serviceId, tombstone.getEndpointId(), tombstone.getClientId(), tombstone.getPermissionId(), version, eventType);
+        } else {
+            log.warn("Unknown runtime tombstone ignored resourceType={} serviceId={} eventType={}", tombstone.getResourceType(), serviceId, eventType);
+        }
+    }
 
     private void evictClientRelated(String serviceId, String clientId) {
         if (clientId == null) { return; }
@@ -374,6 +532,60 @@ public class SecuritySettingsStore {
             }
         }
         return result;
+    }
+
+    private String inferSettingsOperation(SettingsChangeMessage message) {
+        if (message.getOperation() != null && !message.getOperation().isBlank()) {
+            return message.getOperation();
+        }
+        if (message.getConfig() == null) {
+            return "REMOVE";
+        }
+        try {
+            if ("INBOUND".equals(message.getType())) {
+                InboundSettingsDTO config = objectMapper.convertValue(message.getConfig(), InboundSettingsDTO.class);
+                return Boolean.FALSE.equals(config.getEnabled()) ? "REMOVE" : "UPSERT";
+            }
+            if ("OUTBOUND".equals(message.getType())) {
+                OutboundSettingsDTO config = objectMapper.convertValue(message.getConfig(), OutboundSettingsDTO.class);
+                return Boolean.FALSE.equals(config.getEnabled()) ? "REMOVE" : "UPSERT";
+            }
+        } catch (IllegalArgumentException ex) {
+            log.warn("Could not infer legacy settings operation type={} endpointId={}", message.getType(), message.getEndpointId(), ex);
+        }
+        return "UPSERT";
+    }
+
+    private boolean isAuthExpired(AuthConfigRuntimeDTO auth) {
+        if (auth == null || auth.getExpiresAt() == null || auth.getExpiresAt().isBlank()) {
+            return false;
+        }
+        try {
+            return LocalDateTime.parse(auth.getExpiresAt()).isBefore(LocalDateTime.now());
+        } catch (RuntimeException ex) {
+            log.warn("Runtime auth expiresAt parse failed authConfigId={} expiresAt={}", auth.getAuthConfigId(), auth.getExpiresAt(), ex);
+            return false;
+        }
+    }
+
+    private Long resolveVersion(Long messageVersion, Long payloadVersion) {
+        return messageVersion != null ? messageVersion : payloadVersion;
+    }
+
+    private String settingsVersionKey(String type, String endpointId) {
+        return "settings:" + nullToBlank(type) + ":" + nullToBlank(endpointId);
+    }
+
+    private String clientVersionKey(String serviceId, String clientId) {
+        return "client:" + nullToBlank(serviceId) + ":" + nullToBlank(clientId);
+    }
+
+    private String authVersionKey(String serviceId, String clientId) {
+        return "auth:" + nullToBlank(serviceId) + ":" + nullToBlank(clientId);
+    }
+
+    private String permissionVersionKey(String serviceId, String endpointId, String clientId) {
+        return "permission:" + nullToBlank(serviceId) + ":" + nullToBlank(endpointId) + ":" + nullToBlank(clientId);
     }
 
     private String permissionKey(String endpointId, String clientId) {
