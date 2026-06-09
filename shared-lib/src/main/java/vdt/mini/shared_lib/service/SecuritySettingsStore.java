@@ -71,12 +71,8 @@ public class SecuritySettingsStore {
                 String json = redisTemplate.opsForValue().get(RedisSecurityRuntimeKeys.inboundSettings(id));
                 if (json != null) {
                     InboundSettingsDTO dto = objectMapper.readValue(json, InboundSettingsDTO.class);
-                    if (Boolean.FALSE.equals(dto.getEnabled())) {
-                        inboundSettings.remove(id);
-                    } else {
-                        inboundSettings.put(id, dto);
-                        log.debug("Loaded inbound settings from Redis: endpointId={}", id);
-                    }
+                    inboundSettings.put(id, dto);
+                    log.debug("Loaded inbound settings from Redis: endpointId={} enabled={}", id, dto.getEnabled());
                 }
             } catch (Exception e) {
                 log.warn("Failed to poll inbound settings from Redis for endpointId={}", id, e);
@@ -324,13 +320,9 @@ public class SecuritySettingsStore {
                 markVersion(versionKey, message.getVersion());
                 log.info("Removed inbound settings from pub/sub operation=REMOVE endpointId={}", message.getEndpointId());
             } else if (config != null) {
-                if (Boolean.FALSE.equals(config.getEnabled())) {
-                    inboundSettings.remove(message.getEndpointId());
-                    log.info("Removed inbound settings from pub/sub: endpointId={}", message.getEndpointId());
-                } else {
-                    inboundSettings.put(message.getEndpointId(), config);
-                    log.info("Updated inbound settings from pub/sub: endpointId={} serviceId={}", message.getEndpointId(), message.getServiceId());
-                }
+                inboundSettings.put(message.getEndpointId(), config);
+                log.info("Updated inbound settings from pub/sub: endpointId={} serviceId={} enabled={}",
+                        message.getEndpointId(), message.getServiceId(), config.getEnabled());
                 markVersion(versionKey, message.getVersion());
             }
         } else if ("OUTBOUND".equals(message.getType())) {

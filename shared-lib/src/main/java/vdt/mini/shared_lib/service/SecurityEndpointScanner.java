@@ -33,6 +33,7 @@ public class SecurityEndpointScanner {
     private final IdentityManager identityManager;
     private final KafkaPublisher kafkaPublisher;
     private final SecuritySettingsStore securitySettingsStore;
+    private final EndpointRegistry endpointRegistry;
 
     @Value("${app.security.service.name:my-service}")
     private String serviceName;
@@ -54,13 +55,15 @@ public class SecurityEndpointScanner {
 
     @Autowired
     public SecurityEndpointScanner(ApplicationContext applicationContext,
-                                   IdentityManager identityManager,
-                                   KafkaPublisher kafkaPublisher,
-                                   SecuritySettingsStore securitySettingsStore) {
+                                    IdentityManager identityManager,
+                                    KafkaPublisher kafkaPublisher,
+                                    SecuritySettingsStore securitySettingsStore,
+                                    EndpointRegistry endpointRegistry) {
         this.applicationContext = applicationContext;
         this.identityManager = identityManager;
         this.kafkaPublisher = kafkaPublisher;
         this.securitySettingsStore = securitySettingsStore;
+        this.endpointRegistry = endpointRegistry;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -82,6 +85,8 @@ public class SecurityEndpointScanner {
 
             appendStaleInbounds(inbounds, inboundScan.keys());
             appendStaleOutbounds(outbounds, outboundScan.keys());
+
+            endpointRegistry.replaceAll(inbounds, outbounds);
 
             ServiceRegistrationEvent event = new ServiceRegistrationEvent(
                     serviceId, serviceName, baseUrl, serviceDescription, inbounds, outbounds

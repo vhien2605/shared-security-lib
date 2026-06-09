@@ -231,6 +231,7 @@ public class AccessPermissionService {
                     redisSettingsSyncService.publishPermissionRuntimeChange(permission, runtimeEventType,
                             "PERMISSION_DELETED".equals(runtimeEventType) ? "DELETED" : "DISABLED");
                 }
+                redisSettingsSyncService.syncRuntimeSnapshotOfService(serviceId);
             }
         };
         org.slf4j.LoggerFactory.getLogger(AccessPermissionService.class).info(

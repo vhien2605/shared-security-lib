@@ -11,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import vdt.mini.management_service.dto.request.ClientAuthConfigChangesRequest;
 import vdt.mini.management_service.dto.request.ClientAuthConfigCreateRequest;
+import vdt.mini.management_service.dto.request.ClientAuthConfigUpdateRequest;
 import vdt.mini.management_service.dto.request.ClientCreateRequest;
 import vdt.mini.management_service.dto.request.ClientUpdateRequest;
 import vdt.mini.management_service.dto.response.ClientCredentialResponse;
@@ -170,6 +171,88 @@ class ClientSecurityServiceTest {
     }
 
     @Test
+    void updateClient_shouldRefreshRuntimeSnapshotAfterAuthConfigCreated() {
+        Client client = client("client-1");
+        SecureService service = secureService("service-1", "User Service");
+        ClientUpdateRequest request = updateRequest(authConfig("service-1", "API_KEY", null));
+        ClientCredentialService.CredentialMaterial material =
+                new ClientCredentialService.CredentialMaterial("secret-ref", "hash", null, "api-key", true);
+        when(clientRepository.findByIdWithAuthConfigs("client-1")).thenReturn(Optional.of(client));
+        when(serviceRepository.findById("service-1")).thenReturn(Optional.of(service));
+        when(authConfigRepository.findEnabledServiceConflicts(any(), any(), any())).thenReturn(List.of());
+        when(credentialService.getOrCreateCredential("client-1", AuthType.API_KEY)).thenReturn(material);
+        when(credentialService.toOneTimeResponse(eq(AuthType.API_KEY), any())).thenReturn(null);
+
+        clientSecurityService.updateClient("client-1", request, null);
+        TransactionSynchronizationManager.getSynchronizations().forEach(synchronization -> synchronization.afterCommit());
+
+        verify(redisSettingsSyncService).syncRuntimeSnapshotOfService("service-1");
+    }
+
+    @Test
+    void updateClient_shouldRefreshRuntimeSnapshotAfterAuthConfigDeleted() {
+        Client client = client("client-1");
+        AuthConfig authConfig = authConfigEntity("auth-1", client, secureService("service-1", "User Service"), true);
+        ClientAuthConfigChangesRequest changesRequest = new ClientAuthConfigChangesRequest();
+        changesRequest.setRemoveAuthConfigIds(List.of("auth-1"));
+        ClientUpdateRequest request = new ClientUpdateRequest();
+        request.setAuthConfigs(changesRequest);
+        when(clientRepository.findByIdWithAuthConfigs("client-1")).thenReturn(Optional.of(client));
+        when(authConfigRepository.findById("auth-1")).thenReturn(Optional.of(authConfig));
+
+        clientSecurityService.updateClient("client-1", request, null);
+        TransactionSynchronizationManager.getSynchronizations().forEach(synchronization -> synchronization.afterCommit());
+
+        verify(redisSettingsSyncService).publishAuthConfigDeleted("service-1", "client-1", "auth-1");
+        verify(redisSettingsSyncService).syncRuntimeSnapshotOfService("service-1");
+    }
+
+    @Test
+    void updateClient_shouldRefreshRuntimeSnapshotAfterAuthConfigDisabled() {
+        Client client = client("client-1");
+        AuthConfig authConfig = authConfigEntity("auth-1", client, secureService("service-1", "User Service"), true);
+        ClientAuthConfigUpdateRequest updateRequest = new ClientAuthConfigUpdateRequest();
+        updateRequest.setAuthConfigId("auth-1");
+        updateRequest.setEnabled(false);
+        ClientAuthConfigChangesRequest changesRequest = new ClientAuthConfigChangesRequest();
+        changesRequest.setUpdate(List.of(updateRequest));
+        ClientUpdateRequest request = new ClientUpdateRequest();
+        request.setAuthConfigs(changesRequest);
+        when(clientRepository.findByIdWithAuthConfigs("client-1")).thenReturn(Optional.of(client));
+        when(authConfigRepository.findById("auth-1")).thenReturn(Optional.of(authConfig));
+        when(authConfigRepository.save(authConfig)).thenReturn(authConfig);
+
+        clientSecurityService.updateClient("client-1", request, null);
+        TransactionSynchronizationManager.getSynchronizations().forEach(synchronization -> synchronization.afterCommit());
+
+        verify(redisSettingsSyncService).publishAuthConfigRuntimeChange("auth-1", "AUTH_CONFIG_CHANGED", null);
+        verify(redisSettingsSyncService).syncRuntimeSnapshotOfService("service-1");
+    }
+
+    @Test
+    void updateClient_shouldRefreshRuntimeSnapshotAfterAuthConfigEnabled() {
+        Client client = client("client-1");
+        AuthConfig authConfig = authConfigEntity("auth-1", client, secureService("service-1", "User Service"), false);
+        ClientAuthConfigUpdateRequest updateRequest = new ClientAuthConfigUpdateRequest();
+        updateRequest.setAuthConfigId("auth-1");
+        updateRequest.setEnabled(true);
+        ClientAuthConfigChangesRequest changesRequest = new ClientAuthConfigChangesRequest();
+        changesRequest.setUpdate(List.of(updateRequest));
+        ClientUpdateRequest request = new ClientUpdateRequest();
+        request.setAuthConfigs(changesRequest);
+        when(clientRepository.findByIdWithAuthConfigs("client-1")).thenReturn(Optional.of(client));
+        when(authConfigRepository.findById("auth-1")).thenReturn(Optional.of(authConfig));
+        when(authConfigRepository.findEnabledServiceConflicts("client-1", "service-1", "auth-1")).thenReturn(List.of());
+        when(authConfigRepository.save(authConfig)).thenReturn(authConfig);
+
+        clientSecurityService.updateClient("client-1", request, null);
+        TransactionSynchronizationManager.getSynchronizations().forEach(synchronization -> synchronization.afterCommit());
+
+        verify(redisSettingsSyncService).publishAuthConfigRuntimeChange("auth-1", "AUTH_CONFIG_CHANGED", null);
+        verify(redisSettingsSyncService).syncRuntimeSnapshotOfService("service-1");
+    }
+
+    @Test
     void updateClient_shouldReturnNewApiKeyCredential_whenAuthConfigAdded() {
         Client client = client("client-1");
         SecureService service = secureService("service-1", "User Service");
@@ -300,5 +383,17 @@ class ClientSecurityServiceTest {
         client.setContactEmail("admin@school.example");
         client.setStatus(ClientStatus.ACTIVE);
         return client;
+    }
+
+    private AuthConfig authConfigEntity(String id, Client client, SecureService service, boolean enabled) {
+        AuthConfig authConfig = new AuthConfig();
+        authConfig.setId(id);
+        authConfig.setClient(client);
+        authConfig.setService(service);
+        authConfig.setType(AuthType.API_KEY);
+        authConfig.setEnabled(enabled);
+        authConfig.setSecretRef("secret-ref");
+        authConfig.setCredentialHash("hash");
+        return authConfig;
     }
 }

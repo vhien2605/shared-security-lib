@@ -12,7 +12,10 @@ import lombok.Setter;
 public class AuthConfigDTO {
     private String type;
     private String secretRef;
+    private String credentialHash;
+    private String publicKey;
     private String algorithm;
     private String expiresAt;
     private String clientKey;
+    private Boolean enabled;
 }

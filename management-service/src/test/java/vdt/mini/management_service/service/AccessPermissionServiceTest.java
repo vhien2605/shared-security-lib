@@ -77,6 +77,7 @@ class AccessPermissionServiceTest {
         assertEquals("service-1", response.getServiceId());
         assertEquals("Service One", response.getServiceName());
         verify(redisSettingsSyncService).publishPermissionRuntimeChange(any(AccessPermission.class), eq("PERMISSION_CHANGED"), eq(null));
+        verify(redisSettingsSyncService).syncRuntimeSnapshotOfService("service-1");
     }
 
     @Test

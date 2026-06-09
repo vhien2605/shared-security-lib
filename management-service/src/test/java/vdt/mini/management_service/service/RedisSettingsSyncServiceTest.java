@@ -35,7 +35,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -94,7 +93,7 @@ class RedisSettingsSyncServiceTest {
     }
 
     @Test
-    void syncInboundToRedis_shouldDecryptHmacClientKey_andKeepApiKeyNull() throws Exception {
+    void syncInboundToRedis_shouldNotExposeSecretsInEndpointSettings() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         RedisSettingsSyncService service = new RedisSettingsSyncService(redisTemplate,
                 objectMapper,
@@ -105,20 +104,28 @@ class RedisSettingsSyncServiceTest {
                 secretCipherService);
         InboundEndpoint endpoint = endpoint();
         AuthConfig hmac = authConfig("auth-hmac", AuthType.HMAC_SIGNATURE, "hmac-ref", "ciphertext");
+        hmac.setCredentialHash("hmac-hash");
         AuthConfig apiKey = authConfig("auth-api", AuthType.API_KEY, "api-ref", null);
+        apiKey.setCredentialHash("api-hash");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(authConfigRepository.findEnabledByServiceScope("service-1")).thenReturn(List.of(hmac, apiKey));
         when(accessPermissionRepository.findEnabledByInboundEndpointId("endpoint-1")).thenReturn(List.of());
-        when(secretCipherService.decrypt("ciphertext")).thenReturn("hmac-secret");
 
         service.syncInboundToRedis(endpoint);
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
         verify(valueOperations).set(eq("security:config:inbound:endpoint-1"), jsonCaptor.capture());
         JsonNode authConfigs = objectMapper.readTree(jsonCaptor.getValue()).get("authConfigs");
-        assertEquals("hmac-secret", authConfigs.get(0).get("clientKey").asText());
+        assertEquals("client-key-1", authConfigs.get(0).get("clientKey").asText());
+        assertEquals("hmac-hash", authConfigs.get(0).get("credentialHash").asText());
+        assertFalse(authConfigs.get(0).has("secretCiphertext"));
+        assertFalse(authConfigs.get(0).has("secretKey"));
         assertEquals("API_KEY", authConfigs.get(1).get("type").asText());
-        assertEquals(true, authConfigs.get(1).get("clientKey").isNull());
+        assertEquals("client-key-1", authConfigs.get(1).get("clientKey").asText());
+        assertEquals("api-hash", authConfigs.get(1).get("credentialHash").asText());
+        assertFalse(authConfigs.get(1).has("secretCiphertext"));
+        assertFalse(authConfigs.get(1).has("secretKey"));
+        verify(secretCipherService, never()).decrypt(anyString());
     }
 
     @Test
@@ -172,14 +179,16 @@ class RedisSettingsSyncServiceTest {
         JsonNode authConfigs = objectMapper.readTree(authSnapshotCaptor.getValue()).get("authConfigs");
         assertEquals("api-hash", authConfigs.get(0).get("credentialHash").asText());
         assertEquals(true, authConfigs.get(0).get("secretKey").isNull());
+        assertFalse(authConfigs.get(0).has("secretCiphertext"));
         assertEquals("hmac-hash", authConfigs.get(1).get("credentialHash").asText());
         assertEquals("hmac-secret", authConfigs.get(1).get("secretKey").asText());
+        assertFalse(authConfigs.get(1).has("secretCiphertext"));
         verify(redisTemplate).convertAndSend(eq("security:runtime:v1:service:service-1:events"),
                 argThat((String payload) -> payload != null && payload.contains("SERVICE_SNAPSHOT_REFRESHED")));
     }
 
     @Test
-    void syncInboundToRedis_shouldContinue_whenHmacCiphertextMissingOrMalformed() throws Exception {
+    void syncInboundToRedis_shouldContinueWithoutDecryptingHmacCiphertext() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         RedisSettingsSyncService service = new RedisSettingsSyncService(redisTemplate,
                 objectMapper,
@@ -194,15 +203,17 @@ class RedisSettingsSyncServiceTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(authConfigRepository.findEnabledByServiceScope("service-1")).thenReturn(List.of(missing, malformed));
         when(accessPermissionRepository.findEnabledByInboundEndpointId("endpoint-1")).thenReturn(List.of());
-        doThrow(new IllegalStateException("bad ciphertext")).when(secretCipherService).decrypt("malformed");
 
         service.syncInboundToRedis(endpoint);
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
         verify(valueOperations).set(eq("security:config:inbound:endpoint-1"), jsonCaptor.capture());
         JsonNode authConfigs = objectMapper.readTree(jsonCaptor.getValue()).get("authConfigs");
-        assertFalse(authConfigs.get(0).get("clientKey").isTextual());
-        assertFalse(authConfigs.get(1).get("clientKey").isTextual());
+        assertFalse(authConfigs.get(0).has("secretCiphertext"));
+        assertFalse(authConfigs.get(0).has("secretKey"));
+        assertFalse(authConfigs.get(1).has("secretCiphertext"));
+        assertFalse(authConfigs.get(1).has("secretKey"));
+        verify(secretCipherService, never()).decrypt(anyString());
     }
 
     private InboundEndpoint endpoint() {
