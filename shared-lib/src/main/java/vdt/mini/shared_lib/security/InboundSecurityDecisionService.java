@@ -20,6 +20,8 @@ import vdt.mini.shared_lib.service.SecuritySettingsStore;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -280,11 +282,14 @@ public class InboundSecurityDecisionService {
         if (!hasText(value)) {
             return false;
         }
-        if ("CLIENT_ID".equals(valueType)) {
-            return value.equals(context.getClientId());
-        }
         if ("CLIENT_KEY".equals(valueType)) {
             return value.equals(request.getHeader(CLIENT_KEY_HEADER));
+        }
+        if ("CIDR".equals(valueType)) {
+            return ipMatchesCidr(context.getSourceIp(), value) || ipMatchesCidr(request.getRemoteAddr(), value);
+        }
+        if ("HEADER".equals(valueType)) {
+            return headerMatches(request, value);
         }
         return value.equals(context.getSourceIp()) || value.equals(request.getRemoteAddr());
     }
@@ -316,11 +321,11 @@ public class InboundSecurityDecisionService {
         if (!hasText(value)) {
             return false;
         }
-        if ("CLIENT_ID".equals(valueType)) {
-            return value.equals(context.getClientId());
-        }
         if ("CLIENT_KEY".equals(valueType)) {
             return headers != null && value.equals(headers.clientKey());
+        }
+        if ("HEADER".equals(valueType)) {
+            return mqHeaderMatches(headers, value);
         }
         if ("TOPIC".equals(valueType)) {
             return value.equals(topic);
@@ -344,6 +349,72 @@ public class InboundSecurityDecisionService {
             }
         }
         return false;
+    }
+
+    private boolean headerMatches(HttpServletRequest request, String ruleValue) {
+        HeaderRule headerRule = HeaderRule.parse(ruleValue);
+        return headerRule != null && headerRule.expectedValue().equals(request.getHeader(headerRule.name()));
+    }
+
+    private boolean mqHeaderMatches(MqSecurityHeaders headers, String ruleValue) {
+        HeaderRule headerRule = HeaderRule.parse(ruleValue);
+        return headers != null && headerRule != null && headerRule.expectedValue().equals(mqHeaderValue(headers, headerRule.name()));
+    }
+
+    private String mqHeaderValue(MqSecurityHeaders headers, String name) {
+        if (CLIENT_KEY_HEADER.equalsIgnoreCase(name) || "clientKey".equalsIgnoreCase(name)) {
+            return headers.clientKey();
+        }
+        if (API_KEY_HEADER.equalsIgnoreCase(name) || "apiKey".equalsIgnoreCase(name)) {
+            return headers.apiKey();
+        }
+        if (SIGNATURE_HEADER.equalsIgnoreCase(name) || "signature".equalsIgnoreCase(name)) {
+            return headers.signature();
+        }
+        if (TIMESTAMP_HEADER.equalsIgnoreCase(name) || "timestamp".equalsIgnoreCase(name)) {
+            return headers.timestamp();
+        }
+        if (NONCE_HEADER.equalsIgnoreCase(name) || "nonce".equalsIgnoreCase(name)) {
+            return headers.nonce();
+        }
+        if ("X-Correlation-Id".equalsIgnoreCase(name) || "correlationId".equalsIgnoreCase(name)) {
+            return headers.correlationId();
+        }
+        if ("X-Trace-Id".equalsIgnoreCase(name) || "traceId".equalsIgnoreCase(name)) {
+            return headers.traceId();
+        }
+        return null;
+    }
+
+    private boolean ipMatchesCidr(String ip, String cidr) {
+        if (!hasText(ip) || !hasText(cidr)) {
+            return false;
+        }
+        String[] parts = cidr.trim().split("/", -1);
+        if (parts.length != 2) {
+            return false;
+        }
+        try {
+            InetAddress ipAddress = InetAddress.getByName(ip.trim());
+            InetAddress networkAddress = InetAddress.getByName(parts[0].trim());
+            byte[] ipBytes = ipAddress.getAddress();
+            byte[] networkBytes = networkAddress.getAddress();
+            if (ipBytes.length != networkBytes.length) {
+                return false;
+            }
+            int prefixLength = Integer.parseInt(parts[1].trim());
+            int bitLength = ipBytes.length * Byte.SIZE;
+            if (prefixLength < 0 || prefixLength > bitLength) {
+                return false;
+            }
+            BigInteger ipValue = new BigInteger(1, ipBytes);
+            BigInteger networkValue = new BigInteger(1, networkBytes);
+            BigInteger mask = BigInteger.ONE.shiftLeft(bitLength).subtract(BigInteger.ONE)
+                    .shiftRight(bitLength - prefixLength).shiftLeft(bitLength - prefixLength);
+            return ipValue.and(mask).equals(networkValue.and(mask));
+        } catch (RuntimeException | java.io.IOException ex) {
+            return false;
+        }
     }
 
     private boolean isHmac(AuthConfigRuntimeDTO runtimeAuth) {
@@ -454,6 +525,21 @@ public class InboundSecurityDecisionService {
 
     private static <T> List<T> safeList(List<T> value) {
         return value == null ? List.of() : value;
+    }
+
+    private record HeaderRule(String name, String expectedValue) {
+        private static HeaderRule parse(String value) {
+            int separatorIndex = value.indexOf('=');
+            if (separatorIndex <= 0 || separatorIndex == value.length() - 1) {
+                return null;
+            }
+            String name = value.substring(0, separatorIndex).trim();
+            String expectedValue = value.substring(separatorIndex + 1).trim();
+            if (!hasText(name) || !hasText(expectedValue)) {
+                return null;
+            }
+            return new HeaderRule(name, expectedValue);
+        }
     }
 
     private record AccessRuleDecision(boolean allowed, boolean whitelisted, SecurityErrorCode errorCode,

@@ -95,6 +95,15 @@ class InboundSecurityDecisionServiceMqTest {
     }
 
     @Test
+    void decide_shouldMatchMqAccessRulesByClientKeyAndHeader() throws Exception {
+        assertDenied(settings(settings -> settings.setAccessRules(List.of(new AccessRuleDTO("BLACKLIST", "CLIENT_KEY", CLIENT_KEY, false, null)))),
+                SecurityErrorCode.BLACKLISTED);
+
+        loadSettings(settings(settings -> settings.setAccessRules(List.of(new AccessRuleDTO("BLACKLIST", "HEADER", "X-Correlation-Id=corr", false, null)))));
+        assertThat(decisionService.decide(request(headers(CLIENT_KEY), "payload"), endpoint, context()).errorCode()).isEqualTo(SecurityErrorCode.BLACKLISTED);
+    }
+
+    @Test
     void decide_shouldValidateApiKeyPermissionAndClientRuntime() throws Exception {
         loadSettings(settings(settings -> settings.setPermissions(List.of(new AccessPermissionDTO("permission-1", CLIENT_ID, CLIENT_KEY, ENDPOINT_ID)))));
         loadRuntime(true, "API_KEY", null, sha256(API_KEY));

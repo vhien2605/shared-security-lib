@@ -186,6 +186,34 @@ class InboundSecurityDecisionServiceTest {
     }
 
     @Test
+    void decide_shouldMatchBlacklistByCidrClientKeyAndHeader() throws Exception {
+        assertDenied(settings(settings -> settings.setAccessRules(List.of(new AccessRuleDTO("BLACKLIST", "CIDR", "127.0.0.0/8", false, null)))),
+                SecurityErrorCode.BLACKLISTED);
+
+        loadSettings(settings(settings -> settings.setAccessRules(List.of(new AccessRuleDTO("BLACKLIST", "CLIENT_KEY", CLIENT_KEY, false, null)))));
+        assertThat(decisionService.decide(authenticatedRequest(), endpoint, context()).errorCode()).isEqualTo(SecurityErrorCode.BLACKLISTED);
+
+        loadSettings(settings(settings -> settings.setAccessRules(List.of(new AccessRuleDTO("BLACKLIST", "HEADER", "X-Tenant=internal", false, null)))));
+        MockHttpServletRequest headerRequest = request();
+        headerRequest.addHeader("X-Tenant", "internal");
+        assertThat(decisionService.decide(headerRequest, endpoint, context()).errorCode()).isEqualTo(SecurityErrorCode.BLACKLISTED);
+    }
+
+    @Test
+    void decide_shouldBypassAuthWhenWhitelistedByCidrClientKeyAndHeader() throws Exception {
+        loadSettings(settings(settings -> settings.setAccessRules(List.of(new AccessRuleDTO("WHITELIST", "CIDR", "127.0.0.0/8", false, null)))));
+        assertThat(decisionService.decide(request(), endpoint, context()).allowed()).isTrue();
+
+        loadSettings(settings(settings -> settings.setAccessRules(List.of(new AccessRuleDTO("WHITELIST", "CLIENT_KEY", CLIENT_KEY, false, null)))));
+        assertThat(decisionService.decide(authenticatedRequest(), endpoint, context()).allowed()).isTrue();
+
+        loadSettings(settings(settings -> settings.setAccessRules(List.of(new AccessRuleDTO("WHITELIST", "HEADER", "X-Tenant=internal", false, null)))));
+        MockHttpServletRequest headerRequest = request();
+        headerRequest.addHeader("X-Tenant", "internal");
+        assertThat(decisionService.decide(headerRequest, endpoint, context()).allowed()).isTrue();
+    }
+
+    @Test
     void decide_shouldContinueNormalAuthFlowWhenWhitelistDoesNotMatch() throws Exception {
         loadSettings(settings(settings -> settings.setAccessRules(List.of(new AccessRuleDTO("WHITELIST", "IP", "10.0.0.1", false, null)))));
 

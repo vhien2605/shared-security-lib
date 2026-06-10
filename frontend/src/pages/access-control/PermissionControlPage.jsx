@@ -298,7 +298,7 @@ function RuleFormModal({ form, formError, isSaving, onChange, onClose, onSubmit 
         {formError ? <div className="permission-form-error" role="alert">{formError}</div> : null}
         <label>Inbound Endpoint ID<input value={form.inboundEndpointId} onChange={(event) => onChange('inboundEndpointId', event.target.value)} placeholder="VD: EP_AUTH_TOKEN_GEN" /></label>
         <div className="permission-form-grid">
-          <label>Value Type<select value={form.valueType} onChange={(event) => onChange('valueType', event.target.value)}><option value={RULE_VALUE_TYPES.IP}>IP</option><option value={RULE_VALUE_TYPES.CIDR}>CIDR</option><option value={RULE_VALUE_TYPES.CLIENT_ID}>CLIENT_ID</option><option value={RULE_VALUE_TYPES.HEADER}>HEADER</option></select></label>
+          <label>Value Type<select value={form.valueType} onChange={(event) => onChange('valueType', event.target.value)}><option value={RULE_VALUE_TYPES.IP}>IP</option><option value={RULE_VALUE_TYPES.CIDR}>CIDR</option><option value={RULE_VALUE_TYPES.CLIENT_KEY}>CLIENT_KEY</option><option value={RULE_VALUE_TYPES.HEADER}>HEADER</option></select></label>
           <label>Value<input value={form.value} onChange={(event) => onChange('value', event.target.value)} placeholder="VD: 192.168.1.1" /></label>
         </div>
         <label className="permission-checkbox"><input type="checkbox" checked={form.temporary} onChange={(event) => onChange('temporary', event.target.checked)} /> Tạm thời</label>

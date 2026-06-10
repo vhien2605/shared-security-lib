@@ -6,7 +6,7 @@ export const RULE_TYPES = Object.freeze({
 export const RULE_VALUE_TYPES = Object.freeze({
   IP: 'IP',
   CIDR: 'CIDR',
-  CLIENT_ID: 'CLIENT_ID',
+  CLIENT_KEY: 'CLIENT_KEY',
   HEADER: 'HEADER',
 })
 
@@ -21,7 +21,7 @@ export const ACCESS_CONTROL_DEFAULT_PAGE_SIZE = 10
  * @property {string} [serviceId]
  * @property {string} [serviceName]
  * @property {'BLACKLIST'|'WHITELIST'} type
- * @property {'IP'|'CIDR'|'CLIENT_ID'|'HEADER'} valueType
+ * @property {'IP'|'CIDR'|'CLIENT_KEY'|'HEADER'} valueType
  * @property {string} value
  * @property {boolean} temporary
  * @property {boolean} enable
@@ -33,7 +33,7 @@ export const ACCESS_CONTROL_DEFAULT_PAGE_SIZE = 10
 /**
  * @typedef {Object} AccessRuleCreateRequest
  * @property {'BLACKLIST'|'WHITELIST'} type
- * @property {'IP'|'CIDR'|'CLIENT_ID'|'HEADER'} valueType
+ * @property {'IP'|'CIDR'|'CLIENT_KEY'|'HEADER'} valueType
  * @property {string} value
  * @property {boolean} temporary
  * @property {boolean} enable

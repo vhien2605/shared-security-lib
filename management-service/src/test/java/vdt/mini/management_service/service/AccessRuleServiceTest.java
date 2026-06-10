@@ -238,14 +238,14 @@ class AccessRuleServiceTest {
 
         AccessRuleCreateRequest request = new AccessRuleCreateRequest();
         request.setType("WHITELIST");
-        request.setValueType("CLIENT_ID");
-        request.setValue("client-1");
+        request.setValueType("CLIENT_KEY");
+        request.setValue("client-key-1");
         request.setTemporary(false);
         request.setExpiresAt(LocalDateTime.now().plusDays(1));
 
         AccessRuleResponse response = service.createAccessRule("endpoint-1", request, authentication);
 
-        assertEquals(AccessRuleValueType.CLIENT_ID, response.getValueType());
+        assertEquals(AccessRuleValueType.CLIENT_KEY, response.getValueType());
         assertNull(response.getExpiresAt());
     }
 

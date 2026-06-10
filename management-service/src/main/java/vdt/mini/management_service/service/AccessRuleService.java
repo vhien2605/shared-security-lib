@@ -203,7 +203,7 @@ public class AccessRuleService {
         try {
             return AccessRuleValueType.valueOf(valueType);
         } catch (IllegalArgumentException ex) {
-            throw new AppException(ErrorCode.INVALID_INPUT, "valueType must be IP, CIDR, CLIENT_ID, or HEADER");
+            throw new AppException(ErrorCode.INVALID_INPUT, "valueType must be IP, CIDR, CLIENT_KEY, or HEADER");
         }
     }
 
