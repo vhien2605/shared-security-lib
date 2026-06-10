@@ -231,6 +231,7 @@ public class AccessPermissionService {
                     redisSettingsSyncService.publishPermissionRuntimeChange(permission, runtimeEventType,
                             "PERMISSION_DELETED".equals(runtimeEventType) ? "DELETED" : "DISABLED");
                 }
+                redisSettingsSyncService.syncInboundToRedis(permission.getInboundEndpoint());
                 redisSettingsSyncService.syncRuntimeSnapshotOfService(serviceId);
             }
         };

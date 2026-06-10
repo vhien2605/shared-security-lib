@@ -15,6 +15,7 @@ import vdt.mini.shared_lib.document.ClientRuntimeDTO;
 import vdt.mini.shared_lib.document.InboundSettingsDTO;
 import vdt.mini.shared_lib.document.PermissionRuntimeDTO;
 import vdt.mini.shared_lib.document.RuntimeChangePayloadDTO;
+import vdt.mini.shared_lib.document.RuntimeTombstoneDTO;
 import vdt.mini.shared_lib.document.SecurityRuntimeChangeMessage;
 import vdt.mini.shared_lib.enums.SecurityErrorCode;
 import vdt.mini.shared_lib.mq.MqSecurityHeaders;
@@ -109,6 +110,29 @@ class InboundSecurityDecisionServiceMqTest {
     }
 
     @Test
+    void decide_shouldDenyWhenRuntimePermissionDisabled_evenIfSettingsStillContainsPermission() throws Exception {
+        loadSettings(settings(settings -> settings.setPermissions(List.of(new AccessPermissionDTO("permission-1", CLIENT_ID, CLIENT_KEY, ENDPOINT_ID)))));
+        loadRuntime(true, "API_KEY", null, sha256(API_KEY), false);
+
+        SecurityDecision decision = decisionService.decide(request(headers(CLIENT_KEY, API_KEY), "payload"), endpoint, context());
+
+        assertThat(decision.allowed()).isFalse();
+        assertThat(decision.errorCode()).isEqualTo(SecurityErrorCode.WHITELIST_NOT_MATCHED);
+    }
+
+    @Test
+    void decide_shouldDenyWhenRuntimePermissionDeleted_evenIfSettingsStillContainsPermission() throws Exception {
+        loadSettings(settings(settings -> settings.setPermissions(List.of(new AccessPermissionDTO("permission-1", CLIENT_ID, CLIENT_KEY, ENDPOINT_ID)))));
+        loadRuntime(true, "API_KEY", null, sha256(API_KEY));
+        deleteRuntimePermission();
+
+        SecurityDecision decision = decisionService.decide(request(headers(CLIENT_KEY, API_KEY), "payload"), endpoint, context());
+
+        assertThat(decision.allowed()).isFalse();
+        assertThat(decision.errorCode()).isEqualTo(SecurityErrorCode.WHITELIST_NOT_MATCHED);
+    }
+
+    @Test
     void decide_shouldValidateHmacAndRejectNonceReplay() throws Exception {
         loadSettings(settings(settings -> settings.setPermissions(List.of(new AccessPermissionDTO("permission-1", CLIENT_ID, CLIENT_KEY, ENDPOINT_ID)))));
         loadRuntime(true, "HMAC_SIGNATURE", "secret", null);
@@ -148,12 +172,25 @@ class InboundSecurityDecisionServiceMqTest {
     }
 
     private void loadRuntime(boolean includePermission, String authType, String secretKey, String credentialHash) {
+        loadRuntime(includePermission, authType, secretKey, credentialHash, true);
+    }
+
+    private void loadRuntime(boolean includePermission, String authType, String secretKey, String credentialHash,
+                             boolean permissionEnabled) {
         AuthConfigRuntimeDTO auth = new AuthConfigRuntimeDTO("auth-1", SERVICE_ID, CLIENT_ID, CLIENT_KEY, authType, null,
                 credentialHash, "HmacSHA256", null, secretKey, null, true, "ACTIVE", 1L);
-        PermissionRuntimeDTO permission = new PermissionRuntimeDTO("permission-1", SERVICE_ID, ENDPOINT_ID, CLIENT_ID, CLIENT_KEY, true, "ACTIVE", 1L);
+        PermissionRuntimeDTO permission = new PermissionRuntimeDTO("permission-1", SERVICE_ID, ENDPOINT_ID, CLIENT_ID, CLIENT_KEY, permissionEnabled, "ACTIVE", 1L);
         settingsStore.onRuntimeChange(new SecurityRuntimeChangeMessage("event-1", "CLIENT_CHANGED", SERVICE_ID, ENDPOINT_ID, CLIENT_ID,
                 "auth-1", "permission-1", List.of(), System.nanoTime(), "2026-06-09T00:00:00",
                 new RuntimeChangePayloadDTO(client(), List.of(auth), includePermission ? List.of(permission) : List.of(), List.of())));
+    }
+
+    private void deleteRuntimePermission() {
+        RuntimeTombstoneDTO tombstone = new RuntimeTombstoneDTO("PERMISSION", SERVICE_ID, ENDPOINT_ID, CLIENT_ID,
+                null, "permission-1", "deleted");
+        settingsStore.onRuntimeChange(new SecurityRuntimeChangeMessage("event-2", "PERMISSION_DELETED", SERVICE_ID, ENDPOINT_ID, CLIENT_ID,
+                null, "permission-1", List.of(), System.nanoTime(), "2026-06-09T00:00:01",
+                new RuntimeChangePayloadDTO(null, List.of(), List.of(), List.of(tombstone))));
     }
 
     private ClientRuntimeDTO client() {

@@ -77,6 +77,7 @@ class AccessPermissionServiceTest {
         assertEquals("service-1", response.getServiceId());
         assertEquals("Service One", response.getServiceName());
         verify(redisSettingsSyncService).publishPermissionRuntimeChange(any(AccessPermission.class), eq("PERMISSION_CHANGED"), eq(null));
+        verify(redisSettingsSyncService).syncInboundToRedis(endpoint);
         verify(redisSettingsSyncService).syncRuntimeSnapshotOfService("service-1");
     }
 
@@ -127,6 +128,9 @@ class AccessPermissionServiceTest {
         assertEquals(false, response.getEnable());
         assertEquals("service-1", response.getServiceId());
         assertEquals("Service One", response.getServiceName());
+        verify(redisSettingsSyncService).publishPermissionRuntimeChange(permission, "PERMISSION_DISABLED", "DISABLED");
+        verify(redisSettingsSyncService).syncInboundToRedis(permission.getInboundEndpoint());
+        verify(redisSettingsSyncService).syncRuntimeSnapshotOfService("service-1");
     }
 
     @Test
@@ -138,6 +142,9 @@ class AccessPermissionServiceTest {
         service.deletePermission("permission-1", authentication);
 
         verify(accessPermissionRepository).delete(permission);
+        verify(redisSettingsSyncService).publishPermissionRuntimeChange(permission, "PERMISSION_DELETED", "DELETED");
+        verify(redisSettingsSyncService).syncInboundToRedis(permission.getInboundEndpoint());
+        verify(redisSettingsSyncService).syncRuntimeSnapshotOfService("service-1");
     }
 
     @Test
