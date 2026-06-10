@@ -13,6 +13,8 @@ import vdt.mini.shared_lib.document.InboundSettingsDTO;
 import vdt.mini.shared_lib.document.PermissionRuntimeDTO;
 import vdt.mini.shared_lib.enums.SecurityErrorCode;
 import vdt.mini.shared_lib.enums.SecurityResultStatus;
+import vdt.mini.shared_lib.mq.MqSecurityHeaders;
+import vdt.mini.shared_lib.mq.MqSecurityRequest;
 import vdt.mini.shared_lib.service.EndpointRegistry;
 import vdt.mini.shared_lib.service.SecuritySettingsStore;
 
@@ -83,7 +85,7 @@ public class InboundSecurityDecisionService {
         if (hasText(settings.getMethod()) && !settings.getMethod().equalsIgnoreCase(request.getMethod())) {
             return deny(SecurityErrorCode.INVALID_REQUEST, "HTTP method mismatch", context, endpoint.endpointId(), null, null);
         }
-        if (isRequestTooLarge(request.getContentLengthLong(), settings.getRequestSizeLimitKb())) {
+        if (isRequestTooLarge(context.getRequestSizeBytes(), settings.getRequestSizeLimitKb())) {
             return deny(SecurityErrorCode.REQUEST_SIZE_EXCEEDED, "Request size exceeded", context, endpoint.endpointId(), null, null);
         }
         AccessRuleDecision accessRuleDecision = evaluateAccessRules(settings.getAccessRules(), request, context);
@@ -110,6 +112,7 @@ public class InboundSecurityDecisionService {
         if (auth.isEmpty() || !Boolean.TRUE.equals(auth.get().getEnabled())) {
             return deny(SecurityErrorCode.API_KEY_INVALID, "Auth config missing or disabled", context, endpoint.endpointId(), clientId.get(), clientKey);
         }
+        context.setAuthType(auth.get().getType());
         if (!hasPermission(settings, context.getServiceId(), endpoint.endpointId(), clientId.get(), clientKey)) {
             return deny(SecurityErrorCode.WHITELIST_NOT_MATCHED, "Permission missing or disabled", context, endpoint.endpointId(), clientId.get(), clientKey);
         }
@@ -130,10 +133,94 @@ public class InboundSecurityDecisionService {
         return SecurityDecision.allow(endpoint.endpointId(), clientId.get(), clientKey);
     }
 
+    public SecurityDecision decide(MqSecurityRequest request, EndpointRegistry.InboundMqEndpoint endpoint,
+                                   SecurityRequestContext context) {
+        if (!globalEnabled) {
+            return SecurityDecision.allow(null, null, null);
+        }
+        if (endpoint == null) {
+            return deny(SecurityErrorCode.LISTENER_NOT_REGISTERED, "Kafka listener is not registered", context, null, null, null);
+        }
+        context.setEndpointId(endpoint.endpointId());
+        context.setEndpointName(endpoint.name());
+        context.setProtocol(endpoint.protocol());
+        context.setTopic(endpoint.topic());
+
+        InboundSettingsDTO settings = settingsStore.getInboundSettings(endpoint.endpointId());
+        if (settings == null) {
+            log.info("Inbound MQ settings missing endpointId={}; allowing message for migration compatibility", endpoint.endpointId());
+            return SecurityDecision.allow(endpoint.endpointId(), null, null);
+        }
+        context.setInboundSettings(settings);
+        copySettingsToContext(settings, context);
+        context.setMethod(settings.getMethod());
+        context.setTopic(hasText(settings.getTopic()) ? settings.getTopic() : endpoint.topic());
+
+        if (Boolean.FALSE.equals(settings.getEnabled())) {
+            return deny(SecurityErrorCode.ENDPOINT_DISABLED, "Endpoint is disabled", context, endpoint.endpointId(), null, null);
+        }
+        if (isInactive(settings.getEndpointStatus()) || isInactive(settings.getServiceStatus()) || Boolean.FALSE.equals(settings.getAvailable())) {
+            return deny(SecurityErrorCode.ENDPOINT_INACTIVE, "Endpoint is inactive or unavailable", context, endpoint.endpointId(), null, null);
+        }
+        if (!isMqProtocol(settings.getProtocol())) {
+            return deny(SecurityErrorCode.INVALID_MESSAGE, "Protocol mismatch", context, endpoint.endpointId(), null, null);
+        }
+        if (hasText(settings.getTopic()) && !settings.getTopic().equals(request.topic())) {
+            return deny(SecurityErrorCode.INVALID_MESSAGE, "Kafka topic mismatch", context, endpoint.endpointId(), null, null);
+        }
+        if (isRequestTooLarge(request.messageSizeBytes(), settings.getRequestSizeLimitKb())) {
+            return deny(SecurityErrorCode.REQUEST_SIZE_EXCEEDED, "Message size exceeded", context, endpoint.endpointId(), null, null);
+        }
+        MqSecurityHeaders headers = request.headers();
+        AccessRuleDecision accessRuleDecision = evaluateMqAccessRules(settings.getAccessRules(), headers, request.topic(), context);
+        if (!accessRuleDecision.allowed()) {
+            return deny(accessRuleDecision.errorCode(), accessRuleDecision.message(), context, endpoint.endpointId(), null, headers == null ? null : headers.clientKey());
+        }
+        if (accessRuleDecision.whitelisted()) {
+            return SecurityDecision.allow(endpoint.endpointId(), null, headers == null ? null : headers.clientKey());
+        }
+        if (headers == null || !hasText(headers.clientKey())) {
+            return deny(SecurityErrorCode.AUTH_MISSING, "Missing client key", context, endpoint.endpointId(), null, null);
+        }
+        String clientKey = headers.clientKey();
+        Optional<String> clientId = settingsStore.resolveClientId(context.getServiceId(), clientKey);
+        if (clientId.isEmpty()) {
+            return deny(SecurityErrorCode.API_KEY_INVALID, "Invalid API key", context, endpoint.endpointId(), null, clientKey);
+        }
+        Optional<ClientRuntimeDTO> client = settingsStore.getClient(context.getServiceId(), clientId.get());
+        if (client.isEmpty() || !Boolean.TRUE.equals(client.get().getEnabled()) || !Boolean.TRUE.equals(client.get().getActive())) {
+            return deny(SecurityErrorCode.API_KEY_INVALID, "Client is disabled or inactive", context, endpoint.endpointId(), clientId.get(), clientKey);
+        }
+        Optional<AuthConfigRuntimeDTO> auth = settingsStore.getAuthConfig(context.getServiceId(), endpoint.endpointId(), clientId.get());
+        if (auth.isEmpty() || !Boolean.TRUE.equals(auth.get().getEnabled())) {
+            return deny(SecurityErrorCode.API_KEY_INVALID, "Auth config missing or disabled", context, endpoint.endpointId(), clientId.get(), clientKey);
+        }
+        context.setAuthType(auth.get().getType());
+        if (!hasPermission(settings, context.getServiceId(), endpoint.endpointId(), clientId.get(), clientKey)) {
+            return deny(SecurityErrorCode.WHITELIST_NOT_MATCHED, "Permission missing or disabled", context, endpoint.endpointId(), clientId.get(), clientKey);
+        }
+        if (isApiKey(auth.get())) {
+            String apiKey = headers.apiKey();
+            if (!hasText(apiKey)) {
+                return deny(SecurityErrorCode.AUTH_MISSING, "Missing API key", context, endpoint.endpointId(), clientId.get(), clientKey);
+            }
+            if (!validApiKey(apiKey, auth.get())) {
+                return deny(SecurityErrorCode.API_KEY_INVALID, "Invalid API key", context, endpoint.endpointId(), clientId.get(), clientKey);
+            }
+        }
+        if (isHmac(auth.get()) && !validMqHmac(request, context, auth.get(), clientKey)) {
+            return deny(SecurityErrorCode.HMAC_INVALID, "Invalid HMAC signature", context, endpoint.endpointId(), clientId.get(), clientKey);
+        }
+        context.setClientId(clientId.get());
+        context.setClientKey(clientKey);
+        return SecurityDecision.allow(endpoint.endpointId(), clientId.get(), clientKey);
+    }
+
     private SecurityDecision deny(SecurityErrorCode errorCode, String message, SecurityRequestContext context,
                                   String endpointId, String clientId, String clientKey) {
         context.setClientId(clientId);
         context.setClientKey(clientKey);
+        context.setDenyReason(message);
         return SecurityDecision.deny(SecurityResultStatus.DENIED, errorCode, message, endpointId, clientId, clientKey);
     }
 
@@ -157,6 +244,10 @@ public class InboundSecurityDecisionService {
 
     private boolean isHttpProtocol(String protocol) {
         return !hasText(protocol) || "HTTP".equalsIgnoreCase(protocol) || "WEBHOOK".equalsIgnoreCase(protocol);
+    }
+
+    private boolean isMqProtocol(String protocol) {
+        return "MQ".equalsIgnoreCase(protocol);
     }
 
     private boolean isRequestTooLarge(long contentLength, Integer limitKb) {
@@ -196,6 +287,45 @@ public class InboundSecurityDecisionService {
             return value.equals(request.getHeader(CLIENT_KEY_HEADER));
         }
         return value.equals(context.getSourceIp()) || value.equals(request.getRemoteAddr());
+    }
+
+    private AccessRuleDecision evaluateMqAccessRules(List<AccessRuleDTO> rules, MqSecurityHeaders headers,
+                                                     String topic, SecurityRequestContext context) {
+        boolean hasWhitelist = false;
+        boolean whitelistMatched = false;
+        for (AccessRuleDTO rule : safeList(rules)) {
+            if (rule == null || isExpired(rule.getExpiresAt())) {
+                continue;
+            }
+            String type = normalize(rule.getType());
+            boolean matched = matchesMqRule(rule, headers, topic, context);
+            if ("BLACKLIST".equals(type) && matched) {
+                return AccessRuleDecision.denied(SecurityErrorCode.BLACKLISTED, "Message matched blacklist rule");
+            }
+            if ("WHITELIST".equals(type)) {
+                hasWhitelist = true;
+                whitelistMatched = whitelistMatched || matched;
+            }
+        }
+        return AccessRuleDecision.allowed(!hasWhitelist || whitelistMatched ? whitelistMatched : false);
+    }
+
+    private boolean matchesMqRule(AccessRuleDTO rule, MqSecurityHeaders headers, String topic, SecurityRequestContext context) {
+        String valueType = normalize(rule.getValueType());
+        String value = rule.getValue();
+        if (!hasText(value)) {
+            return false;
+        }
+        if ("CLIENT_ID".equals(valueType)) {
+            return value.equals(context.getClientId());
+        }
+        if ("CLIENT_KEY".equals(valueType)) {
+            return headers != null && value.equals(headers.clientKey());
+        }
+        if ("TOPIC".equals(valueType)) {
+            return value.equals(topic);
+        }
+        return value.equals(topic);
     }
 
     private boolean hasPermission(InboundSettingsDTO settings, String serviceId, String endpointId, String clientId, String clientKey) {
@@ -256,6 +386,30 @@ public class InboundSecurityDecisionService {
         }
         String payload = request.getMethod() + "\n" + request.getRequestURI() + "\n" + timestamp + "\n" + nonce;
         return signature.equals(hmac(payload, auth.getSecretKey(), auth.getAlgorithm()));
+    }
+
+    private boolean validMqHmac(MqSecurityRequest request, SecurityRequestContext context, AuthConfigRuntimeDTO auth, String clientKey) {
+        MqSecurityHeaders headers = request.headers();
+        if (headers == null || !hasText(headers.timestamp()) || !hasText(headers.nonce())
+                || !hasText(headers.signature()) || !hasText(auth.getSecretKey())) {
+            return false;
+        }
+        Instant timestampInstant;
+        try {
+            timestampInstant = Instant.ofEpochMilli(Long.parseLong(headers.timestamp()));
+        } catch (NumberFormatException ex) {
+            return false;
+        }
+        if (timestampInstant.plus(SIGNATURE_VALIDITY).isBefore(Instant.now())
+                || timestampInstant.minus(SIGNATURE_VALIDITY).isAfter(Instant.now())) {
+            return false;
+        }
+        if (nonceReplayStore.seenOrStoreMq(context.getServiceId(), context.getEndpointId(), clientKey, headers.nonce(), SIGNATURE_VALIDITY)) {
+            return false;
+        }
+        String payloadHash = sha256(String.valueOf(request.value()));
+        String payload = "MQ\n" + request.topic() + "\n" + headers.timestamp() + "\n" + headers.nonce() + "\n" + payloadHash;
+        return headers.signature().equals(hmac(payload, auth.getSecretKey(), auth.getAlgorithm()));
     }
 
     private String hmac(String payload, String secret, String algorithm) {

@@ -12,9 +12,13 @@ public class SecurityRequestContext {
     private String protocol;
     private String method;
     private String path;
+    private String topic;
+    private String consumerGroup;
     private String clientId;
     private String clientKey;
     private String sourceIp;
+    private String authType;
+    private String denyReason;
     private long requestSizeBytes;
     private long responseSizeBytes;
     private long startedAtNanos;
@@ -45,12 +49,20 @@ public class SecurityRequestContext {
     public void setMethod(String method) { this.method = method; }
     public String getPath() { return path; }
     public void setPath(String path) { this.path = path; }
+    public String getTopic() { return topic; }
+    public void setTopic(String topic) { this.topic = topic; }
+    public String getConsumerGroup() { return consumerGroup; }
+    public void setConsumerGroup(String consumerGroup) { this.consumerGroup = consumerGroup; }
     public String getClientId() { return clientId; }
     public void setClientId(String clientId) { this.clientId = clientId; }
     public String getClientKey() { return clientKey; }
     public void setClientKey(String clientKey) { this.clientKey = clientKey; }
     public String getSourceIp() { return sourceIp; }
     public void setSourceIp(String sourceIp) { this.sourceIp = sourceIp; }
+    public String getAuthType() { return authType; }
+    public void setAuthType(String authType) { this.authType = authType; }
+    public String getDenyReason() { return denyReason; }
+    public void setDenyReason(String denyReason) { this.denyReason = denyReason; }
     public long getRequestSizeBytes() { return requestSizeBytes; }
     public void setRequestSizeBytes(long requestSizeBytes) { this.requestSizeBytes = requestSizeBytes; }
     public long getResponseSizeBytes() { return responseSizeBytes; }

@@ -2,6 +2,7 @@ package vdt.mini.shared_lib.enums;
 
 public enum SecurityErrorCode {
     AUTH_MISSING,
+    INVALID_MESSAGE,
     INVALID_HEADER,
     INVALID_REQUEST,
     API_KEY_INVALID,
@@ -11,6 +12,7 @@ public enum SecurityErrorCode {
     BLACKLISTED,
     WHITELIST_NOT_MATCHED,
     ENDPOINT_NOT_REGISTERED,
+    LISTENER_NOT_REGISTERED,
     ENDPOINT_DISABLED,
     ENDPOINT_INACTIVE,
     REQUEST_SIZE_EXCEEDED,
@@ -18,5 +20,6 @@ public enum SecurityErrorCode {
     RATE_LIMIT_EXCEEDED,
     TIMEOUT_EXCEEDED,
     RESPONSE_TIME_THRESHOLD_EXCEEDED,
+    CONSUME_FAILED,
     INTERNAL_ERROR
 }

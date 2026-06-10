@@ -20,6 +20,27 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     networks:
       - security-library
+  kafka2:
+    container_name: kafka2
+    image: apache/kafka:4.1.1
+    hostname: kafka2
+    restart: always
+    ports:
+      - "9194:9194"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka2:9193
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9192,CONTROLLER://0.0.0.0:9193,EXTERNAL://0.0.0.0:9194
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9192,EXTERNAL://localhost:9194
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - security-library
   postgres:
     container_name: postgres
     image: postgres:17

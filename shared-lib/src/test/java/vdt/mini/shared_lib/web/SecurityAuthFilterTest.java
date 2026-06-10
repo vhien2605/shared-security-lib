@@ -2,6 +2,7 @@ package vdt.mini.shared_lib.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +24,7 @@ import vdt.mini.shared_lib.service.EndpointRegistry;
 import vdt.mini.shared_lib.service.IdentityManager;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -52,7 +55,7 @@ class SecurityAuthFilterTest {
         endpointRegistry = new EndpointRegistry();
         filter = new SecurityAuthFilter(endpointRegistry, decisionService, new SecurityStatusMapper(), auditLogger,
                 identityManager, new ObjectMapper(), "user-service");
-        when(identityManager.getOrCreateServiceId()).thenReturn(SERVICE_ID);
+        lenient().when(identityManager.getOrCreateServiceId()).thenReturn(SERVICE_ID);
     }
 
     @Test
@@ -72,7 +75,7 @@ class SecurityAuthFilterTest {
     void doFilterInternal_shouldStripContextPathBeforeRegistryLookup() throws ServletException, IOException {
         registerWebhookEndpoint();
         MockHttpServletRequest request = requestWithContextPath();
-        when(decisionService.decide(eq(request), any(), any())).thenReturn(SecurityDecision.allow(ENDPOINT_ID, null, null));
+        when(decisionService.decide(any(HttpServletRequest.class), any(), any())).thenReturn(SecurityDecision.allow(ENDPOINT_ID, null, null));
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();
 
@@ -80,16 +83,16 @@ class SecurityAuthFilterTest {
 
         ArgumentCaptor<EndpointRegistry.InboundHttpEndpoint> endpointCaptor = ArgumentCaptor.forClass(EndpointRegistry.InboundHttpEndpoint.class);
         ArgumentCaptor<SecurityRequestContext> contextCaptor = ArgumentCaptor.forClass(SecurityRequestContext.class);
-        verify(decisionService).decide(eq(request), endpointCaptor.capture(), contextCaptor.capture());
+        verify(decisionService).decide(any(HttpServletRequest.class), endpointCaptor.capture(), contextCaptor.capture());
         assertThat(endpointCaptor.getValue().endpointId()).isEqualTo(ENDPOINT_ID);
         assertThat(contextCaptor.getValue().getPath()).isEqualTo("/users/webhook");
-        assertThat(chain.getRequest()).isSameAs(request);
+        assertThat(chain.getRequest()).isNotNull();
     }
 
     @Test
     void doFilterInternal_shouldReturnUnauthorized_whenRegisteredEndpointMissingAuth() throws ServletException, IOException {
         registerWebhookEndpoint();
-        when(decisionService.decide(any(), any(), any()))
+        when(decisionService.decide(any(HttpServletRequest.class), any(EndpointRegistry.InboundHttpEndpoint.class), any(SecurityRequestContext.class)))
                 .thenReturn(SecurityDecision.deny(SecurityResultStatus.DENIED, SecurityErrorCode.AUTH_MISSING,
                         "Missing client key", ENDPOINT_ID, null, null));
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/users/webhook");
@@ -103,6 +106,24 @@ class SecurityAuthFilterTest {
         assertThat(response.getContentAsString()).contains("AUTH_MISSING");
     }
 
+    @Test
+    void doFilterInternal_shouldCalculateBodySize_whenContentLengthMissing() throws ServletException, IOException {
+        registerWebhookEndpoint();
+        MissingContentLengthRequest request = new MissingContentLengthRequest("POST", "/users/webhook");
+        request.setContent("payload".getBytes(StandardCharsets.UTF_8));
+        when(decisionService.decide(any(HttpServletRequest.class), any(EndpointRegistry.InboundHttpEndpoint.class), any(SecurityRequestContext.class)))
+                .thenReturn(SecurityDecision.allow(ENDPOINT_ID, null, null));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        ArgumentCaptor<SecurityRequestContext> contextCaptor = ArgumentCaptor.forClass(SecurityRequestContext.class);
+        verify(decisionService).decide(any(HttpServletRequest.class), any(), contextCaptor.capture());
+        assertThat(contextCaptor.getValue().getRequestSizeBytes()).isEqualTo(7L);
+        assertThat(chain.getRequest().getInputStream().readAllBytes()).isEqualTo("payload".getBytes(StandardCharsets.UTF_8));
+    }
+
     private void registerWebhookEndpoint() {
         endpointRegistry.replaceAll(List.of(new InboundEndpointDTO(ENDPOINT_ID, "Webhook", "/users/webhook", null,
                 "POST", "HTTP", "", true)), List.of());
@@ -113,5 +134,21 @@ class SecurityAuthFilterTest {
         request.setContextPath("/app");
         request.setRemoteAddr("127.0.0.1");
         return request;
+    }
+
+    private static final class MissingContentLengthRequest extends MockHttpServletRequest {
+        private MissingContentLengthRequest(String method, String requestURI) {
+            super(method, requestURI);
+        }
+
+        @Override
+        public int getContentLength() {
+            return -1;
+        }
+
+        @Override
+        public long getContentLengthLong() {
+            return -1L;
+        }
     }
 }

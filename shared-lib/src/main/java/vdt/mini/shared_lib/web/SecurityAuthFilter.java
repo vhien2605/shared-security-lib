@@ -2,8 +2,11 @@ package vdt.mini.shared_lib.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.ReadListener;
+import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -20,7 +23,12 @@ import vdt.mini.shared_lib.security.SecurityStatusMapper;
 import vdt.mini.shared_lib.service.EndpointRegistry;
 import vdt.mini.shared_lib.service.IdentityManager;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -55,14 +63,15 @@ public class SecurityAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        SecurityRequestContext context = buildContext(request);
         try {
             Optional<EndpointRegistry.InboundHttpEndpoint> endpoint = endpointRegistry.findInboundHttp(request.getMethod(), lookupPath(request));
             if (endpoint.isEmpty()) {
                 filterChain.doFilter(request, response);
                 return;
             }
-            SecurityDecision decision = decisionService.decide(request, endpoint.get(), context);
+            HttpServletRequest securityRequest = requestWithBodySize(request);
+            SecurityRequestContext context = buildContext(securityRequest);
+            SecurityDecision decision = decisionService.decide(securityRequest, endpoint.get(), context);
             if (!decision.allowed()) {
                 auditLogger.log(context, decision.status(), decision.errorCode());
                 writeError(response, decision.errorCode(), decision.message());
@@ -72,7 +81,7 @@ public class SecurityAuthFilter extends OncePerRequestFilter {
             context.setClientId(decision.clientId());
             context.setClientKey(decision.clientKey());
             SecurityRequestContextHolder.set(context);
-            filterChain.doFilter(request, response);
+            filterChain.doFilter(securityRequest, response);
         } finally {
             SecurityRequestContextHolder.clear();
         }
@@ -97,9 +106,27 @@ public class SecurityAuthFilter extends OncePerRequestFilter {
         context.setMethod(request.getMethod());
         context.setPath(lookupPath(request));
         context.setSourceIp(firstNonBlank(request.getHeader("X-Forwarded-For"), request.getRemoteAddr()));
-        context.setRequestSizeBytes(Math.max(0L, request.getContentLengthLong()));
+        context.setRequestSizeBytes(requestSizeBytes(request));
         context.setStartedAtNanos(System.nanoTime());
         return context;
+    }
+
+    private HttpServletRequest requestWithBodySize(HttpServletRequest request) throws IOException {
+        if (request.getContentLengthLong() >= 0) {
+            return request;
+        }
+        return new CachedBodyRequest(request, request.getInputStream().readAllBytes());
+    }
+
+    private long requestSizeBytes(HttpServletRequest request) {
+        long contentLength = request.getContentLengthLong();
+        if (contentLength >= 0) {
+            return contentLength;
+        }
+        if (request instanceof CachedBodyRequest cachedBodyRequest) {
+            return cachedBodyRequest.bodyLength();
+        }
+        return 0L;
     }
 
     private void writeError(HttpServletResponse response, SecurityErrorCode errorCode, String message) throws IOException {
@@ -115,5 +142,61 @@ public class SecurityAuthFilter extends OncePerRequestFilter {
 
     private String firstNonBlank(String first, String fallback) {
         return first == null || first.isBlank() ? fallback : first;
+    }
+
+    private static final class CachedBodyRequest extends HttpServletRequestWrapper {
+        private final byte[] body;
+
+        private CachedBodyRequest(HttpServletRequest request, byte[] body) {
+            super(request);
+            this.body = body == null ? new byte[0] : body;
+        }
+
+        private int bodyLength() {
+            return body.length;
+        }
+
+        @Override
+        public int getContentLength() {
+            return body.length;
+        }
+
+        @Override
+        public long getContentLengthLong() {
+            return body.length;
+        }
+
+        @Override
+        public ServletInputStream getInputStream() {
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(body);
+            return new ServletInputStream() {
+                @Override
+                public boolean isFinished() {
+                    return inputStream.available() == 0;
+                }
+
+                @Override
+                public boolean isReady() {
+                    return true;
+                }
+
+                @Override
+                public void setReadListener(ReadListener readListener) {
+                    throw new UnsupportedOperationException("Async read listener is not supported");
+                }
+
+                @Override
+                public int read() {
+                    return inputStream.read();
+                }
+            };
+        }
+
+        @Override
+        public BufferedReader getReader() throws IOException {
+            String encoding = getCharacterEncoding();
+            Charset charset = encoding == null ? StandardCharsets.UTF_8 : Charset.forName(encoding);
+            return new BufferedReader(new InputStreamReader(getInputStream(), charset));
+        }
     }
 }

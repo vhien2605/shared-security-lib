@@ -22,4 +22,18 @@ class EndpointRegistryTest {
         assertThat(registry.findInboundHttp("POST", "/users/123")).isEmpty();
         assertThat(registry.findInboundHttp("GET", "/orders/123")).isEmpty();
     }
+
+    @Test
+    void findInboundMq_shouldMatchTopicOnlyForMqEndpoints() {
+        EndpointRegistry registry = new EndpointRegistry();
+        registry.replaceAll(List.of(new InboundEndpointDTO("endpoint-1", "User Created", null, "user.created",
+                null, "MQ", "", true)), List.of());
+
+        assertThat(registry.findInboundMq("user.created"))
+                .isPresent()
+                .get()
+                .extracting(EndpointRegistry.InboundMqEndpoint::endpointId)
+                .isEqualTo("endpoint-1");
+        assertThat(registry.findInboundMq("user.deleted")).isEmpty();
+    }
 }

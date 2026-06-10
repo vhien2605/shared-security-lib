@@ -90,8 +90,10 @@ class InboundSecurityDecisionServiceTest {
         MockHttpServletRequest request = request();
         request.setContent(new byte[2049]);
         loadSettings(smallLimit);
+        SecurityRequestContext context = context();
+        context.setRequestSizeBytes(2049L);
 
-        SecurityDecision decision = decisionService.decide(request, endpoint, context());
+        SecurityDecision decision = decisionService.decide(request, endpoint, context);
 
         assertThat(decision.errorCode()).isEqualTo(SecurityErrorCode.REQUEST_SIZE_EXCEEDED);
     }
@@ -159,11 +161,17 @@ class InboundSecurityDecisionServiceTest {
 
         MockHttpServletRequest wrongApiKey = authenticatedRequest();
         wrongApiKey.addHeader(InboundSecurityDecisionService.API_KEY_HEADER, "wrong-api-key");
-        SecurityDecision invalidApiKey = decisionService.decide(wrongApiKey, endpoint, context());
+        SecurityRequestContext invalidContext = context();
+        SecurityDecision invalidApiKey = decisionService.decide(wrongApiKey, endpoint, invalidContext);
         assertThat(invalidApiKey.errorCode()).isEqualTo(SecurityErrorCode.API_KEY_INVALID);
+        assertThat(invalidContext.getAuthType()).isEqualTo("API_KEY");
+        assertThat(invalidContext.getDenyReason()).isEqualTo("Invalid API key");
 
-        SecurityDecision allowed = decisionService.decide(apiKeyRequest(), endpoint, context());
+        SecurityRequestContext allowedContext = context();
+        SecurityDecision allowed = decisionService.decide(apiKeyRequest(), endpoint, allowedContext);
         assertThat(allowed.allowed()).isTrue();
+        assertThat(allowedContext.getAuthType()).isEqualTo("API_KEY");
+        assertThat(allowedContext.getDenyReason()).isNull();
     }
 
     @Test

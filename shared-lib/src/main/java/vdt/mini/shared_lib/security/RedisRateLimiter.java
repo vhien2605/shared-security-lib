@@ -21,12 +21,20 @@ public class RedisRateLimiter {
     }
 
     public RateLimitResult check(String serviceId, String endpointId, String clientOrIp, int limit, int windowSeconds) {
+        return checkWithNamespace("http", serviceId, endpointId, clientOrIp, limit, windowSeconds);
+    }
+
+    public RateLimitResult checkMqInbound(String serviceId, String endpointId, String clientOrTopic, int limit, int windowSeconds) {
+        return checkWithNamespace("mq", serviceId, endpointId, clientOrTopic, limit, windowSeconds);
+    }
+
+    private RateLimitResult checkWithNamespace(String protocol, String serviceId, String endpointId, String clientOrIp, int limit, int windowSeconds) {
         if (limit <= 0 || windowSeconds <= 0) {
             return RateLimitResult.allowed(Long.MAX_VALUE, null);
         }
         long windowStart = Instant.now().getEpochSecond() / windowSeconds * windowSeconds;
-        String key = "security:runtime:ratelimit:http:in:%s:%s:%s:%d"
-                .formatted(safe(serviceId), safe(endpointId), safe(clientOrIp), windowStart);
+        String key = "security:runtime:ratelimit:%s:in:%s:%s:%s:%d"
+                .formatted(safe(protocol), safe(serviceId), safe(endpointId), safe(clientOrIp), windowStart);
         try {
             Long count = redisTemplate.opsForValue().increment(key);
             if (count != null && count == 1L) {

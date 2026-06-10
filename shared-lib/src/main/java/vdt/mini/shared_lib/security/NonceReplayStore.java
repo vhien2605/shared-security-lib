@@ -18,8 +18,16 @@ public class NonceReplayStore {
     }
 
     public boolean seenOrStore(String serviceId, String endpointId, String clientKey, String nonce, Duration ttl) {
-        String key = "security:runtime:nonce:http:in:%s:%s:%s:%s"
-                .formatted(safe(serviceId), safe(endpointId), safe(clientKey), safe(nonce));
+        return seenOrStore("http", serviceId, endpointId, clientKey, nonce, ttl);
+    }
+
+    public boolean seenOrStoreMq(String serviceId, String endpointId, String clientKey, String nonce, Duration ttl) {
+        return seenOrStore("mq", serviceId, endpointId, clientKey, nonce, ttl);
+    }
+
+    private boolean seenOrStore(String protocol, String serviceId, String endpointId, String clientKey, String nonce, Duration ttl) {
+        String key = "security:runtime:nonce:%s:in:%s:%s:%s:%s"
+                .formatted(safe(protocol), safe(serviceId), safe(endpointId), safe(clientKey), safe(nonce));
         try {
             Boolean stored = redisTemplate.opsForValue().setIfAbsent(key, "1", ttl);
             return !Boolean.TRUE.equals(stored);

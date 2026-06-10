@@ -36,11 +36,17 @@ public class SecurityAuditLogger {
     private SecurityLogEvent event(SecurityRequestContext context, SecurityResultStatus status, SecurityErrorCode errorCode) {
         SecurityRequestContext safe = context == null ? new SecurityRequestContext() : context;
         Integer retentionDays = safe.getRetentionDays() == null ? 30 : safe.getRetentionDays();
+        SecurityFlowType flowType = "MQ".equalsIgnoreCase(safe.getProtocol())
+                ? SecurityFlowType.INBOUND_MQ_LISTENER
+                : SecurityFlowType.INBOUND_HTTP;
+        String resultCode = flowType == SecurityFlowType.INBOUND_MQ_LISTENER
+                ? statusMapper.mqResultCode(errorCode)
+                : (errorCode == null ? "200" : statusMapper.resultCode(errorCode));
         return new SecurityLogEvent(
                 Instant.now().toString(),
                 safe.getTraceId(),
                 safe.getCorrelationId(),
-                SecurityFlowType.INBOUND_HTTP,
+                flowType,
                 SecurityDirection.INBOUND,
                 safe.getServiceId(),
                 safe.getServiceName(),
@@ -49,12 +55,17 @@ public class SecurityAuditLogger {
                 safe.getProtocol(),
                 safe.getMethod(),
                 safe.getPath(),
+                safe.getTopic(),
+                safe.getConsumerGroup(),
                 safe.getClientId(),
                 safe.getClientKey(),
                 safe.getSourceIp(),
+                safe.getAuthType(),
+                safe.getDenyReason(),
                 status,
-                errorCode == null ? "200" : statusMapper.resultCode(errorCode),
+                resultCode,
                 errorCode,
+                safe.getRequestSizeBytes(),
                 safe.getRequestSizeBytes(),
                 safe.getResponseSizeBytes(),
                 safe.getDurationMs(),
