@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import vdt.mini.shared_lib.document.AccessPermissionDTO;
 import vdt.mini.shared_lib.document.InboundSettingsDTO;
 import vdt.mini.shared_lib.document.OutboundSettingsDTO;
 import vdt.mini.shared_lib.document.AuthConfigRuntimeDTO;
@@ -71,12 +72,8 @@ public class SecuritySettingsStore {
                 String json = redisTemplate.opsForValue().get(RedisSecurityRuntimeKeys.inboundSettings(id));
                 if (json != null) {
                     InboundSettingsDTO dto = objectMapper.readValue(json, InboundSettingsDTO.class);
-                    if (Boolean.FALSE.equals(dto.getEnabled())) {
-                        inboundSettings.remove(id);
-                    } else {
-                        inboundSettings.put(id, dto);
-                        log.debug("Loaded inbound settings from Redis: endpointId={}", id);
-                    }
+                    inboundSettings.put(id, dto);
+                    log.debug("Loaded inbound settings from Redis: endpointId={} enabled={}", id, dto.getEnabled());
                 }
             } catch (Exception e) {
                 log.warn("Failed to poll inbound settings from Redis for endpointId={}", id, e);
@@ -300,7 +297,7 @@ public class SecuritySettingsStore {
         ServicePermissionsSnapshotDTO snapshot = objectMapper.readValue(json, ServicePermissionsSnapshotDTO.class);
         Map<String, PermissionRuntimeDTO> result = new HashMap<>();
         for (PermissionRuntimeDTO permission : safeList(snapshot.getPermissions())) {
-            if (permission.getInboundEndpointId() != null && permission.getClientId() != null && Boolean.TRUE.equals(permission.getEnabled())) {
+            if (permission.getInboundEndpointId() != null && permission.getClientId() != null) {
                 result.put(permissionKey(permission.getInboundEndpointId(), permission.getClientId()), permission);
             }
         }
@@ -324,13 +321,9 @@ public class SecuritySettingsStore {
                 markVersion(versionKey, message.getVersion());
                 log.info("Removed inbound settings from pub/sub operation=REMOVE endpointId={}", message.getEndpointId());
             } else if (config != null) {
-                if (Boolean.FALSE.equals(config.getEnabled())) {
-                    inboundSettings.remove(message.getEndpointId());
-                    log.info("Removed inbound settings from pub/sub: endpointId={}", message.getEndpointId());
-                } else {
-                    inboundSettings.put(message.getEndpointId(), config);
-                    log.info("Updated inbound settings from pub/sub: endpointId={} serviceId={}", message.getEndpointId(), message.getServiceId());
-                }
+                inboundSettings.put(message.getEndpointId(), config);
+                log.info("Updated inbound settings from pub/sub: endpointId={} serviceId={} enabled={}",
+                        message.getEndpointId(), message.getServiceId(), config.getEnabled());
                 markVersion(versionKey, message.getVersion());
             }
         } else if ("OUTBOUND".equals(message.getType())) {
@@ -458,14 +451,10 @@ public class SecuritySettingsStore {
         Long version = resolveVersion(messageVersion, permission.getVersion());
         String key = permissionVersionKey(serviceId, endpointId, clientId);
         if (isStale(key, version, eventType, serviceId)) { return; }
-        if (!Boolean.TRUE.equals(permission.getEnabled())) {
-            removePermission(serviceId, endpointId, clientId, permission.getPermissionId(), version, eventType);
-            return;
-        }
         serviceMap(permissionsByServiceEndpointClient, serviceId).put(permissionKey(endpointId, clientId), permission);
         markVersion(key, version);
-        log.info("Runtime permission applied direct serviceId={} endpointId={} clientId={} permissionId={} version={}",
-                serviceId, endpointId, clientId, permission.getPermissionId(), version);
+        log.info("Runtime permission applied direct serviceId={} endpointId={} clientId={} permissionId={} enabled={} version={}",
+                serviceId, endpointId, clientId, permission.getPermissionId(), permission.getEnabled(), version);
     }
 
     private void removePermission(String serviceId, String endpointId, String clientId, String permissionId, Long version, String eventType) {
@@ -474,12 +463,40 @@ public class SecuritySettingsStore {
             String key = permissionVersionKey(serviceId, endpointId, clientId);
             if (isStale(key, version, eventType, serviceId)) { return; }
             serviceMap(permissionsByServiceEndpointClient, serviceId).remove(permissionKey(endpointId, clientId));
+            removePermissionFromInboundSettings(endpointId, clientId, permissionId);
             markVersion(key, version);
         } else if (permissionId != null) {
             serviceMap(permissionsByServiceEndpointClient, serviceId).entrySet().removeIf(entry -> permissionId.equals(entry.getValue().getPermissionId()));
+            removePermissionFromInboundSettings(null, null, permissionId);
         }
         log.info("Runtime permission tombstone removed serviceId={} endpointId={} clientId={} permissionId={} eventType={} version={}",
                 serviceId, endpointId, clientId, permissionId, eventType, version);
+    }
+
+    private void removePermissionFromInboundSettings(String endpointId, String clientId, String permissionId) {
+        inboundSettings.forEach((settingsEndpointId, settings) -> {
+            if (settings == null || settings.getPermissions() == null) {
+                return;
+            }
+            if (endpointId != null && !endpointId.equals(settingsEndpointId)) {
+                return;
+            }
+            settings.setPermissions(settings.getPermissions().stream()
+                    .filter(permission -> !matchesPermission(permission, settingsEndpointId, clientId, permissionId))
+                    .toList());
+        });
+    }
+
+    private boolean matchesPermission(AccessPermissionDTO permission, String endpointId, String clientId, String permissionId) {
+        if (permission == null) {
+            return false;
+        }
+        if (permissionId != null) {
+            return permissionId.equals(permission.getPermissionId());
+        }
+        boolean endpointMatches = permission.getInboundEndpointId() == null || permission.getInboundEndpointId().equals(endpointId);
+        boolean clientMatches = clientId != null && clientId.equals(permission.getClientId());
+        return endpointMatches && clientMatches;
     }
 
     private void applyTombstone(String fallbackServiceId, RuntimeTombstoneDTO tombstone, Long version, String eventType) {

@@ -393,19 +393,22 @@ public class RedisSettingsSyncService {
         if (authConfig.getType() != AuthType.HMAC_SIGNATURE) {
             return null;
         }
-        return resolveClientKey(authConfig);
+        return resolveHmacSecretKey(authConfig);
     }
 
     private AuthConfigDTO toSyncAuthConfig(AuthConfig authConfig) {
         return new AuthConfigDTO(
                 authConfig.getType() != null ? authConfig.getType().name() : null,
                 authConfig.getSecretRef(),
+                authConfig.getCredentialHash(),
+                null,
                 authConfig.getAlgorithm(),
                 authConfig.getExpiresAt() != null ? authConfig.getExpiresAt().toString() : null,
-                resolveClientKey(authConfig));
+                authConfig.getClient() != null ? authConfig.getClient().getClientKey() : null,
+                Boolean.TRUE.equals(authConfig.getEnabled()));
     }
 
-    private String resolveClientKey(AuthConfig authConfig) {
+    private String resolveHmacSecretKey(AuthConfig authConfig) {
         if (authConfig.getType() != AuthType.HMAC_SIGNATURE) {
             return null;
         }

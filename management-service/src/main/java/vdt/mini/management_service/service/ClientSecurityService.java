@@ -474,6 +474,7 @@ public class ClientSecurityService {
                     for (ClientAuthConfigChangeItemResponse removed : removedAuthConfigs == null ? List.<ClientAuthConfigChangeItemResponse>of() : removedAuthConfigs) {
                         redisSettingsSyncService.publishAuthConfigDeleted(removed.getServiceId(), clientId, removed.getAuthConfigId());
                     }
+                    redisSettingsSyncService.syncRuntimeSnapshotOfService(serviceId);
                 }
             }
         });

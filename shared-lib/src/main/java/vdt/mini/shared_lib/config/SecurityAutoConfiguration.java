@@ -3,11 +3,19 @@ package vdt.mini.shared_lib.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.kafka.config.AbstractKafkaListenerContainerFactory;
+import org.springframework.kafka.listener.CompositeRecordInterceptor;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.listener.RecordInterceptor;
+import org.springframework.util.backoff.FixedBackOff;
 import org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -25,6 +33,8 @@ import vdt.mini.shared_lib.service.IdentityManager;
 import vdt.mini.shared_lib.service.RedisSecurityRuntimeSubscriber;
 import vdt.mini.shared_lib.service.RedisSecurityRuntimeKeys;
 import vdt.mini.shared_lib.service.RedisSettingsSubscriber;
+import vdt.mini.shared_lib.exception.InboundSecurityException;
+import vdt.mini.shared_lib.mq.SecurityRecordInterceptor;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -52,6 +62,38 @@ public class SecurityAutoConfiguration {
     @ConditionalOnMissingBean
     public ObjectMapper objectMapper() {
         return new ObjectMapper();
+    }
+
+    @Bean
+    @ConditionalOnClass(AbstractKafkaListenerContainerFactory.class)
+    @ConditionalOnProperty(name = "app.security.mq.inbound.enabled", havingValue = "true", matchIfMissing = true)
+    public BeanPostProcessor securityKafkaListenerContainerFactoryPostProcessor(SecurityRecordInterceptor securityRecordInterceptor) {
+        return new BeanPostProcessor() {
+            @Override
+            public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+                if (bean instanceof AbstractKafkaListenerContainerFactory<?, ?, ?> factory) {
+                    configureFactory(factory);
+                }
+                return bean;
+            }
+
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            private void configureFactory(AbstractKafkaListenerContainerFactory<?, ?, ?> factory) {
+                RecordInterceptor existing = factory.getRecordInterceptor();
+                RecordInterceptor security = securityRecordInterceptor;
+                if (existing == null) {
+                    factory.setRecordInterceptor(security);
+                } else if (existing instanceof CompositeRecordInterceptor composite) {
+                    composite.addRecordInterceptor(security);
+                } else {
+                    factory.setRecordInterceptor(new CompositeRecordInterceptor(existing, security));
+                }
+                DefaultErrorHandler errorHandler = new DefaultErrorHandler((record, exception) -> {
+                }, new FixedBackOff(0L, 0L));
+                errorHandler.addNotRetryableExceptions(InboundSecurityException.class);
+                factory.setCommonErrorHandler(errorHandler);
+            }
+        };
     }
 
     @Configuration
