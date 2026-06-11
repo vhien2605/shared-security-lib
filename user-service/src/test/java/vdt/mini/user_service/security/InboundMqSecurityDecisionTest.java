@@ -268,7 +268,7 @@ class InboundMqSecurityDecisionTest {
                 recordWithHeaders("payload", "unknown-key", null, null, null), consumer))
                 .isInstanceOf(InboundSecurityException.class)
                 .satisfies(ex -> assertThat(((InboundSecurityException) ex).getErrorCode())
-                        .isEqualTo(SecurityErrorCode.API_KEY_INVALID));
+                        .isEqualTo(SecurityErrorCode.CLIENT_KEY_INVALID));
     }
 
     @Test
@@ -280,7 +280,7 @@ class InboundMqSecurityDecisionTest {
                 recordWithHeaders("payload", CLIENT_KEY, null, null, null), consumer))
                 .isInstanceOf(InboundSecurityException.class)
                 .satisfies(ex -> assertThat(((InboundSecurityException) ex).getErrorCode())
-                        .isEqualTo(SecurityErrorCode.API_KEY_INVALID));
+                        .isEqualTo(SecurityErrorCode.CLIENT_KEY_INVALID));
     }
 
     @Test
@@ -292,7 +292,7 @@ class InboundMqSecurityDecisionTest {
                 recordWithHeaders("payload", CLIENT_KEY, null, null, null), consumer))
                 .isInstanceOf(InboundSecurityException.class)
                 .satisfies(ex -> assertThat(((InboundSecurityException) ex).getErrorCode())
-                        .isEqualTo(SecurityErrorCode.API_KEY_INVALID));
+                        .isEqualTo(SecurityErrorCode.CLIENT_KEY_INVALID));
     }
 
     @Test
@@ -309,7 +309,7 @@ class InboundMqSecurityDecisionTest {
                 recordWithHeaders("payload", CLIENT_KEY, null, null, null), consumer))
                 .isInstanceOf(InboundSecurityException.class)
                 .satisfies(ex -> assertThat(((InboundSecurityException) ex).getErrorCode())
-                        .isEqualTo(SecurityErrorCode.API_KEY_INVALID));
+                        .isEqualTo(SecurityErrorCode.AUTH_CONFIG_INVALID));
     }
 
     @Test
@@ -329,17 +329,17 @@ class InboundMqSecurityDecisionTest {
                 recordWithHeaders("payload", CLIENT_KEY, null, null, null), consumer))
                 .isInstanceOf(InboundSecurityException.class)
                 .satisfies(ex -> assertThat(((InboundSecurityException) ex).getErrorCode())
-                        .isEqualTo(SecurityErrorCode.WHITELIST_NOT_MATCHED));
+                        .isEqualTo(SecurityErrorCode.PERMISSION_DENIED));
     }
 
     @Test
     void shouldAllowWithWhitelistBypassNoAuth() throws Exception {
         InboundSettingsDTO settings = defaultSettings();
         settings.setAccessRules(List.of(
-                new AccessRuleDTO("WHITELIST", "TOPIC", TOPIC, false, null)));
+                new AccessRuleDTO("WHITELIST", "CLIENT_KEY", CLIENT_KEY, false, null)));
         seedSettings(settings);
 
-        ConsumerRecord<String, Object> result = interceptor.intercept(record("payload"), consumer);
+        ConsumerRecord<String, Object> result = interceptor.intercept(recordWithHeaders("payload", CLIENT_KEY, null, null, null), consumer);
 
         assertThat(result).isNotNull();
     }
@@ -348,10 +348,10 @@ class InboundMqSecurityDecisionTest {
     void shouldDenyBlacklistedTopic() throws Exception {
         InboundSettingsDTO settings = defaultSettings();
         settings.setAccessRules(List.of(
-                new AccessRuleDTO("BLACKLIST", "TOPIC", TOPIC, false, null)));
+                new AccessRuleDTO("BLACKLIST", "CLIENT_KEY", CLIENT_KEY, false, null)));
         seedSettings(settings);
 
-        assertThatThrownBy(() -> interceptor.intercept(record("payload"), consumer))
+        assertThatThrownBy(() -> interceptor.intercept(recordWithHeaders("payload", CLIENT_KEY, null, null, null), consumer))
                 .isInstanceOf(InboundSecurityException.class)
                 .satisfies(ex -> assertThat(((InboundSecurityException) ex).getErrorCode())
                         .isEqualTo(SecurityErrorCode.BLACKLISTED));

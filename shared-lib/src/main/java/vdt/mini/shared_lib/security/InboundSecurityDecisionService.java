@@ -20,6 +20,7 @@ import vdt.mini.shared_lib.service.SecuritySettingsStore;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
@@ -104,19 +105,19 @@ public class InboundSecurityDecisionService {
         }
         Optional<String> clientId = settingsStore.resolveClientId(context.getServiceId(), clientKey);
         if (clientId.isEmpty()) {
-            return deny(SecurityErrorCode.API_KEY_INVALID, "Invalid API key", context, endpoint.endpointId(), null, clientKey);
+            return deny(SecurityErrorCode.CLIENT_KEY_INVALID, "Invalid client key", context, endpoint.endpointId(), null, clientKey);
         }
         Optional<ClientRuntimeDTO> client = settingsStore.getClient(context.getServiceId(), clientId.get());
         if (client.isEmpty() || !Boolean.TRUE.equals(client.get().getEnabled()) || !Boolean.TRUE.equals(client.get().getActive())) {
-            return deny(SecurityErrorCode.API_KEY_INVALID, "Client is disabled or inactive", context, endpoint.endpointId(), clientId.get(), clientKey);
+            return deny(SecurityErrorCode.CLIENT_INACTIVE, "Client is disabled or inactive", context, endpoint.endpointId(), clientId.get(), clientKey);
         }
         Optional<AuthConfigRuntimeDTO> auth = settingsStore.getAuthConfig(context.getServiceId(), endpoint.endpointId(), clientId.get());
         if (auth.isEmpty() || !Boolean.TRUE.equals(auth.get().getEnabled())) {
-            return deny(SecurityErrorCode.API_KEY_INVALID, "Auth config missing or disabled", context, endpoint.endpointId(), clientId.get(), clientKey);
+            return deny(SecurityErrorCode.AUTH_CONFIG_INVALID, "Auth config missing or disabled", context, endpoint.endpointId(), clientId.get(), clientKey);
         }
         context.setAuthType(auth.get().getType());
         if (!hasPermission(settings, context.getServiceId(), endpoint.endpointId(), clientId.get(), clientKey)) {
-            return deny(SecurityErrorCode.WHITELIST_NOT_MATCHED, "Permission missing or disabled", context, endpoint.endpointId(), clientId.get(), clientKey);
+            return deny(SecurityErrorCode.PERMISSION_DENIED, "Permission missing or disabled", context, endpoint.endpointId(), clientId.get(), clientKey);
         }
         if (isApiKey(auth.get())) {
             String apiKey = request.getHeader(API_KEY_HEADER);
@@ -187,19 +188,19 @@ public class InboundSecurityDecisionService {
         String clientKey = headers.clientKey();
         Optional<String> clientId = settingsStore.resolveClientId(context.getServiceId(), clientKey);
         if (clientId.isEmpty()) {
-            return deny(SecurityErrorCode.API_KEY_INVALID, "Invalid API key", context, endpoint.endpointId(), null, clientKey);
+            return deny(SecurityErrorCode.CLIENT_KEY_INVALID, "Invalid client key", context, endpoint.endpointId(), null, clientKey);
         }
         Optional<ClientRuntimeDTO> client = settingsStore.getClient(context.getServiceId(), clientId.get());
         if (client.isEmpty() || !Boolean.TRUE.equals(client.get().getEnabled()) || !Boolean.TRUE.equals(client.get().getActive())) {
-            return deny(SecurityErrorCode.API_KEY_INVALID, "Client is disabled or inactive", context, endpoint.endpointId(), clientId.get(), clientKey);
+            return deny(SecurityErrorCode.CLIENT_INACTIVE, "Client is disabled or inactive", context, endpoint.endpointId(), clientId.get(), clientKey);
         }
         Optional<AuthConfigRuntimeDTO> auth = settingsStore.getAuthConfig(context.getServiceId(), endpoint.endpointId(), clientId.get());
         if (auth.isEmpty() || !Boolean.TRUE.equals(auth.get().getEnabled())) {
-            return deny(SecurityErrorCode.API_KEY_INVALID, "Auth config missing or disabled", context, endpoint.endpointId(), clientId.get(), clientKey);
+            return deny(SecurityErrorCode.AUTH_CONFIG_INVALID, "Auth config missing or disabled", context, endpoint.endpointId(), clientId.get(), clientKey);
         }
         context.setAuthType(auth.get().getType());
         if (!hasPermission(settings, context.getServiceId(), endpoint.endpointId(), clientId.get(), clientKey)) {
-            return deny(SecurityErrorCode.WHITELIST_NOT_MATCHED, "Permission missing or disabled", context, endpoint.endpointId(), clientId.get(), clientKey);
+            return deny(SecurityErrorCode.PERMISSION_DENIED, "Permission missing or disabled", context, endpoint.endpointId(), clientId.get(), clientKey);
         }
         if (isApiKey(auth.get())) {
             String apiKey = headers.apiKey();
@@ -455,7 +456,14 @@ public class InboundSecurityDecisionService {
         if (nonceReplayStore.seenOrStore(context.getServiceId(), context.getEndpointId(), clientKey, nonce, SIGNATURE_VALIDITY)) {
             return false;
         }
-        String payload = request.getMethod() + "\n" + request.getRequestURI() + "\n" + timestamp + "\n" + nonce;
+        String payloadHash;
+        try {
+            payloadHash = sha256(request.getInputStream().readAllBytes());
+        } catch (IOException ex) {
+            log.warn("Failed to read request body for HMAC validation", ex);
+            return false;
+        }
+        String payload = request.getMethod() + "\n" + request.getRequestURI() + "\n" + timestamp + "\n" + nonce + "\n" + payloadHash;
         return signature.equals(hmac(payload, auth.getSecretKey(), auth.getAlgorithm()));
     }
 
@@ -496,9 +504,13 @@ public class InboundSecurityDecisionService {
     }
 
     private String sha256(String value) {
+        return sha256(value.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String sha256(byte[] value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
+            return HexFormat.of().formatHex(digest.digest(value));
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256 algorithm is not available", ex);
         }

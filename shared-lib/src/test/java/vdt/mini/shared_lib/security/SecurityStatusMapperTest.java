@@ -12,9 +12,13 @@ class SecurityStatusMapperTest {
     @ParameterizedTest
     @CsvSource({
             "AUTH_MISSING,401",
+            "CLIENT_KEY_INVALID,401",
+            "CLIENT_INACTIVE,401",
+            "AUTH_CONFIG_INVALID,401",
             "API_KEY_INVALID,401",
             "HMAC_INVALID,401",
             "BLACKLISTED,403",
+            "PERMISSION_DENIED,403",
             "ENDPOINT_NOT_REGISTERED,404",
             "REQUEST_SIZE_EXCEEDED,413",
             "RESPONSE_SIZE_EXCEEDED,413",
@@ -33,9 +37,13 @@ class SecurityStatusMapperTest {
     @CsvSource({
             "INVALID_MESSAGE,SEC-400",
             "AUTH_MISSING,SEC-401",
+            "CLIENT_KEY_INVALID,SEC-403",
+            "CLIENT_INACTIVE,SEC-403",
+            "AUTH_CONFIG_INVALID,SEC-403",
             "API_KEY_INVALID,SEC-403",
             "HMAC_INVALID,SEC-403",
             "BLACKLISTED,SEC-403",
+            "PERMISSION_DENIED,SEC-403",
             "LISTENER_NOT_REGISTERED,SEC-404",
             "REQUEST_SIZE_EXCEEDED,SEC-413",
             "RATE_LIMIT_EXCEEDED,SEC-429",
