@@ -126,7 +126,7 @@ class InboundSecurityDecisionServiceMqTest {
         SecurityDecision decision = decisionService.decide(request(headers(CLIENT_KEY, API_KEY), "payload"), endpoint, context());
 
         assertThat(decision.allowed()).isFalse();
-        assertThat(decision.errorCode()).isEqualTo(SecurityErrorCode.WHITELIST_NOT_MATCHED);
+        assertThat(decision.errorCode()).isEqualTo(SecurityErrorCode.PERMISSION_DENIED);
     }
 
     @Test
@@ -138,7 +138,7 @@ class InboundSecurityDecisionServiceMqTest {
         SecurityDecision decision = decisionService.decide(request(headers(CLIENT_KEY, API_KEY), "payload"), endpoint, context());
 
         assertThat(decision.allowed()).isFalse();
-        assertThat(decision.errorCode()).isEqualTo(SecurityErrorCode.WHITELIST_NOT_MATCHED);
+        assertThat(decision.errorCode()).isEqualTo(SecurityErrorCode.PERMISSION_DENIED);
     }
 
     @Test

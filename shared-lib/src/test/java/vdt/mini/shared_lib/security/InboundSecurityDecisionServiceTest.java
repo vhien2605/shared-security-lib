@@ -109,7 +109,7 @@ class InboundSecurityDecisionServiceTest {
 
         MockHttpServletRequest request = request();
         request.addHeader(InboundSecurityDecisionService.CLIENT_KEY_HEADER, "bad-key");
-        assertThat(decisionService.decide(request, endpoint, context()).errorCode()).isEqualTo(SecurityErrorCode.API_KEY_INVALID);
+        assertThat(decisionService.decide(request, endpoint, context()).errorCode()).isEqualTo(SecurityErrorCode.CLIENT_KEY_INVALID);
     }
 
     @Test
@@ -128,7 +128,7 @@ class InboundSecurityDecisionServiceTest {
         SecurityDecision missingPermission = decisionService.decide(authenticatedRequest(), endpoint, context());
 
         assertThat(missingPermission.allowed()).isFalse();
-        assertThat(missingPermission.errorCode()).isEqualTo(SecurityErrorCode.WHITELIST_NOT_MATCHED);
+        assertThat(missingPermission.errorCode()).isEqualTo(SecurityErrorCode.PERMISSION_DENIED);
     }
 
     @Test
@@ -142,7 +142,7 @@ class InboundSecurityDecisionServiceTest {
 
         SecurityDecision denied = decisionService.decide(request, endpoint, context());
 
-        assertThat(denied.errorCode()).isEqualTo(SecurityErrorCode.WHITELIST_NOT_MATCHED);
+        assertThat(denied.errorCode()).isEqualTo(SecurityErrorCode.PERMISSION_DENIED);
 
         loadRuntime(true, "API_KEY", null);
         SecurityDecision allowed = decisionService.decide(apiKeyRequest(), endpoint, context());
@@ -234,10 +234,52 @@ class InboundSecurityDecisionServiceTest {
         long timestamp = Instant.now().toEpochMilli();
         request.addHeader(InboundSecurityDecisionService.TIMESTAMP_HEADER, String.valueOf(timestamp));
         request.addHeader(InboundSecurityDecisionService.NONCE_HEADER, "nonce-1");
-        request.addHeader(InboundSecurityDecisionService.SIGNATURE_HEADER, signature("POST\n/orders\n" + timestamp + "\nnonce-1", "secret"));
+        request.setContent("".getBytes(StandardCharsets.UTF_8));
+        request.addHeader(InboundSecurityDecisionService.SIGNATURE_HEADER, signature(httpHmacPayload(timestamp, "nonce-1", ""), "secret"));
 
         assertThat(decisionService.decide(request, endpoint, context()).allowed()).isTrue();
         assertThat(decisionService.decide(request, endpoint, context()).errorCode()).isEqualTo(SecurityErrorCode.HMAC_INVALID);
+    }
+
+    @Test
+    void decide_shouldRejectHmacWhenRequestBodyDoesNotMatchSignature() throws Exception {
+        loadSettings(settings(settings -> settings.setAuthConfigs(List.of(hmacAuthConfig()))));
+        loadRuntime(true, "HMAC_SIGNATURE", "secret");
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.setIfAbsent(eq("security:runtime:nonce:http:in:service-1:endpoint-1:client-key-1:nonce-body"), eq("1"), any()))
+                .thenReturn(true);
+        long timestamp = Instant.now().toEpochMilli();
+        MockHttpServletRequest request = authenticatedRequest();
+        request.setContent("tampered-body".getBytes(StandardCharsets.UTF_8));
+        request.addHeader(InboundSecurityDecisionService.TIMESTAMP_HEADER, String.valueOf(timestamp));
+        request.addHeader(InboundSecurityDecisionService.NONCE_HEADER, "nonce-body");
+        request.addHeader(InboundSecurityDecisionService.SIGNATURE_HEADER,
+                signature(httpHmacPayload(timestamp, "nonce-body", "original-body"), "secret"));
+
+        SecurityDecision decision = decisionService.decide(request, endpoint, context());
+
+        assertThat(decision.allowed()).isFalse();
+        assertThat(decision.errorCode()).isEqualTo(SecurityErrorCode.HMAC_INVALID);
+    }
+
+    @Test
+    void decide_shouldRejectHmacSignatureWithoutRequestBodyHash() throws Exception {
+        loadSettings(settings(settings -> settings.setAuthConfigs(List.of(hmacAuthConfig()))));
+        loadRuntime(true, "HMAC_SIGNATURE", "secret");
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.setIfAbsent(eq("security:runtime:nonce:http:in:service-1:endpoint-1:client-key-1:nonce-legacy"), eq("1"), any()))
+                .thenReturn(true);
+        long timestamp = Instant.now().toEpochMilli();
+        MockHttpServletRequest request = authenticatedRequest();
+        request.setContent("".getBytes(StandardCharsets.UTF_8));
+        request.addHeader(InboundSecurityDecisionService.TIMESTAMP_HEADER, String.valueOf(timestamp));
+        request.addHeader(InboundSecurityDecisionService.NONCE_HEADER, "nonce-legacy");
+        request.addHeader(InboundSecurityDecisionService.SIGNATURE_HEADER, signature("POST\n/orders\n" + timestamp + "\nnonce-legacy", "secret"));
+
+        SecurityDecision decision = decisionService.decide(request, endpoint, context());
+
+        assertThat(decision.allowed()).isFalse();
+        assertThat(decision.errorCode()).isEqualTo(SecurityErrorCode.HMAC_INVALID);
     }
 
     private void assertDenied(InboundSettingsDTO settings, SecurityErrorCode expected) throws Exception {
@@ -306,6 +348,10 @@ class InboundSecurityDecisionServiceTest {
         Mac mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
         return Base64.getEncoder().encodeToString(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    private String httpHmacPayload(long timestamp, String nonce, String body) {
+        return "POST\n/orders\n" + timestamp + "\n" + nonce + "\n" + sha256(body);
     }
 
     private AuthConfigDTO apiKeyAuthConfig() {

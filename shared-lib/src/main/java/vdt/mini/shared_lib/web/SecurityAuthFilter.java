@@ -112,7 +112,7 @@ public class SecurityAuthFilter extends OncePerRequestFilter {
     }
 
     private HttpServletRequest requestWithBodySize(HttpServletRequest request) throws IOException {
-        if (request.getContentLengthLong() >= 0) {
+        if (request instanceof CachedBodyRequest) {
             return request;
         }
         return new CachedBodyRequest(request, request.getInputStream().readAllBytes());
