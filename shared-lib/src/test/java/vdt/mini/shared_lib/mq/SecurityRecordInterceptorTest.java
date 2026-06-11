@@ -148,6 +148,44 @@ class SecurityRecordInterceptorTest {
         assertThat(SecurityRequestContextHolder.get()).isNull();
     }
 
+    @Test
+    void success_shouldLogTimeoutAndSuccess_whenMqDurationExceedsTimeout() throws InterruptedException {
+        when(decisionService.decide(any(MqSecurityRequest.class), any(), any(SecurityRequestContext.class)))
+                .thenAnswer(invocation -> {
+                    SecurityRequestContext context = invocation.getArgument(2);
+                    context.setTimeoutMs(1);
+                    context.setThresholdMs(1_000);
+                    return SecurityDecision.allow(ENDPOINT_ID, "client-1", CLIENT_KEY);
+                });
+        ConsumerRecord<String, Object> record = record("payload");
+
+        interceptor.intercept(record, consumer);
+        Thread.sleep(20);
+        interceptor.success(record, consumer);
+
+        verify(auditLogger).log(any(SecurityRequestContext.class), eq(SecurityResultStatus.TIMEOUT), eq(SecurityErrorCode.TIMEOUT_EXCEEDED));
+        verify(auditLogger).log(any(SecurityRequestContext.class), eq(SecurityResultStatus.SUCCESS), eq(null));
+    }
+
+    @Test
+    void success_shouldLogWarningAndSuccess_whenMqDurationExceedsThreshold() throws InterruptedException {
+        when(decisionService.decide(any(MqSecurityRequest.class), any(), any(SecurityRequestContext.class)))
+                .thenAnswer(invocation -> {
+                    SecurityRequestContext context = invocation.getArgument(2);
+                    context.setTimeoutMs(1_000);
+                    context.setThresholdMs(1);
+                    return SecurityDecision.allow(ENDPOINT_ID, "client-1", CLIENT_KEY);
+                });
+        ConsumerRecord<String, Object> record = record("payload");
+
+        interceptor.intercept(record, consumer);
+        Thread.sleep(20);
+        interceptor.success(record, consumer);
+
+        verify(auditLogger).log(any(SecurityRequestContext.class), eq(SecurityResultStatus.WARN), eq(SecurityErrorCode.RESPONSE_TIME_THRESHOLD_EXCEEDED));
+        verify(auditLogger).log(any(SecurityRequestContext.class), eq(SecurityResultStatus.SUCCESS), eq(null));
+    }
+
     private ConsumerRecord<String, Object> record(Object value) {
         ConsumerRecord<String, Object> record = new ConsumerRecord<>(TOPIC, 0, 0L, "key", value);
         record.headers().add(InboundSecurityDecisionService.CLIENT_KEY_HEADER, CLIENT_KEY.getBytes(StandardCharsets.UTF_8));

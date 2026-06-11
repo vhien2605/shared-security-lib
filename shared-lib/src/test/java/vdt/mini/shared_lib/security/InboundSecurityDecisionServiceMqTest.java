@@ -81,15 +81,15 @@ class InboundSecurityDecisionServiceMqTest {
         assertDenied(settings(settings -> settings.setProtocol("HTTP")), SecurityErrorCode.INVALID_MESSAGE);
         assertDenied(settings(settings -> settings.setRequestSizeLimitKb(1)), SecurityErrorCode.REQUEST_SIZE_EXCEEDED,
                 request(headers(CLIENT_KEY), "x".repeat(2049)));
-        assertDenied(settings(settings -> settings.setAccessRules(List.of(new AccessRuleDTO("BLACKLIST", "TOPIC", TOPIC, false, null)))),
+        assertDenied(settings(settings -> settings.setAccessRules(List.of(new AccessRuleDTO("BLACKLIST", "CLIENT_KEY", CLIENT_KEY, false, null)))),
                 SecurityErrorCode.BLACKLISTED);
     }
 
     @Test
     void decide_shouldAllowWhitelistedMessageWithoutAuth() throws Exception {
-        loadSettings(settings(settings -> settings.setAccessRules(List.of(new AccessRuleDTO("WHITELIST", "TOPIC", TOPIC, false, null)))));
+        loadSettings(settings(settings -> settings.setAccessRules(List.of(new AccessRuleDTO("WHITELIST", "CLIENT_KEY", CLIENT_KEY, false, null)))));
 
-        SecurityDecision decision = decisionService.decide(request(null, "payload"), endpoint, context());
+        SecurityDecision decision = decisionService.decide(request(headers(CLIENT_KEY), "payload"), endpoint, context());
 
         assertThat(decision.allowed()).isTrue();
     }
