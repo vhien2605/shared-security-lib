@@ -291,7 +291,10 @@ public class InboundSecurityDecisionService {
         if ("HEADER".equals(valueType)) {
             return headerMatches(request, value);
         }
-        return value.equals(context.getSourceIp()) || value.equals(request.getRemoteAddr());
+        if ("IP".equals(valueType)) {
+            return value.equals(context.getSourceIp()) || value.equals(request.getRemoteAddr());
+        }
+        return false;
     }
 
     private AccessRuleDecision evaluateMqAccessRules(List<AccessRuleDTO> rules, MqSecurityHeaders headers,
@@ -327,10 +330,7 @@ public class InboundSecurityDecisionService {
         if ("HEADER".equals(valueType)) {
             return mqHeaderMatches(headers, value);
         }
-        if ("TOPIC".equals(valueType)) {
-            return value.equals(topic);
-        }
-        return value.equals(topic);
+        return false;
     }
 
     private boolean hasPermission(InboundSettingsDTO settings, String serviceId, String endpointId, String clientId, String clientKey) {

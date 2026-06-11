@@ -91,6 +91,42 @@ class InBoundSecurityAspectTest {
         verify(auditLogger, never()).log(any(SecurityRequestContext.class), any(), any());
     }
 
+    @Test
+    void around_shouldLogTimeoutAndSuccess_whenHttpDurationExceedsTimeout() throws Throwable {
+        SecurityRequestContext context = context("HTTP");
+        context.setTimeoutMs(1);
+        context.setThresholdMs(1_000);
+        SecurityRequestContextHolder.set(context);
+        when(joinPoint.proceed()).thenAnswer(invocation -> {
+            Thread.sleep(20);
+            return "ok";
+        });
+
+        Object result = aspect.around(joinPoint);
+
+        assertThat(result).isEqualTo("ok");
+        verify(auditLogger).log(context, SecurityResultStatus.TIMEOUT, SecurityErrorCode.TIMEOUT_EXCEEDED);
+        verify(auditLogger).log(context, SecurityResultStatus.SUCCESS, null);
+    }
+
+    @Test
+    void around_shouldLogWarningAndSuccess_whenHttpDurationExceedsThreshold() throws Throwable {
+        SecurityRequestContext context = context("HTTP");
+        context.setTimeoutMs(1_000);
+        context.setThresholdMs(1);
+        SecurityRequestContextHolder.set(context);
+        when(joinPoint.proceed()).thenAnswer(invocation -> {
+            Thread.sleep(20);
+            return "ok";
+        });
+
+        Object result = aspect.around(joinPoint);
+
+        assertThat(result).isEqualTo("ok");
+        verify(auditLogger).log(context, SecurityResultStatus.WARN, SecurityErrorCode.RESPONSE_TIME_THRESHOLD_EXCEEDED);
+        verify(auditLogger).log(context, SecurityResultStatus.SUCCESS, null);
+    }
+
     private SecurityRequestContext context(String protocol) {
         SecurityRequestContext context = new SecurityRequestContext();
         context.setServiceId("service-1");
