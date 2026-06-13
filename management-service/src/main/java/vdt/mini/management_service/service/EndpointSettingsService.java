@@ -212,7 +212,7 @@ public class EndpointSettingsService {
             try {
                 RollbackStrategy.valueOf(request.getRollbackStrategy());
             } catch (IllegalArgumentException e) {
-                throw new AppException(ErrorCode.INVALID_INPUT, "rollbackStrategy must be COMPENSATE, IGNORE, or MANUAL");
+                throw new AppException(ErrorCode.INVALID_INPUT, "rollbackStrategy must be COMPENSATE or IGNORE");
             }
         }
         if (request.getAlertSeverity() != null) {

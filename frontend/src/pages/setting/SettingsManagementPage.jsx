@@ -17,13 +17,14 @@ const DEFAULT_TEMPLATE = {
   outboundRetryBackoffMs: 500,
   outboundResponseTimeThresholdMs: 500,
   outboundLogRetentionDays: 15,
-  outboundRollbackStrategy: 'CircuitBreaker',
+  outboundRollbackStrategy: 'IGNORE',
   alertSeverity: 'CRITICAL',
   alertThrottleMinutes: 15,
   alertChannels: ['SLACK'],
 }
 
 const CHANNELS = ['SLACK', 'EMAIL', 'WEBHOOK']
+const ROLLBACK_STRATEGIES = ['IGNORE', 'COMPENSATE']
 
 function normalizeService(service) {
   if (!service) return service
@@ -389,7 +390,14 @@ export default function SettingsManagementPage() {
                 <SettingInput label="Backoff:" value={textValue(template.outboundRetryBackoffMs)} unit="ms" onChange={(value) => updateTemplate('outboundRetryBackoffMs', value)} />
                 <SettingInput label="Threshold:" value={textValue(template.outboundResponseTimeThresholdMs)} unit="ms" onChange={(value) => updateTemplate('outboundResponseTimeThresholdMs', value)} />
                 <SettingInput label="Log Retention:" value={textValue(template.outboundLogRetentionDays)} unit="days" onChange={(value) => updateTemplate('outboundLogRetentionDays', value)} />
-                <SettingInput label="Rollback:" value={template.outboundRollbackStrategy || ''} onChange={(value) => updateTemplate('outboundRollbackStrategy', value)} className="settings-config-input--italic" />
+                <div className="settings-field-row">
+                  <span>Rollback:</span>
+                  <select className="settings-config-select" value={template.outboundRollbackStrategy || ''} onChange={(event) => updateTemplate('outboundRollbackStrategy', event.target.value)}>
+                    {ROLLBACK_STRATEGIES.map((option) => (
+                      <option key={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
