@@ -1,0 +1,14 @@
+package vdt.mini.shared_lib.enums;
+
+public enum OutboundErrorCode {
+    ENDPOINT_NOT_REGISTERED,
+    ENDPOINT_DISABLED,
+    ENDPOINT_INACTIVE,
+    INVALID_REQUEST,
+    HTTP_4XX,
+    HTTP_5XX,
+    HTTP_CLIENT_FAILED,
+    TIMEOUT_EXCEEDED,
+    RETRY_EXHAUSTED,
+    INTERNAL_ERROR
+}

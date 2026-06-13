@@ -34,7 +34,9 @@ import vdt.mini.shared_lib.service.RedisSecurityRuntimeSubscriber;
 import vdt.mini.shared_lib.service.RedisSecurityRuntimeKeys;
 import vdt.mini.shared_lib.service.RedisSettingsSubscriber;
 import vdt.mini.shared_lib.exception.InboundSecurityException;
+import vdt.mini.shared_lib.web.OutboundFeignMetadataInterceptor;
 import vdt.mini.shared_lib.mq.SecurityRecordInterceptor;
+import vdt.mini.shared_lib.web.OutboundContextHolder;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -56,6 +58,13 @@ public class SecurityAutoConfiguration {
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         DefaultKafkaProducerFactory<String, String> factory = new DefaultKafkaProducerFactory<>(props);
         return new KafkaTemplate<>(factory);
+    }
+
+    @Bean
+    @ConditionalOnClass(name = "feign.RequestInterceptor")
+    @ConditionalOnMissingBean(OutboundFeignMetadataInterceptor.class)
+    public OutboundFeignMetadataInterceptor outboundFeignMetadataInterceptor(OutboundContextHolder contextHolder) {
+        return new OutboundFeignMetadataInterceptor(contextHolder);
     }
 
     @Bean

@@ -20,7 +20,9 @@ public class SecurityStatusMapper {
             case RATE_LIMIT_EXCEEDED -> HttpStatus.TOO_MANY_REQUESTS;
             case ENDPOINT_DISABLED, ENDPOINT_INACTIVE -> HttpStatus.SERVICE_UNAVAILABLE;
             case TIMEOUT_EXCEEDED -> HttpStatus.GATEWAY_TIMEOUT;
-            case RESPONSE_TIME_THRESHOLD_EXCEEDED, CONSUME_FAILED, INTERNAL_ERROR -> HttpStatus.INTERNAL_SERVER_ERROR;
+            case HTTP_4XX -> HttpStatus.BAD_REQUEST;
+            case HTTP_5XX, HTTP_CLIENT_FAILED, RETRY_EXHAUSTED,
+                    RESPONSE_TIME_THRESHOLD_EXCEEDED, CONSUME_FAILED, INTERNAL_ERROR -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
     }
 
@@ -44,7 +46,8 @@ public class SecurityStatusMapper {
             case ENDPOINT_DISABLED, ENDPOINT_INACTIVE -> "SEC-503";
             case TIMEOUT_EXCEEDED -> "SEC-504";
             case CONSUME_FAILED -> "SEC-561";
-            case RESPONSE_TIME_THRESHOLD_EXCEEDED, INTERNAL_ERROR -> "SEC-500";
+            case HTTP_4XX -> "SEC-400";
+            case HTTP_5XX, HTTP_CLIENT_FAILED, RETRY_EXHAUSTED, RESPONSE_TIME_THRESHOLD_EXCEEDED, INTERNAL_ERROR -> "SEC-500";
         };
     }
 }

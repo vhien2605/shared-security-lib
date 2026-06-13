@@ -9,6 +9,8 @@ import vdt.mini.shared_lib.enums.SecurityDirection;
 import vdt.mini.shared_lib.enums.SecurityErrorCode;
 import vdt.mini.shared_lib.enums.SecurityFlowType;
 import vdt.mini.shared_lib.enums.SecurityResultStatus;
+import vdt.mini.shared_lib.web.OutboundContext;
+import vdt.mini.shared_lib.web.OutboundExecutionPolicy;
 
 import java.time.Instant;
 
@@ -30,6 +32,17 @@ public class SecurityAuditLogger {
         } catch (JsonProcessingException ex) {
             auditLog.warn("security_audit_log_serialization_failed endpointId={} errorCode={}",
                     context == null ? null : context.getEndpointId(), errorCode, ex);
+        }
+    }
+
+    public void logOutbound(OutboundExecutionPolicy policy, OutboundContext context, SecurityResultStatus status,
+                            SecurityErrorCode errorCode, long durationMs, Integer retryAttempt) {
+        SecurityLogEvent event = outboundEvent(policy, context, status, errorCode, durationMs, retryAttempt);
+        try {
+            auditLog.info(objectMapper.writeValueAsString(event));
+        } catch (JsonProcessingException ex) {
+            auditLog.warn("security_outbound_audit_log_serialization_failed endpointId={} errorCode={}",
+                    policy == null ? null : policy.endpointId(), errorCode, ex);
         }
     }
 
@@ -55,6 +68,7 @@ public class SecurityAuditLogger {
                 safe.getProtocol(),
                 safe.getMethod(),
                 safe.getPath(),
+                null,
                 safe.getTopic(),
                 safe.getConsumerGroup(),
                 safe.getClientId(),
@@ -75,6 +89,55 @@ public class SecurityAuditLogger {
                 safe.getRateLimitWindowSeconds(),
                 safe.getRemainingQuota(),
                 retentionDays,
-                retentionDays + "d");
+                retentionDays + "d",
+                null,
+                null,
+                null,
+                null);
+    }
+
+    private SecurityLogEvent outboundEvent(OutboundExecutionPolicy policy, OutboundContext context,
+                                           SecurityResultStatus status, SecurityErrorCode errorCode,
+                                           long durationMs, Integer retryAttempt) {
+        Integer retentionDays = policy == null || policy.logRetentionDays() == null ? 30 : policy.logRetentionDays();
+        return new SecurityLogEvent(
+                Instant.now().toString(),
+                context == null ? null : context.traceId(),
+                context == null ? null : context.correlationId(),
+                SecurityFlowType.OUTBOUND_HTTP,
+                SecurityDirection.OUTBOUND,
+                policy == null ? null : policy.serviceId(),
+                null,
+                policy == null ? null : policy.endpointId(),
+                policy == null ? null : policy.endpointName(),
+                policy == null ? null : policy.protocol(),
+                policy == null ? null : policy.method(),
+                null,
+                policy == null ? null : policy.targetUrl(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                status,
+                errorCode == null ? "200" : statusMapper.resultCode(errorCode),
+                errorCode,
+                0,
+                0,
+                0,
+                durationMs,
+                policy == null ? null : policy.responseTimeThresholdMs(),
+                policy == null ? null : policy.timeoutMs(),
+                null,
+                null,
+                null,
+                retentionDays,
+                retentionDays + "d",
+                policy == null ? null : policy.retryCount(),
+                retryAttempt,
+                policy == null ? null : policy.retryBackoffMs(),
+                policy == null ? null : policy.rollbackStrategy());
     }
 }
