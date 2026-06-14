@@ -32,7 +32,7 @@ class OutboundPolicyServiceTest {
         settingsStore = mock(SecuritySettingsStore.class);
         IdentityManager identityManager = mock(IdentityManager.class);
         when(identityManager.getOrCreateServiceId()).thenReturn("service-1");
-        policyService = new OutboundPolicyService(endpointRegistry, settingsStore, identityManager);
+        policyService = new OutboundPolicyService(endpointRegistry, settingsStore, identityManager, "user-service");
         endpointRegistry.replaceAll(List.of(), List.of(new OutboundEndpointDTO("endpoint-1", "Profile API",
                 "http://profile/users", null, "GET", "HTTP", "", true)));
     }

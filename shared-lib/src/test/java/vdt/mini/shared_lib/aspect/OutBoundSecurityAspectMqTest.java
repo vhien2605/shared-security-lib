@@ -360,7 +360,7 @@ class OutBoundSecurityAspectMqTest {
     }
 
     private OutboundExecutionPolicy policy(String rollbackStrategy, int retryCount, Integer responseTimeThresholdMs) {
-        return new OutboundExecutionPolicy("mq-endpoint", "User Created", "service-1", null, "user.created",
+        return new OutboundExecutionPolicy("mq-endpoint", "User Created", "service-1", "user-service", null, "user.created",
                 "PUB", "MQ", 5, retryCount, 0, responseTimeThresholdMs, 30, rollbackStrategy, null, null,
                 List.of(), new OutboundSettingsDTO());
     }

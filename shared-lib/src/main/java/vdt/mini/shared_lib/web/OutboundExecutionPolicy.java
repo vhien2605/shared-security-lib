@@ -6,6 +6,7 @@ public record OutboundExecutionPolicy(
         String endpointId,
         String endpointName,
         String serviceId,
+        String serviceName,
         String targetUrl,
         String topic,
         String method,
