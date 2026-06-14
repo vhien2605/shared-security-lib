@@ -1,18 +1,8 @@
 {
-  "serviceId" : "84765329-809f-4829-a942-3970c7305b0f",
+  "serviceId" : "2838efa8-9568-4f73-b0d1-53adcdfcfd51",
   "inbounds" : {
-    "HTTP_PUT_/users/update-v2" : {
-      "endpointId" : "737c29f5-1aec-4fcd-a72c-fa35ca7e24d9",
-      "name" : "mock-webhook-PUT",
-      "path" : "/users/update-v2",
-      "topic" : "",
-      "method" : "PUT",
-      "protocol" : "HTTP",
-      "description" : "",
-      "enabled" : true
-    },
     "HTTP_POST_/users/webhook" : {
-      "endpointId" : "c615c190-ccea-4c8e-89dc-9ba58b5a6fa0",
+      "endpointId" : "38444350-3f2c-430c-931c-2e78d68cc4b0",
       "name" : "mock-webhook",
       "path" : "/users/webhook",
       "topic" : "",
@@ -21,8 +11,18 @@
       "description" : "",
       "enabled" : true
     },
+    "HTTP_PUT_/users/update-v2" : {
+      "endpointId" : "a6577a13-7215-4b7f-bcad-b159653c0230",
+      "name" : "mock-webhook-PUT",
+      "path" : "/users/update-v2",
+      "topic" : "",
+      "method" : "PUT",
+      "protocol" : "HTTP",
+      "description" : "",
+      "enabled" : true
+    },
     "MQ_SUB_user.profile.create" : {
-      "endpointId" : "7403f662-471f-4d26-8290-1384750d14c3",
+      "endpointId" : "5f12344d-2ad6-4acf-ade7-1bad271ef3d9",
       "name" : "mock-listener",
       "path" : "",
       "topic" : "user.profile.create",
@@ -33,18 +33,18 @@
     }
   },
   "outbounds" : {
-    "HTTP_POST_https://localhost:8083/profile/api/info" : {
-      "endpointId" : "0795d21a-8243-4f26-984d-e053c1feb67d",
-      "name" : "profile-outbound",
-      "targetUrl" : "https://localhost:8083/profile/api/info",
-      "topic" : "",
-      "method" : "POST",
-      "protocol" : "HTTP",
-      "description" : "Gọi API thanh toán đối tác",
+    "MQ_PUB_test.outbound.mq" : {
+      "endpointId" : "8c8a3778-9b30-4483-9056-20f9ec1ebddd",
+      "name" : "test-mq-publisher",
+      "targetUrl" : "",
+      "topic" : "test.outbound.mq",
+      "method" : "PUB",
+      "protocol" : "MQ",
+      "description" : "Manual test for outbound MQ retry",
       "enabled" : true
     },
     "HTTP_POST_http://localhost:8082/profile/api/info" : {
-      "endpointId" : "fab85740-f2da-4284-bf1a-4030781587ca",
+      "endpointId" : "f36b499a-233d-4994-9a9a-7e6cfe127616",
       "name" : "profile-outbound",
       "targetUrl" : "http://localhost:8082/profile/api/info",
       "topic" : "",

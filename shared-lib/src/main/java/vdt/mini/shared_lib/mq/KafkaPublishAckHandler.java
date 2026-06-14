@@ -16,11 +16,7 @@ public class KafkaPublishAckHandler {
 
     public PublishAck waitForAck(Object publishResult, List<CompletableFuture<?>> capturedFutures, int timeoutMs) throws Exception {
         if (publishResult == null) {
-            if (capturedFutures != null && !capturedFutures.isEmpty()) {
-                waitForAll(capturedFutures, timeoutMs);
-                return PublishAck.brokerAcknowledged();
-            }
-            return PublishAck.publishInvoked();
+            return waitForCapturedFutures(capturedFutures, timeoutMs);
         }
         if (publishResult instanceof SendResult<?, ?>) {
             return PublishAck.brokerAcknowledged();
@@ -32,13 +28,21 @@ public class KafkaPublishAckHandler {
             }
             return PublishAck.brokerAcknowledged();
         }
-        return PublishAck.publishInvoked();
+        return waitForCapturedFutures(capturedFutures, timeoutMs);
     }
 
     private void waitForAll(List<CompletableFuture<?>> futures, int timeoutMs) throws Exception {
         for (CompletableFuture<?> future : futures) {
             future.get(timeoutMs, TimeUnit.MILLISECONDS);
         }
+    }
+
+    private PublishAck waitForCapturedFutures(List<CompletableFuture<?>> capturedFutures, int timeoutMs) throws Exception {
+        if (capturedFutures != null && !capturedFutures.isEmpty()) {
+            waitForAll(capturedFutures, timeoutMs);
+            return PublishAck.brokerAcknowledged();
+        }
+        return PublishAck.publishInvoked();
     }
 
     public record PublishAck(boolean acknowledged) {
