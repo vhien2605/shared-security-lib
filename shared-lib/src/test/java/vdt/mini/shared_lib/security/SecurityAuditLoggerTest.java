@@ -53,7 +53,7 @@ class SecurityAuditLoggerTest {
     }
 
     private OutboundExecutionPolicy policy() {
-        return new OutboundExecutionPolicy("endpoint-1", "Profile API", "service-1", "http://profile/users",
+        return new OutboundExecutionPolicy("endpoint-1", "Profile API", "service-1", "http://profile/users", null,
                 "GET", "HTTP", 1000, 1, 0, null, 30, "IGNORE", null, null,
                 List.of(), new OutboundSettingsDTO());
     }

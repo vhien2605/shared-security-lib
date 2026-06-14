@@ -12,10 +12,14 @@ import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 import vdt.mini.shared_lib.annotation.OutBoundSecurity;
+import vdt.mini.shared_lib.enums.EndpointProtocol;
 import vdt.mini.shared_lib.enums.OutboundErrorCode;
 import vdt.mini.shared_lib.enums.SecurityErrorCode;
 import vdt.mini.shared_lib.enums.SecurityResultStatus;
 import vdt.mini.shared_lib.exception.OutboundException;
+import vdt.mini.shared_lib.mq.KafkaPublishAckHandler;
+import vdt.mini.shared_lib.mq.KafkaPublishFailureClassifier;
+import vdt.mini.shared_lib.mq.KafkaSendCaptureContext;
 import vdt.mini.shared_lib.web.OutboundContext;
 import vdt.mini.shared_lib.web.OutboundContextHolder;
 import vdt.mini.shared_lib.web.OutboundExecutionPolicy;
@@ -38,6 +42,8 @@ public class OutBoundSecurityAspect {
     private final OutboundPolicyService policyService;
     private final OutboundContextHolder contextHolder;
     private final SecurityAuditLogger auditLogger;
+    private final KafkaPublishAckHandler kafkaPublishAckHandler = new KafkaPublishAckHandler();
+    private final KafkaPublishFailureClassifier kafkaFailureClassifier = new KafkaPublishFailureClassifier();
 
     public OutBoundSecurityAspect(OutboundPolicyService policyService, OutboundContextHolder contextHolder, SecurityAuditLogger auditLogger) {
         this.policyService = policyService;
@@ -56,10 +62,69 @@ public class OutBoundSecurityAspect {
         OutboundContext outboundContext = buildContext(policy);
         contextHolder.set(outboundContext);
         try {
+            if (EndpointProtocol.MQ.name().equalsIgnoreCase(policy.protocol())) {
+                return proceedWithMqRetry(joinPoint, policy, outboundContext);
+            }
             return proceedWithRetry(joinPoint, policy, outboundContext);
         } finally {
             contextHolder.clear();
         }
+    }
+
+    private Object proceedWithMqRetry(ProceedingJoinPoint joinPoint, OutboundExecutionPolicy policy,
+                                      OutboundContext outboundContext) throws Throwable {
+        boolean retried = false;
+        Throwable lastFailure = null;
+        OutboundErrorCode lastCode = null;
+        for (int attempt = 0; attempt <= policy.retryCount(); attempt++) {
+            long startedAt = System.nanoTime();
+            try {
+                KafkaSendCaptureContext.start();
+                Object result = joinPoint.proceed();
+                KafkaPublishAckHandler.PublishAck ack = kafkaPublishAckHandler.waitForAck(
+                        result, KafkaSendCaptureContext.capturedFutures(), policy.timeoutMs());
+                long durationMs = elapsedMs(startedAt);
+                if (ack.acknowledged()) {
+                    log.info("outbound_mq_success endpointId={} topic={} attempt={} durationMs={}",
+                            policy.endpointId(), policy.topic(), attempt, durationMs);
+                    auditLogger.logOutbound(policy, outboundContext, SecurityResultStatus.SUCCESS, null, durationMs, attempt);
+                } else {
+                    log.warn("outbound_mq_publish_invoked endpointId={} topic={} attempt={} durationMs={} ackStatus=UNKNOWN",
+                            policy.endpointId(), policy.topic(), attempt, durationMs);
+                    auditLogger.logOutbound(policy, outboundContext, SecurityResultStatus.WARN,
+                            SecurityErrorCode.PUBLISH_INVOKED, durationMs, attempt);
+                }
+                if (policy.responseTimeThresholdMs() != null && durationMs > policy.responseTimeThresholdMs()) {
+                    log.warn("outbound_mq_response_time_threshold_exceeded endpointId={} topic={} durationMs={} thresholdMs={}",
+                            policy.endpointId(), policy.topic(), durationMs, policy.responseTimeThresholdMs());
+                    auditLogger.logOutbound(policy, outboundContext, SecurityResultStatus.WARN,
+                            SecurityErrorCode.RESPONSE_TIME_THRESHOLD_EXCEEDED, durationMs, attempt);
+                }
+                return result;
+            } catch (Throwable failure) {
+                lastFailure = failure;
+                lastCode = kafkaFailureClassifier.classify(failure);
+                long durationMs = elapsedMs(startedAt);
+                if (!kafkaFailureClassifier.isRetryable(failure) || attempt >= policy.retryCount()) {
+                    OutboundErrorCode finalCode = retried ? OutboundErrorCode.RETRY_EXHAUSTED : lastCode;
+                    logMqFailure(policy, attempt, durationMs, failure, finalCode, lastCode);
+                    auditLogger.logOutbound(policy, outboundContext,
+                            finalCode == OutboundErrorCode.TIMEOUT_EXCEEDED ? SecurityResultStatus.TIMEOUT : SecurityResultStatus.FAILED,
+                            toSecurityErrorCode(finalCode), durationMs, attempt);
+                    return handleRollbackStrategy(policy, finalCode, failure);
+                }
+                retried = true;
+                log.warn("outbound_mq_retry endpointId={} topic={} attempt={} nextAttempt={} errorCode={} backoffMs={}",
+                        policy.endpointId(), policy.topic(), attempt, attempt + 1, lastCode, policy.retryBackoffMs(), failure);
+                auditLogger.logOutbound(policy, outboundContext, SecurityResultStatus.RETRY,
+                        toSecurityErrorCode(lastCode), durationMs, attempt);
+                sleep(policy.retryBackoffMs());
+            } finally {
+                KafkaSendCaptureContext.clear();
+            }
+        }
+        throw new OutboundException(lastCode == null ? OutboundErrorCode.INTERNAL_ERROR : lastCode,
+                "Outbound MQ publish failed", null, policy.endpointId());
     }
 
     private Object proceedWithRetry(ProceedingJoinPoint joinPoint, OutboundExecutionPolicy policy,
@@ -119,8 +184,22 @@ public class OutBoundSecurityAspect {
         }
     }
 
+    private void logMqFailure(OutboundExecutionPolicy policy, int attempt, long durationMs, Throwable failure,
+                              OutboundErrorCode finalCode, OutboundErrorCode causeCode) {
+        if (finalCode == OutboundErrorCode.RETRY_EXHAUSTED) {
+            log.warn("outbound_mq_retry_exhausted endpointId={} topic={} attempts={} durationMs={} causeCode={}",
+                    policy.endpointId(), policy.topic(), attempt + 1, durationMs, causeCode, failure);
+        } else if (finalCode == OutboundErrorCode.TIMEOUT_EXCEEDED) {
+            log.warn("outbound_mq_timeout endpointId={} topic={} attempt={} durationMs={} timeoutMs={}",
+                    policy.endpointId(), policy.topic(), attempt, durationMs, policy.timeoutMs(), failure);
+        } else {
+            log.warn("outbound_mq_failed endpointId={} topic={} attempt={} durationMs={} errorCode={}",
+                    policy.endpointId(), policy.topic(), attempt, durationMs, finalCode, failure);
+        }
+    }
+
     private Object handleRollbackStrategy(OutboundExecutionPolicy policy, OutboundErrorCode errorCode, Throwable failure) {
-        if ("COMPENSATE".equalsIgnoreCase(policy.rollbackStrategy())) {
+        if ("COMPENSATE".equalsIgnoreCase(policy.rollbackStrategy()) || "COMPESATE".equalsIgnoreCase(policy.rollbackStrategy())) {
             throw new OutboundException(errorCode, "Outbound call failed and requires compensation", null, policy.endpointId());
         }
         log.warn("outbound_http_failure_consumed endpointId={} rollbackStrategy={} errorCode={}",
@@ -195,9 +274,11 @@ public class OutBoundSecurityAspect {
     private OutboundContext buildContext(OutboundExecutionPolicy policy) {
         SecurityRequestContext inboundContext = SecurityRequestContextHolder.get();
         String traceId = firstNonBlank(inboundContext == null ? null : inboundContext.getTraceId(), MDC.get("traceId"));
-        traceId = firstNonBlank(traceId, UUID.randomUUID().toString());
         String correlationId = firstNonBlank(inboundContext == null ? null : inboundContext.getCorrelationId(), MDC.get("correlationId"));
-        correlationId = firstNonBlank(correlationId, traceId);
+        if (!EndpointProtocol.MQ.name().equalsIgnoreCase(policy.protocol())) {
+            traceId = firstNonBlank(traceId, UUID.randomUUID().toString());
+            correlationId = firstNonBlank(correlationId, traceId);
+        }
         return new OutboundContext(policy.serviceId(), policy.endpointId(), policy.endpointName(), policy.targetUrl(),
                 policy.method(), policy.protocol(), traceId, correlationId, Instant.now(), UUID.randomUUID().toString());
     }
@@ -223,6 +304,14 @@ public class OutBoundSecurityAspect {
             case HTTP_4XX -> SecurityErrorCode.HTTP_4XX;
             case HTTP_5XX -> SecurityErrorCode.HTTP_5XX;
             case HTTP_CLIENT_FAILED -> SecurityErrorCode.HTTP_CLIENT_FAILED;
+            case PUBLISH_FAILED -> SecurityErrorCode.PUBLISH_FAILED;
+            case BROKER_UNAVAILABLE -> SecurityErrorCode.BROKER_UNAVAILABLE;
+            case PRODUCER_EXCEPTION -> SecurityErrorCode.PRODUCER_EXCEPTION;
+            case SERIALIZATION_ERROR -> SecurityErrorCode.SERIALIZATION_ERROR;
+            case AUTHORIZATION_ERROR -> SecurityErrorCode.AUTHORIZATION_ERROR;
+            case INVALID_TOPIC -> SecurityErrorCode.INVALID_TOPIC;
+            case RECORD_TOO_LARGE -> SecurityErrorCode.RECORD_TOO_LARGE;
+            case CONFIG_ERROR -> SecurityErrorCode.CONFIG_ERROR;
             case TIMEOUT_EXCEEDED -> SecurityErrorCode.TIMEOUT_EXCEEDED;
             case RETRY_EXHAUSTED -> SecurityErrorCode.RETRY_EXHAUSTED;
             case INVALID_REQUEST -> SecurityErrorCode.INVALID_REQUEST;

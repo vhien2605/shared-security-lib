@@ -104,10 +104,12 @@ public class SecurityAuditLogger {
                 Instant.now().toString(),
                 context == null ? null : context.traceId(),
                 context == null ? null : context.correlationId(),
-                SecurityFlowType.OUTBOUND_HTTP,
+                "MQ".equalsIgnoreCase(policy == null ? null : policy.protocol())
+                        ? SecurityFlowType.OUTBOUND_MQ
+                        : SecurityFlowType.OUTBOUND_HTTP,
                 SecurityDirection.OUTBOUND,
                 policy == null ? null : policy.serviceId(),
-                null,
+                policy == null ? null : policy.topic(),
                 policy == null ? null : policy.endpointId(),
                 policy == null ? null : policy.endpointName(),
                 policy == null ? null : policy.protocol(),

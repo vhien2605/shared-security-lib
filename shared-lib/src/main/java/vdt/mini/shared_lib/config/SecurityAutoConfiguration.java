@@ -34,6 +34,7 @@ import vdt.mini.shared_lib.service.RedisSecurityRuntimeSubscriber;
 import vdt.mini.shared_lib.service.RedisSecurityRuntimeKeys;
 import vdt.mini.shared_lib.service.RedisSettingsSubscriber;
 import vdt.mini.shared_lib.exception.InboundSecurityException;
+import vdt.mini.shared_lib.mq.KafkaOutboundMetadataEnricher;
 import vdt.mini.shared_lib.web.OutboundFeignMetadataInterceptor;
 import vdt.mini.shared_lib.mq.SecurityRecordInterceptor;
 import vdt.mini.shared_lib.web.OutboundContextHolder;
@@ -65,6 +66,12 @@ public class SecurityAutoConfiguration {
     @ConditionalOnMissingBean(OutboundFeignMetadataInterceptor.class)
     public OutboundFeignMetadataInterceptor outboundFeignMetadataInterceptor(OutboundContextHolder contextHolder) {
         return new OutboundFeignMetadataInterceptor(contextHolder);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(KafkaOutboundMetadataEnricher.class)
+    public KafkaOutboundMetadataEnricher kafkaOutboundMetadataEnricher(OutboundContextHolder contextHolder) {
+        return new KafkaOutboundMetadataEnricher(contextHolder);
     }
 
     @Bean

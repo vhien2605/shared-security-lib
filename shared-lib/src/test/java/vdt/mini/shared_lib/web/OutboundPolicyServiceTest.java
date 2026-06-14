@@ -51,6 +51,40 @@ class OutboundPolicyServiceTest {
     }
 
     @Test
+    void resolve_shouldBuildMqPolicyWithSafeRetryDefaultsAndLegacyCompensate() throws Exception {
+        endpointRegistry.replaceAll(List.of(), List.of(new OutboundEndpointDTO("mq-endpoint", "User Created",
+                null, "user.created", "PUB", "MQ", "", true)));
+        OutboundSettingsDTO settings = validMqSettings();
+        settings.setRetryCount(null);
+        settings.setRetryBackoffMs(null);
+        settings.setRollbackStrategy("COMPESATE");
+        when(settingsStore.getOutboundSettings("mq-endpoint")).thenReturn(settings);
+
+        OutboundExecutionPolicy policy = policyService.resolve(mqAnnotation());
+
+        assertThat(policy.endpointId()).isEqualTo("mq-endpoint");
+        assertThat(policy.topic()).isEqualTo("user.created");
+        assertThat(policy.protocol()).isEqualTo("MQ");
+        assertThat(policy.retryCount()).isZero();
+        assertThat(policy.retryBackoffMs()).isZero();
+        assertThat(policy.rollbackStrategy()).isEqualTo("COMPENSATE");
+    }
+
+    @Test
+    void resolve_shouldFailMq_whenTopicMismatch() throws Exception {
+        endpointRegistry.replaceAll(List.of(), List.of(new OutboundEndpointDTO("mq-endpoint", "User Created",
+                null, "user.created", "PUB", "MQ", "", true)));
+        OutboundSettingsDTO settings = validMqSettings();
+        settings.setTopic("user.deleted");
+        when(settingsStore.getOutboundSettings("mq-endpoint")).thenReturn(settings);
+
+        assertThatThrownBy(() -> policyService.resolve(mqAnnotation()))
+                .isInstanceOf(OutboundException.class)
+                .extracting("errorCode")
+                .isEqualTo(OutboundErrorCode.INVALID_REQUEST);
+    }
+
+    @Test
     void resolve_shouldFallbackToName_whenTargetUrlDoesNotMatchRegistry() throws Exception {
         endpointRegistry.replaceAll(List.of(), List.of(new OutboundEndpointDTO("endpoint-1", "Profile API",
                 "http://different", null, "GET", "HTTP", "", true)));
@@ -140,6 +174,11 @@ class OutboundPolicyServiceTest {
         return method.getAnnotation(OutBoundSecurity.class);
     }
 
+    private OutBoundSecurity mqAnnotation() throws Exception {
+        Method method = SampleOutbound.class.getDeclaredMethod("publish");
+        return method.getAnnotation(OutBoundSecurity.class);
+    }
+
     private static OutboundSettingsDTO validSettings() {
         OutboundSettingsDTO settings = new OutboundSettingsDTO();
         settings.setEndpointId("endpoint-1");
@@ -159,9 +198,31 @@ class OutboundPolicyServiceTest {
         return settings;
     }
 
+    private static OutboundSettingsDTO validMqSettings() {
+        OutboundSettingsDTO settings = new OutboundSettingsDTO();
+        settings.setEndpointId("mq-endpoint");
+        settings.setName("User Created");
+        settings.setTopic("user.created");
+        settings.setMethod("PUB");
+        settings.setProtocol("MQ");
+        settings.setEnabled(true);
+        settings.setEndpointStatus("ACTIVE");
+        settings.setServiceStatus("ACTIVE");
+        settings.setAvailable(true);
+        settings.setTimeoutMs(1000);
+        settings.setRetryCount(2);
+        settings.setRetryBackoffMs(0);
+        settings.setRollbackStrategy("IGNORE");
+        return settings;
+    }
+
     static class SampleOutbound {
         @OutBoundSecurity(name = "Profile API", targetUrl = "http://profile/users", method = EndpointMethod.GET, protocol = EndpointProtocol.HTTP)
         void call() {
+        }
+
+        @OutBoundSecurity(name = "User Created", topic = "user.created", method = EndpointMethod.PUB, protocol = EndpointProtocol.MQ)
+        void publish() {
         }
     }
 }

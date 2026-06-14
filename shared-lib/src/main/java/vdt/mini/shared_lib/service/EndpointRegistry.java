@@ -88,6 +88,24 @@ public class EndpointRegistry {
                 .findFirst();
     }
 
+    public Optional<OutboundEndpoint> findOutBoundMq(String serviceId, String protocol, String method, String topic, String name) {
+        String normalizedProtocol = normalize(protocol);
+        String normalizedMethod = normalize(method);
+        Optional<OutboundEndpoint> exactTopicMatch = outboundEndpoints.stream()
+                .filter(endpoint -> endpoint.protocol().equals(normalizedProtocol))
+                .filter(endpoint -> !hasText(method) || endpoint.method().equals(normalizedMethod))
+                .filter(endpoint -> equalsText(endpoint.destination(), topic))
+                .findFirst();
+        if (exactTopicMatch.isPresent()) {
+            return exactTopicMatch;
+        }
+        return outboundEndpoints.stream()
+                .filter(endpoint -> endpoint.protocol().equals(normalizedProtocol))
+                .filter(endpoint -> !hasText(method) || endpoint.method().equals(normalizedMethod))
+                .filter(endpoint -> equalsText(endpoint.name(), name))
+                .findFirst();
+    }
+
     private static String normalize(String value) {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
     }

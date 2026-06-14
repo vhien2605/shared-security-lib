@@ -54,4 +54,21 @@ class EndpointRegistryTest {
         assertThat(registry.findOutBoundHttp("service-1", "HTTP", "POST", "http://profile/users", "Profile API"))
                 .isEmpty();
     }
+
+    @Test
+    void findOutboundMq_shouldMatchTopicAndFallbackByName() {
+        EndpointRegistry registry = new EndpointRegistry();
+        registry.replaceAll(List.of(), List.of(new OutboundEndpointDTO("endpoint-1", "User Created", null,
+                "user.created", "PUB", "MQ", "", true)));
+
+        assertThat(registry.findOutBoundMq("service-1", "MQ", "PUB", "user.created", "Other"))
+                .isPresent()
+                .get()
+                .extracting(EndpointRegistry.OutboundEndpoint::endpointId)
+                .isEqualTo("endpoint-1");
+        assertThat(registry.findOutBoundMq("service-1", "MQ", "PUB", "other.topic", "User Created"))
+                .isPresent();
+        assertThat(registry.findOutBoundMq("service-1", "HTTP", "PUB", "user.created", "User Created"))
+                .isEmpty();
+    }
 }

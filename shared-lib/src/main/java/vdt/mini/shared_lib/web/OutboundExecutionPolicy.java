@@ -7,6 +7,7 @@ public record OutboundExecutionPolicy(
         String endpointName,
         String serviceId,
         String targetUrl,
+        String topic,
         String method,
         String protocol,
         int timeoutMs,
