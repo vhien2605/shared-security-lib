@@ -70,6 +70,42 @@ public class EndpointRegistry {
         return List.copyOf(outboundEndpoints);
     }
 
+    public Optional<OutboundEndpoint> findOutBoundHttp(String serviceId, String protocol, String method, String targetUrl, String name) {
+        String normalizedProtocol = normalize(protocol);
+        String normalizedMethod = normalize(method);
+        Optional<OutboundEndpoint> exactDestinationMatch = outboundEndpoints.stream()
+                .filter(endpoint -> endpoint.protocol().equals(normalizedProtocol))
+                .filter(endpoint -> endpoint.method().equals(normalizedMethod))
+                .filter(endpoint -> equalsText(endpoint.destination(), targetUrl))
+                .findFirst();
+        if (exactDestinationMatch.isPresent()) {
+            return exactDestinationMatch;
+        }
+        return outboundEndpoints.stream()
+                .filter(endpoint -> endpoint.protocol().equals(normalizedProtocol))
+                .filter(endpoint -> endpoint.method().equals(normalizedMethod))
+                .filter(endpoint -> equalsText(endpoint.name(), name))
+                .findFirst();
+    }
+
+    public Optional<OutboundEndpoint> findOutBoundMq(String serviceId, String protocol, String method, String topic, String name) {
+        String normalizedProtocol = normalize(protocol);
+        String normalizedMethod = normalize(method);
+        Optional<OutboundEndpoint> exactTopicMatch = outboundEndpoints.stream()
+                .filter(endpoint -> endpoint.protocol().equals(normalizedProtocol))
+                .filter(endpoint -> !hasText(method) || endpoint.method().equals(normalizedMethod))
+                .filter(endpoint -> equalsText(endpoint.destination(), topic))
+                .findFirst();
+        if (exactTopicMatch.isPresent()) {
+            return exactTopicMatch;
+        }
+        return outboundEndpoints.stream()
+                .filter(endpoint -> endpoint.protocol().equals(normalizedProtocol))
+                .filter(endpoint -> !hasText(method) || endpoint.method().equals(normalizedMethod))
+                .filter(endpoint -> equalsText(endpoint.name(), name))
+                .findFirst();
+    }
+
     private static String normalize(String value) {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
     }
@@ -78,11 +114,16 @@ public class EndpointRegistry {
         return value != null && !value.isBlank();
     }
 
+    private static boolean equalsText(String left, String right) {
+        return left != null && right != null && left.trim().equalsIgnoreCase(right.trim());
+    }
+
     private static <T> List<T> safeList(List<T> value) {
         return value == null ? List.of() : value;
     }
 
-    public record InboundHttpEndpoint(String endpointId, String name, String method, String path, String protocol, PathPattern pattern) {
+    public record InboundHttpEndpoint(String endpointId, String name, String method, String path, String protocol,
+                                      PathPattern pattern) {
     }
 
     public record InboundMqEndpoint(String endpointId, String name, String topic, String protocol) {

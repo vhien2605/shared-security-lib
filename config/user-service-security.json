@@ -42,6 +42,16 @@
       "protocol" : "HTTP",
       "description" : "Gọi API thanh toán đối tác",
       "enabled" : true
+    },
+    "HTTP_POST_http://localhost:8082/profile/api/info" : {
+      "endpointId" : "fab85740-f2da-4284-bf1a-4030781587ca",
+      "name" : "profile-outbound",
+      "targetUrl" : "http://localhost:8082/profile/api/info",
+      "topic" : "",
+      "method" : "POST",
+      "protocol" : "HTTP",
+      "description" : "Gọi API profile để test retry/timeout",
+      "enabled" : true
     }
   }
 }

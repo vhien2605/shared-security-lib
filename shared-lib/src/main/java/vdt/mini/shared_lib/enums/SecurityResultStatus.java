@@ -6,5 +6,7 @@ public enum SecurityResultStatus {
     FAILED,
     TIMEOUT,
     WARN,
+    RETRY,
+    RETRY_EXHAUSTED,
     SKIPPED
 }

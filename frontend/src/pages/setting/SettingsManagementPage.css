@@ -452,6 +452,7 @@
 }
 
 .settings-config-input,
+.settings-config-select,
 .settings-throttle-input {
   width: 8rem;
   background-color: #f3f3f3;
@@ -497,6 +498,7 @@
 
 .settings-config-input-wrap:focus-within,
 .settings-config-input:focus,
+.settings-config-select:focus,
 .settings-throttle-input:focus,
 .settings-select-wrap select:focus {
   outline: none;

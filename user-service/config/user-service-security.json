@@ -1,0 +1,107 @@
+{
+  "serviceId" : "a6e37691-c825-40eb-ad74-4e1f4fcb86fd",
+  "inbounds" : {
+    "HTTP_PUT_/users/update-v2" : {
+      "endpointId" : "5c0cae42-c83d-4b8d-98be-e0f162449153",
+      "name" : "mock-webhook-PUT",
+      "path" : "/users/update-v2",
+      "topic" : "",
+      "method" : "PUT",
+      "protocol" : "HTTP",
+      "description" : "",
+      "enabled" : true
+    },
+    "HTTP_POST_/users/webhook" : {
+      "endpointId" : "9a0b7f84-8cb3-4890-b631-7c8aeec2eb6d",
+      "name" : "mock-webhook",
+      "path" : "/users/webhook",
+      "topic" : "",
+      "method" : "POST",
+      "protocol" : "HTTP",
+      "description" : "",
+      "enabled" : true
+    },
+    "MQ_SUB_user.profile.create" : {
+      "endpointId" : "3b87eb79-1395-4666-bc4d-5a21c9ab3121",
+      "name" : "mock-listener",
+      "path" : "",
+      "topic" : "user.profile.create",
+      "method" : "SUB",
+      "protocol" : "MQ",
+      "description" : "",
+      "enabled" : true
+    }
+  },
+  "outbounds" : {
+    "MQ_PUB_it.user.outbound.retry" : {
+      "endpointId" : "dcfd7f2e-aa1d-4adb-b02d-d25593d1e291",
+      "name" : "IT Retry Publish",
+      "targetUrl" : "",
+      "topic" : "it.user.outbound.retry",
+      "method" : "PUB",
+      "protocol" : "MQ",
+      "description" : "",
+      "enabled" : true
+    },
+    "MQ_PUB_it.user.outbound.void" : {
+      "endpointId" : "fe20fb27-9041-48ad-b03d-8ec5ef78a2b3",
+      "name" : "IT Void Publish",
+      "targetUrl" : "",
+      "topic" : "it.user.outbound.void",
+      "method" : "PUB",
+      "protocol" : "MQ",
+      "description" : "",
+      "enabled" : true
+    },
+    "MQ_PUB_it.user.outbound.multi" : {
+      "endpointId" : "c7cb6392-f852-4adb-9e3f-226d12f0edf5",
+      "name" : "IT Multi Publish",
+      "targetUrl" : "",
+      "topic" : "it.user.outbound.multi",
+      "method" : "PUB",
+      "protocol" : "MQ",
+      "description" : "",
+      "enabled" : true
+    },
+    "MQ_PUB_it.user.outbound.multi.audit" : {
+      "endpointId" : "1ab46a11-19f1-4b7f-9145-befe068988a5",
+      "name" : "IT No Send Publish",
+      "targetUrl" : "",
+      "topic" : "it.user.outbound.multi.audit",
+      "method" : "PUB",
+      "protocol" : "MQ",
+      "description" : "",
+      "enabled" : true
+    },
+    "MQ_PUB_it.user.outbound.future" : {
+      "endpointId" : "03b6cabd-cbda-4d14-87d7-2d33e1e90213",
+      "name" : "IT Future Publish",
+      "targetUrl" : "",
+      "topic" : "it.user.outbound.future",
+      "method" : "PUB",
+      "protocol" : "MQ",
+      "description" : "",
+      "enabled" : true
+    },
+    "MQ_PUB_it.user.outbound.threshold" : {
+      "endpointId" : "f99a8ade-d3c7-4746-bcc3-d131be2084b1",
+      "name" : "IT Slow Publish",
+      "targetUrl" : "",
+      "topic" : "it.user.outbound.threshold",
+      "method" : "PUB",
+      "protocol" : "MQ",
+      "description" : "",
+      "enabled" : true
+    },
+    "HTTP_POST_http://localhost:8082/profile/api/info" : {
+      "endpointId" : "1b124b5b-c06a-4423-92d3-26c6369aaa03",
+      "name" : "profile-outbound",
+      "targetUrl" : "http://localhost:8082/profile/api/info",
+      "topic" : "",
+      "method" : "POST",
+      "protocol" : "HTTP",
+      "description" : "Gọi API profile để test retry/timeout",
+      "enabled" : true
+    }
+  }
+}

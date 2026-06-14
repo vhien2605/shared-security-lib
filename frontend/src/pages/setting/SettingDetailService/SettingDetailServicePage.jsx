@@ -5,13 +5,7 @@ import "./SettingDetailServicePage.css";
 
 const ALERT_SEVERITIES = ["INFO", "WARNING", "CRITICAL"];
 const ALERT_CHANNELS = ["SLACK", "EMAIL", "WEBHOOK"];
-const ROLLBACK_STRATEGIES = [
-  "CircuitBreaker",
-  "MANUAL",
-  "IGNORE",
-  "COMPENSATE",
-  "NONE",
-];
+const ROLLBACK_STRATEGIES = ["IGNORE", "COMPENSATE"];
 const ENDPOINT_TYPES = ["INBOUND", "OUTBOUND"];
 
 const INBOUND_FIELDS = [
@@ -129,7 +123,7 @@ function buildEndpointDraft(endpoint, numericFields) {
   );
   return {
     ...draft,
-    rollbackStrategy: endpoint?.rollbackStrategy || "CircuitBreaker",
+    rollbackStrategy: endpoint?.rollbackStrategy || "IGNORE",
     alertSeverity: endpoint?.alertSeverity || "CRITICAL",
     alertThrottleMinutes: toInputValue(endpoint?.alertThrottleMinutes),
     alertChannels: normalizeChannels(endpoint?.alertChannels),
@@ -160,7 +154,7 @@ function buildTemplateDraft(template) {
     ),
     outboundLogRetentionDays: toInputValue(template.outboundLogRetentionDays),
     outboundRollbackStrategy:
-      template.outboundRollbackStrategy || "CircuitBreaker",
+      template.outboundRollbackStrategy || "IGNORE",
     alertSeverity: template.alertSeverity || "CRITICAL",
     alertThrottleMinutes: toInputValue(template.alertThrottleMinutes),
     alertChannels: normalizeChannels(template.alertChannels),

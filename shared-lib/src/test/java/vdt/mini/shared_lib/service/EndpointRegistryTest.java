@@ -2,6 +2,7 @@ package vdt.mini.shared_lib.service;
 
 import org.junit.jupiter.api.Test;
 import vdt.mini.shared_lib.document.InboundEndpointDTO;
+import vdt.mini.shared_lib.document.OutboundEndpointDTO;
 
 import java.util.List;
 
@@ -35,5 +36,39 @@ class EndpointRegistryTest {
                 .extracting(EndpointRegistry.InboundMqEndpoint::endpointId)
                 .isEqualTo("endpoint-1");
         assertThat(registry.findInboundMq("user.deleted")).isEmpty();
+    }
+
+    @Test
+    void findOutbound_shouldMatchDestinationAndFallbackByName() {
+        EndpointRegistry registry = new EndpointRegistry();
+        registry.replaceAll(List.of(), List.of(new OutboundEndpointDTO("endpoint-1", "Profile API", "http://profile/users",
+                null, "GET", "HTTP", "", true)));
+
+        assertThat(registry.findOutBoundHttp("service-1", "HTTP", "GET", "http://profile/users", "Other"))
+                .isPresent()
+                .get()
+                .extracting(EndpointRegistry.OutboundEndpoint::endpointId)
+                .isEqualTo("endpoint-1");
+        assertThat(registry.findOutBoundHttp("service-1", "HTTP", "GET", "http://different", "Profile API"))
+                .isPresent();
+        assertThat(registry.findOutBoundHttp("service-1", "HTTP", "POST", "http://profile/users", "Profile API"))
+                .isEmpty();
+    }
+
+    @Test
+    void findOutboundMq_shouldMatchTopicAndFallbackByName() {
+        EndpointRegistry registry = new EndpointRegistry();
+        registry.replaceAll(List.of(), List.of(new OutboundEndpointDTO("endpoint-1", "User Created", null,
+                "user.created", "PUB", "MQ", "", true)));
+
+        assertThat(registry.findOutBoundMq("service-1", "MQ", "PUB", "user.created", "Other"))
+                .isPresent()
+                .get()
+                .extracting(EndpointRegistry.OutboundEndpoint::endpointId)
+                .isEqualTo("endpoint-1");
+        assertThat(registry.findOutBoundMq("service-1", "MQ", "PUB", "other.topic", "User Created"))
+                .isPresent();
+        assertThat(registry.findOutBoundMq("service-1", "HTTP", "PUB", "user.created", "User Created"))
+                .isEmpty();
     }
 }

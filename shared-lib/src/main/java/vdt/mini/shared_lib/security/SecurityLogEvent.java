@@ -18,6 +18,7 @@ public record SecurityLogEvent(
         String protocol,
         String method,
         String path,
+        String targetUrl,
         String topic,
         String consumerGroup,
         String clientId,
@@ -38,5 +39,9 @@ public record SecurityLogEvent(
         Integer rateLimitWindowSeconds,
         Long remainingQuota,
         Integer retentionDays,
-        String retentionBucket) {
+        String retentionBucket,
+        Integer retryCount,
+        Integer retryAttempt,
+        Integer retryBackoffMs,
+        String rollbackStrategy) {
 }
