@@ -1,5 +1,6 @@
 package vdt.mini.shared_lib.web;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import vdt.mini.shared_lib.annotation.OutBoundSecurity;
 import vdt.mini.shared_lib.document.OutboundSettingsDTO;
@@ -19,11 +20,15 @@ public class OutboundPolicyService {
     private final EndpointRegistry endpointRegistry;
     private final SecuritySettingsStore settingsStore;
     private final IdentityManager identityManager;
+    private final String serviceName;
 
-    public OutboundPolicyService(EndpointRegistry endpointRegistry, SecuritySettingsStore settingsStore, IdentityManager identityManager) {
+    public OutboundPolicyService(EndpointRegistry endpointRegistry, SecuritySettingsStore settingsStore,
+                                 IdentityManager identityManager,
+                                 @Value("${app.security.service.name:my-service}") String serviceName) {
         this.endpointRegistry = endpointRegistry;
         this.settingsStore = settingsStore;
         this.identityManager = identityManager;
+        this.serviceName = serviceName;
     }
 
     public OutboundExecutionPolicy resolve(OutBoundSecurity annotation) {
@@ -41,6 +46,7 @@ public class OutboundPolicyService {
                 endpoint.endpointId(),
                 nonBlank(settings.getName(), endpoint.name()),
                 serviceId,
+                serviceName,
                 nonBlank(settings.getTargetUrl(), annotation.targetUrl()),
                 nonBlank(settings.getTopic(), annotation.topic()),
                 normalize(settings.getMethod()),

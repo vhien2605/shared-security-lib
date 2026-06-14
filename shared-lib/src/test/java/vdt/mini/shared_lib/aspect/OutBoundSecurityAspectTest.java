@@ -188,7 +188,7 @@ class OutBoundSecurityAspectTest {
     }
 
     private OutboundExecutionPolicy policy(String rollbackStrategy, int retryCount) {
-        return new OutboundExecutionPolicy("endpoint-1", "Profile API", "service-1", "http://profile/users", null,
+        return new OutboundExecutionPolicy("endpoint-1", "Profile API", "service-1", "user-service", "http://profile/users", null,
                 "GET", "HTTP", 1000, retryCount, 0, null, 30, rollbackStrategy, null, null,
                 java.util.List.of(), new OutboundSettingsDTO());
     }
