@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.kafka.support.SendResult;
+import vdt.mini.shared_lib.web.OutboundContext;
 import vdt.mini.shared_lib.annotation.OutBoundSecurity;
 import vdt.mini.shared_lib.document.OutboundSettingsDTO;
 import vdt.mini.shared_lib.enums.EndpointMethod;
@@ -278,13 +279,19 @@ class OutBoundSecurityAspectMqTest {
     }
 
     @Test
-    void around_shouldNotGenerateTraceOrCorrelationForMqContext_whenMissing() throws Throwable {
+    void around_shouldGenerateFallbackTraceAndCorrelationForMqContext_whenMissing() throws Throwable {
         ProceedingJoinPoint joinPoint = joinPoint("publish");
         when(policyService.resolve(any())).thenReturn(policy("IGNORE", 0));
         when(joinPoint.proceed()).thenReturn(mock(SendResult.class));
 
         aspect.around(joinPoint);
 
+        ArgumentCaptor<OutboundContext> ctxCaptor = ArgumentCaptor.forClass(OutboundContext.class);
+        verify(auditLogger).logOutbound(any(), ctxCaptor.capture(), any(), any(), anyLong(), anyInt());
+        OutboundContext ctx = ctxCaptor.getValue();
+        assertThat(ctx.traceId()).isNotBlank();
+        assertThat(ctx.correlationId()).isNotBlank();
+        assertThat(ctx.correlationId()).isEqualTo(ctx.traceId());
         assertThat(contextHolder.get()).isNull();
     }
 

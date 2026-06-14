@@ -275,10 +275,8 @@ public class OutBoundSecurityAspect {
         SecurityRequestContext inboundContext = SecurityRequestContextHolder.get();
         String traceId = firstNonBlank(inboundContext == null ? null : inboundContext.getTraceId(), MDC.get("traceId"));
         String correlationId = firstNonBlank(inboundContext == null ? null : inboundContext.getCorrelationId(), MDC.get("correlationId"));
-        if (!EndpointProtocol.MQ.name().equalsIgnoreCase(policy.protocol())) {
-            traceId = firstNonBlank(traceId, UUID.randomUUID().toString());
-            correlationId = firstNonBlank(correlationId, traceId);
-        }
+        traceId = firstNonBlank(traceId, UUID.randomUUID().toString());
+        correlationId = firstNonBlank(correlationId, traceId);
         return new OutboundContext(policy.serviceId(), policy.endpointId(), policy.endpointName(), policy.targetUrl(),
                 policy.method(), policy.protocol(), traceId, correlationId, Instant.now(), UUID.randomUUID().toString());
     }

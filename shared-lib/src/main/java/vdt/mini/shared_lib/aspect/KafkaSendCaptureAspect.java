@@ -1,4 +1,4 @@
-package vdt.mini.shared_lib.mq;
+package vdt.mini.shared_lib.aspect;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -6,6 +6,7 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.stereotype.Component;
 import vdt.mini.shared_lib.enums.EndpointProtocol;
+import vdt.mini.shared_lib.mq.KafkaSendCaptureContext;
 import vdt.mini.shared_lib.web.OutboundContext;
 import vdt.mini.shared_lib.web.OutboundContextHolder;
 
