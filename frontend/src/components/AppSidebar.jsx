@@ -20,6 +20,16 @@ function SidebarIcon({ type }) {
     )
   }
 
+  if (type === 'overview') {
+    return (
+      <svg {...common}>
+        <path d="M4.5 10.8L12 4l7.5 6.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M6.5 10.5V19h11v-8.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9.5 16h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
   if (type === 'clients') {
     return (
       <svg {...common}>

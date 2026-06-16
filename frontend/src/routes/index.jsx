@@ -12,6 +12,7 @@ import AuditLogsPage from '../pages/AuditLogsPage'
 import ClientManagementPage from '../pages/client/ClientManagementPage'
 import ClientDetailPage from '../pages/client/ClientDetailPage'
 import PermissionControlPage from '../pages/access-control/PermissionControlPage'
+import OverviewPage from '../pages/overview/OverviewPage'
 
 const routes = [
   {
@@ -31,6 +32,16 @@ const routes = [
   {
     path: '/callback',
     element: <CallbackHandler />,
+  },
+  {
+    path: '/overview',
+    element: (
+      <ProtectedRoute>
+        <HeaderSidebarLayout>
+          <OverviewPage />
+        </HeaderSidebarLayout>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/settings-management',
@@ -114,7 +125,7 @@ const routes = [
   },
   {
     path: '/dashboard',
-    element: <Navigate to="/settings-management" replace />,
+    element: <Navigate to="/overview" replace />,
   },
   {
     path: '*',
