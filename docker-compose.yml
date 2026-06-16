@@ -80,6 +80,88 @@ services:
       - postgres
     networks:
       - security-library
+  elasticsearch:
+    container_name: elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.4
+    restart: always
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./elasticsearch/templates:/usr/share/elasticsearch/templates
+      - ./elasticsearch/ilm:/usr/share/elasticsearch/ilm
+    networks:
+      - security-library
+  elasticsearch-template-loader:
+    container_name: elasticsearch-template-loader
+    image: curlimages/curl:8.16.0
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ./elasticsearch/templates:/templates:ro
+      - ./elasticsearch/ilm:/ilm:ro
+    command:
+      - sh
+      - -c
+      - |
+        until curl -fs -o /dev/null http://elasticsearch:9200/_cluster/health; do sleep 2; done
+        curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_ilm/policy/security-log-r14-policy -H 'Content-Type: application/json' --data-binary @/ilm/security-log-r14-policy.json
+        curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_ilm/policy/security-log-r30-policy -H 'Content-Type: application/json' --data-binary @/ilm/security-log-r30-policy.json
+        curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_ilm/policy/security-log-r90-policy -H 'Content-Type: application/json' --data-binary @/ilm/security-log-r90-policy.json
+        curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_component_template/security-log-mappings -H 'Content-Type: application/json' --data-binary @/templates/security-log-mappings-component-template.json
+        curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_index_template/security-log-template -H 'Content-Type: application/json' --data-binary @/templates/security-log-template.json
+        curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_index_template/security-log-r14-template -H 'Content-Type: application/json' --data-binary @/templates/security-log-r14-template.json
+        curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_index_template/security-log-r30-template -H 'Content-Type: application/json' --data-binary @/templates/security-log-r30-template.json
+        curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_index_template/security-log-r90-template -H 'Content-Type: application/json' --data-binary @/templates/security-log-r90-template.json
+    networks:
+      - security-library
+  logstash:
+    container_name: logstash
+    image: docker.elastic.co/logstash/logstash:8.19.4
+    restart: always
+    depends_on:
+      - kafka
+      - elasticsearch
+    ports:
+      - "9600:9600"
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+    networks:
+      - security-library
+  kibana:
+    container_name: kibana
+    image: docker.elastic.co/kibana/kibana:8.19.4
+    restart: always
+    depends_on:
+      - elasticsearch
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      SERVER_HOST: 0.0.0.0
+      XPACK_SECURITY_ENABLED: "false"
+    ports:
+      - "5601:5601"
+    networks:
+      - security-library
+  kibana-setup:
+    container_name: kibana-setup
+    image: curlimages/curl:8.16.0
+    depends_on:
+      - kibana
+    command:
+      - sh
+      - -c
+      - |
+        until curl -fs -o /dev/null http://kibana:5601/api/status; do sleep 2; done
+        if curl -fs -o /dev/null -H 'kbn-xsrf: true' http://kibana:5601/api/data_views/data_view/security-logs; then exit 0; fi
+        curl -fsS -X POST http://kibana:5601/api/data_views/data_view \
+          -H 'kbn-xsrf: true' \
+          -H 'Content-Type: application/json' \
+          --data '{"data_view":{"id":"security-logs","name":"Security Logs","title":"security-logs-*","timeFieldName":"@timestamp","allowNoIndex":true}}'
+    networks:
+      - security-library
 networks:
   security-library:
     name: security-library

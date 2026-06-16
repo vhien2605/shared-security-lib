@@ -18,6 +18,11 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class SecurityAuditLoggerTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -50,6 +55,36 @@ class SecurityAuditLoggerTest {
         assertThat(event.get("traceId").asText()).isEqualTo("trace-1");
         assertThat(event.get("correlationId").asText()).isEqualTo("corr-1");
         assertThat(event.get("flowType").asText()).isEqualTo("OUTBOUND_HTTP");
+        assertThat(event.get("retentionBucket").asText()).isEqualTo("r30");
+    }
+
+    @Test
+    void log_shouldPublishInboundEventAfterWritingAuditLog() throws Exception {
+        SecurityAuditLogPublisher publisher = mock(SecurityAuditLogPublisher.class);
+        SecurityAuditLogger logger = new SecurityAuditLogger(objectMapper, new SecurityStatusMapper(), publisher);
+        SecurityRequestContext context = new SecurityRequestContext();
+        context.setTraceId("trace-1");
+        context.setEndpointId("endpoint-1");
+        context.setRetentionDays(14);
+
+        logger.log(context, SecurityResultStatus.SUCCESS, null);
+
+        assertThat(appender.list).hasSize(1);
+        JsonNode event = objectMapper.readTree(appender.list.getFirst().getFormattedMessage());
+        assertThat(event.get("retentionBucket").asText()).isEqualTo("r14");
+        verify(publisher).publish(any(SecurityLogEvent.class));
+    }
+
+    @Test
+    void logOutbound_shouldNotThrow_whenPublisherFails() {
+        SecurityAuditLogPublisher publisher = mock(SecurityAuditLogPublisher.class);
+        doThrow(new IllegalStateException("kafka down")).when(publisher).publish(any(SecurityLogEvent.class));
+        SecurityAuditLogger logger = new SecurityAuditLogger(objectMapper, new SecurityStatusMapper(), publisher);
+
+        assertDoesNotThrow(() -> logger.logOutbound(policy(), null, SecurityResultStatus.FAILED,
+                vdt.mini.shared_lib.enums.SecurityErrorCode.PUBLISH_FAILED, 1, 1));
+
+        assertThat(appender.list).hasSize(1);
     }
 
     private OutboundExecutionPolicy policy() {

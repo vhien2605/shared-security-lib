@@ -1,4 +1,5 @@
 export const SIDEBAR_ITEMS = [
+  { label: 'Tổng quan', path: '/overview', icon: 'overview' },
   { label: 'Quản lý setting', path: '/settings-management', icon: 'settings' },
   { label: 'Quản lý client', path: '/clients', icon: 'clients' },
   { label: 'Quản lý quyền hạn', path: '/permissions', icon: 'permissions' },

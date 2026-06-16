@@ -4,7 +4,7 @@ import { AuthContext } from './authContext'
 import keycloak from '../keycloak'
 import { REDIRECT_URI, POST_LOGOUT_REDIRECT_URI } from '../constants'
 
-const DEFAULT_REDIRECT_PATH = '/settings-management'
+const DEFAULT_REDIRECT_PATH = '/overview'
 const LAST_PATH_STORAGE_KEY = 'lastVisitedPath'
 
 function pickPathFromLocation(location) {
@@ -124,7 +124,7 @@ export function AuthProvider({ children }) {
           keycloak.logout({ redirectUri: POST_LOGOUT_REDIRECT_URI })
         })
     }
-  }, [])
+  }, [navigate])
 
   const clearAuthError = useCallback(() => setAuthError(null), [])
 

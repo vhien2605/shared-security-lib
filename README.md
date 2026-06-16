@@ -114,6 +114,37 @@ public class OrderController {
 }
 ```
 
+## 7. Security audit log ELK sync
+
+Shared-lib luôn ghi audit JSON vào logger `SECURITY_AUDIT` và best-effort publish cùng event vào Kafka topic
+`security.logs`. Service import không cần tự tạo producer hoặc tự publish audit log.
+
+```properties
+app.security.kafka.bootstrap-servers=localhost:9094
+app.security.audit.kafka.enabled=true
+```
+
+Topic audit log là giá trị cố định trong shared-lib: `security.logs`; service sử dụng lib không cần và không nên cấu hình topic này.
+
+`retentionDays` từ inbound/outbound settings được map thành `retentionBucket`: `<=14 -> r14`, `<=30 -> r30`, còn lại
+`r90`; giá trị thiếu dùng `30/r30`. Kafka publish là async, lỗi serialize/send/ack chỉ ghi warning nội bộ trong
+shared-lib và không làm fail inbound/outbound business flow.
+
+Local ELK stack:
+
+```powershell
+docker compose up -d kafka elasticsearch elasticsearch-template-loader logstash kibana kibana-setup
+docker exec -it kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic security.logs --from-beginning --max-messages 5
+curl "http://localhost:9200/security-logs-*/_search?q=traceId:<trace-id>"
+```
+
+Kibana: mở `http://localhost:5601`, vào `Analytics > Discover`, chọn data view `Security Logs`
+(`security-logs-*`), rồi filter theo `traceId`, `serviceName`, `endpointName`, `resultStatus`, `retentionBucket`.
+
+Elasticsearch templates and ILM policies live under `elasticsearch/`; Logstash pipeline lives under
+`logstash/pipeline/security-log.conf`. Rollback runtime by setting `app.security.audit.kafka.enabled=false` or stopping
+Logstash/Elasticsearch; `SECURITY_AUDIT` logger output remains unchanged.
+
 ### 4.2. MQ Listener
 
 ```java

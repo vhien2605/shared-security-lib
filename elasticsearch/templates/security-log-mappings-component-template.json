@@ -1,0 +1,53 @@
+{
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0
+    },
+    "mappings": {
+      "dynamic": true,
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "timestamp": { "type": "date" },
+        "traceId": { "type": "keyword" },
+        "correlationId": { "type": "keyword" },
+        "serviceId": { "type": "keyword" },
+        "serviceName": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+        "endpointId": { "type": "keyword" },
+        "endpointName": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+        "flowType": { "type": "keyword" },
+        "direction": { "type": "keyword" },
+        "protocol": { "type": "keyword" },
+        "method": { "type": "keyword" },
+        "path": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+        "targetUrl": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+        "topic": { "type": "keyword" },
+        "consumerGroup": { "type": "keyword" },
+        "producerClientId": { "type": "keyword" },
+        "clientId": { "type": "keyword" },
+        "clientKey": { "type": "keyword" },
+        "sourceIp": { "type": "ip", "ignore_malformed": true },
+        "authType": { "type": "keyword" },
+        "denyReason": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+        "status": { "type": "keyword" },
+        "resultCode": { "type": "keyword" },
+        "errorCode": { "type": "keyword" },
+        "requestSizeBytes": { "type": "long" },
+        "messageSizeBytes": { "type": "long" },
+        "responseSizeBytes": { "type": "long" },
+        "durationMs": { "type": "long" },
+        "thresholdMs": { "type": "integer" },
+        "timeoutMs": { "type": "integer" },
+        "rateLimit": { "type": "integer" },
+        "rateLimitWindowSeconds": { "type": "integer" },
+        "remainingQuota": { "type": "long" },
+        "retryCount": { "type": "integer" },
+        "retryAttempt": { "type": "integer" },
+        "retryBackoffMs": { "type": "integer" },
+        "retentionDays": { "type": "integer" },
+        "retentionBucket": { "type": "keyword" },
+        "rollbackStrategy": { "type": "keyword" }
+      }
+    }
+  }
+}

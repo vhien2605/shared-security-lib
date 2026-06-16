@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Be+Vietnam+Pro:wght@300;400;500;600&display=swap');
+
+.overview-page {
+  min-height: 100%;
+  background-color: #f9f9f9;
+  color: #1a1c1c;
+  font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+}
+
+.overview-container {
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.overview-page-header {
+  margin-bottom: 2rem;
+}
+
+.overview-page-header h2 {
+  margin: 0 0 0.5rem;
+  color: #1a1c1c;
+  font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+  font-size: 30px;
+  line-height: 40px;
+  font-weight: 700;
+}
+
+.overview-page-header p {
+  max-width: 760px;
+  margin: 0;
+  color: #5b403d;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+}
+
+.overview-dashboard-card {
+  width: 100%;
+  background-color: #ffffff;
+  border: 1px solid #e4beba;
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.overview-dashboard-card__iframe {
+  display: block;
+  width: 100%;
+  min-height: 600px;
+  border: 0;
+}
+
+@media (max-width: 900px) {
+  .overview-page-header {
+    margin-bottom: 1.25rem;
+  }
+
+  .overview-dashboard-card__iframe {
+    min-height: 520px;
+  }
+}

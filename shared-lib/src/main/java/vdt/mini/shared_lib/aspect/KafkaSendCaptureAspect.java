@@ -7,6 +7,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.springframework.stereotype.Component;
 import vdt.mini.shared_lib.enums.EndpointProtocol;
 import vdt.mini.shared_lib.mq.KafkaSendCaptureContext;
+import vdt.mini.shared_lib.security.SecurityAuditLogPublisher;
 import vdt.mini.shared_lib.web.OutboundContext;
 import vdt.mini.shared_lib.web.OutboundContextHolder;
 
@@ -19,7 +20,8 @@ import java.util.concurrent.CompletableFuture;
 @Aspect
 @Component
 public class KafkaSendCaptureAspect {
-    private static final Set<String> CONTROL_PLANE_TOPICS = Set.of("security.endpoint.registration");
+    private static final Set<String> CONTROL_PLANE_TOPICS = Set.of(
+            "security.endpoint.registration", SecurityAuditLogPublisher.TOPIC);
 
     private final OutboundContextHolder contextHolder;
 
