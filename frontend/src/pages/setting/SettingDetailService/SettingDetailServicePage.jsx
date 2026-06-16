@@ -1,193 +1,35 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { apiGet, apiPatch, apiPost, apiPut } from "../../../services/api";
+import {
+  ALERT_CHANNELS,
+  ALERT_SEVERITIES,
+  ENDPOINT_TYPES,
+  INBOUND_FIELDS,
+  OUTBOUND_FIELDS,
+  ROLLBACK_STRATEGIES,
+  TEMPLATE_NUMERIC_FIELDS,
+  applyServiceTemplateToEndpoints,
+  buildEndpointDraft,
+  buildTemplateDraft,
+  endpointId,
+  ensureOption,
+  extractList,
+  getService as fetchService,
+  getServiceInbounds,
+  getServiceOutbounds,
+  getServiceTemplate,
+  normalizeEndpoint,
+  normalizeService,
+  parseNonNegativeInteger,
+  saveServiceTemplate,
+  unwrapResponse,
+  updateEndpointStatus,
+  updateInboundSettings,
+  updateOutboundSettings,
+  updateServiceStatus,
+  validateChannels,
+} from "../../../services/settings";
 import "./SettingDetailServicePage.css";
-
-const ALERT_SEVERITIES = ["INFO", "WARNING", "CRITICAL"];
-const ALERT_CHANNELS = ["SLACK", "EMAIL", "WEBHOOK"];
-const ROLLBACK_STRATEGIES = ["IGNORE", "COMPENSATE"];
-const ENDPOINT_TYPES = ["INBOUND", "OUTBOUND"];
-
-const INBOUND_FIELDS = [
-  "rateLimit",
-  "rateLimitWindowSeconds",
-  "timeoutMs",
-  "requestSizeLimitKb",
-  "responseSizeLimitKb",
-  "responseTimeThresholdMs",
-  "logRetentionDays",
-];
-
-const OUTBOUND_FIELDS = [
-  "timeoutMs",
-  "retryCount",
-  "retryBackoffMs",
-  "responseTimeThresholdMs",
-  "logRetentionDays",
-];
-
-const TEMPLATE_NUMERIC_FIELDS = [
-  "inboundRateLimit",
-  "inboundRateLimitWindowSeconds",
-  "inboundTimeoutMs",
-  "inboundRequestSizeLimitKb",
-  "inboundResponseSizeLimitKb",
-  "inboundResponseTimeThresholdMs",
-  "inboundLogRetentionDays",
-  "outboundTimeoutMs",
-  "outboundRetryCount",
-  "outboundRetryBackoffMs",
-  "outboundResponseTimeThresholdMs",
-  "outboundLogRetentionDays",
-  "alertThrottleMinutes",
-];
-
-function unwrapResponse(response) {
-  if (
-    response &&
-    typeof response === "object" &&
-    response.status !== undefined &&
-    response.status !== 200
-  ) {
-    throw new Error(response.message || "API request failed");
-  }
-  return response?.data ?? response;
-}
-
-function extractList(response) {
-  const data = unwrapResponse(response);
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.content)) return data.content;
-  return [];
-}
-
-function toInputValue(value) {
-  if (value === undefined || value === null) return "";
-  return String(value);
-}
-
-function endpointId(endpoint) {
-  return endpoint?.id ?? endpoint?.endpointId;
-}
-
-function normalizeService(service) {
-  if (!service) return service;
-  return {
-    ...service,
-    status: service.status || "ACTIVE",
-  };
-}
-
-function normalizeEndpoint(endpoint) {
-  if (!endpoint) return endpoint;
-  return {
-    ...endpoint,
-    status: endpoint.status || "ACTIVE",
-  };
-}
-
-function normalizeChannels(channels) {
-  if (Array.isArray(channels)) {
-    return channels
-      .map((channel) => String(channel).trim().toUpperCase())
-      .filter(Boolean);
-  }
-
-  if (typeof channels === "string") {
-    const normalized = channels.trim();
-    if (!normalized) return [];
-
-    try {
-      const parsed = JSON.parse(normalized);
-      if (Array.isArray(parsed)) return normalizeChannels(parsed);
-    } catch {
-      // Fall back to comma/space separated values from older API shapes.
-    }
-
-    return normalized
-      .split(/[\s,;|]+/)
-      .map((channel) => channel.trim().toUpperCase())
-      .filter(Boolean);
-  }
-
-  return [];
-}
-
-function buildEndpointDraft(endpoint, numericFields) {
-  const draft = numericFields.reduce(
-    (current, field) => ({
-      ...current,
-      [field]: toInputValue(endpoint?.[field]),
-    }),
-    {},
-  );
-  return {
-    ...draft,
-    rollbackStrategy: endpoint?.rollbackStrategy || "IGNORE",
-    alertSeverity: endpoint?.alertSeverity || "CRITICAL",
-    alertThrottleMinutes: toInputValue(endpoint?.alertThrottleMinutes),
-    alertChannels: normalizeChannels(endpoint?.alertChannels),
-  };
-}
-
-function buildTemplateDraft(template) {
-  if (!template) return null;
-  return {
-    inboundRateLimit: toInputValue(template.inboundRateLimit),
-    inboundRateLimitWindowSeconds: toInputValue(
-      template.inboundRateLimitWindowSeconds,
-    ),
-    inboundTimeoutMs: toInputValue(template.inboundTimeoutMs),
-    inboundRequestSizeLimitKb: toInputValue(template.inboundRequestSizeLimitKb),
-    inboundResponseSizeLimitKb: toInputValue(
-      template.inboundResponseSizeLimitKb,
-    ),
-    inboundResponseTimeThresholdMs: toInputValue(
-      template.inboundResponseTimeThresholdMs,
-    ),
-    inboundLogRetentionDays: toInputValue(template.inboundLogRetentionDays),
-    outboundTimeoutMs: toInputValue(template.outboundTimeoutMs),
-    outboundRetryCount: toInputValue(template.outboundRetryCount),
-    outboundRetryBackoffMs: toInputValue(template.outboundRetryBackoffMs),
-    outboundResponseTimeThresholdMs: toInputValue(
-      template.outboundResponseTimeThresholdMs,
-    ),
-    outboundLogRetentionDays: toInputValue(template.outboundLogRetentionDays),
-    outboundRollbackStrategy:
-      template.outboundRollbackStrategy || "IGNORE",
-    alertSeverity: template.alertSeverity || "CRITICAL",
-    alertThrottleMinutes: toInputValue(template.alertThrottleMinutes),
-    alertChannels: normalizeChannels(template.alertChannels),
-  };
-}
-
-function parseNonNegativeInteger(value, label) {
-  if (value === "" || value === undefined || value === null) {
-    throw new Error(`${label} là bắt buộc.`);
-  }
-  if (!/^\d+$/.test(String(value))) {
-    throw new Error(`${label} phải là số nguyên không âm.`);
-  }
-  return Number(value);
-}
-
-function ensureOption(value, options, label) {
-  if (!options.includes(value)) {
-    throw new Error(`${label} không hợp lệ.`);
-  }
-  return value;
-}
-
-function validateChannels(channels) {
-  if (!Array.isArray(channels)) return [];
-  const normalized = normalizeChannels(channels);
-  const unsupported = normalized.find(
-    (channel) => !ALERT_CHANNELS.includes(channel),
-  );
-  if (unsupported)
-    throw new Error(`Kênh cảnh báo ${unsupported} không hợp lệ.`);
-  return normalized;
-}
 
 function formatDateTime(value) {
   if (!value) return "—";
@@ -278,22 +120,10 @@ export default function SettingDetailServicePage() {
     return [...selectedInbounds, ...selectedOutbounds].filter(Boolean);
   }, [applyMode, applyTypes, inbounds, outbounds]);
 
-  const getService = useCallback(
-    () => apiGet(`/central/api/configs/services/${serviceId}`),
-    [serviceId],
-  );
-  const getInbounds = useCallback(
-    () => apiGet(`/central/api/configs/services/${serviceId}/inbounds`),
-    [serviceId],
-  );
-  const getOutbounds = useCallback(
-    () => apiGet(`/central/api/configs/services/${serviceId}/outbounds`),
-    [serviceId],
-  );
-  const getTemplate = useCallback(
-    () => apiGet(`/central/api/configs/services/${serviceId}/setting-template`),
-    [serviceId],
-  );
+  const loadService = useCallback(() => fetchService(serviceId), [serviceId]);
+  const loadInbounds = useCallback(() => getServiceInbounds(serviceId), [serviceId]);
+  const loadOutbounds = useCallback(() => getServiceOutbounds(serviceId), [serviceId]);
+  const loadTemplate = useCallback(() => getServiceTemplate(serviceId), [serviceId]);
 
   const applyInboundRows = useCallback((rows) => {
     const normalizedRows = rows.map(normalizeEndpoint);
@@ -331,22 +161,22 @@ export default function SettingDetailServicePage() {
   }, []);
 
   const refreshInbounds = useCallback(async () => {
-    const rows = extractList(await getInbounds());
+    const rows = extractList(await loadInbounds());
     applyInboundRows(rows);
     setErrors((current) => ({ ...current, inbounds: "" }));
-  }, [applyInboundRows, getInbounds]);
+  }, [applyInboundRows, loadInbounds]);
 
   const refreshOutbounds = useCallback(async () => {
-    const rows = extractList(await getOutbounds());
+    const rows = extractList(await loadOutbounds());
     applyOutboundRows(rows);
     setErrors((current) => ({ ...current, outbounds: "" }));
-  }, [applyOutboundRows, getOutbounds]);
+  }, [applyOutboundRows, loadOutbounds]);
 
   const refreshTemplate = useCallback(async () => {
-    const data = unwrapResponse(await getTemplate());
+    const data = unwrapResponse(await loadTemplate());
     applyTemplateState(data);
     setErrors((current) => ({ ...current, template: "" }));
-  }, [applyTemplateState, getTemplate]);
+  }, [applyTemplateState, loadTemplate]);
 
   const loadAll = useCallback(async () => {
     if (!serviceId) {
@@ -358,10 +188,10 @@ export default function SettingDetailServicePage() {
     setIsLoading(true);
     setMessage("");
     const results = await Promise.allSettled([
-      getService(),
-      getInbounds(),
-      getOutbounds(),
-      getTemplate(),
+      loadService(),
+      loadInbounds(),
+      loadOutbounds(),
+      loadTemplate(),
     ]);
     const nextErrors = {};
 
@@ -415,10 +245,10 @@ export default function SettingDetailServicePage() {
     applyInboundRows,
     applyOutboundRows,
     applyTemplateState,
-    getInbounds,
-    getOutbounds,
-    getService,
-    getTemplate,
+    loadInbounds,
+    loadOutbounds,
+    loadService,
+    loadTemplate,
     serviceId,
   ]);
 
@@ -524,9 +354,7 @@ export default function SettingDetailServicePage() {
     setMessage("");
     try {
       const body = buildInboundBody(inboundDrafts[id]);
-      unwrapResponse(
-        await apiPatch(`/central/api/configs/inbounds/${id}/settings`, body),
-      );
+      unwrapResponse(await updateInboundSettings(id, body));
       await refreshInbounds();
       setMessage("Lưu inbound endpoint thành công.");
     } catch (error) {
@@ -542,9 +370,7 @@ export default function SettingDetailServicePage() {
     setMessage("");
     try {
       const body = buildOutboundBody(outboundDrafts[id]);
-      unwrapResponse(
-        await apiPatch(`/central/api/configs/outbounds/${id}/settings`, body),
-      );
+      unwrapResponse(await updateOutboundSettings(id, body));
       await refreshOutbounds();
       setMessage("Lưu outbound endpoint thành công.");
     } catch (error) {
@@ -561,20 +387,14 @@ export default function SettingDetailServicePage() {
       if (applyMode === "bulk") {
         const templateBody = buildTemplateBody();
         const savedTemplate = unwrapResponse(
-          await apiPut(
-            `/central/api/configs/services/${serviceId}/setting-template`,
-            templateBody,
-          ),
+          await saveServiceTemplate(serviceId, templateBody),
         );
         const applyResponse = unwrapResponse(
-          await apiPost(
-            `/central/api/configs/services/${serviceId}/setting-template/apply-to-endpoints`,
-            {
-              endpointTypes: applyTypes,
-              endpointIds: endpointIdsForApply,
-              expectedTemplateVersion: savedTemplate?.version ?? template.version,
-            },
-          ),
+          await applyServiceTemplateToEndpoints(serviceId, {
+            endpointTypes: applyTypes,
+            endpointIds: endpointIdsForApply,
+            expectedTemplateVersion: savedTemplate?.version ?? template.version,
+          }),
         );
         const refreshResults = await Promise.allSettled([
           refreshTemplate(),
@@ -590,10 +410,7 @@ export default function SettingDetailServicePage() {
         return;
       }
 
-      const response = await apiPut(
-        `/central/api/configs/services/${serviceId}/setting-template`,
-        buildTemplateBody(),
-      );
+      const response = await saveServiceTemplate(serviceId, buildTemplateBody());
       applyTemplateState(unwrapResponse(response));
       setMessage("Lưu cấu hình mẫu cho service mới thành công.");
     } catch (error) {
@@ -627,9 +444,7 @@ export default function SettingDetailServicePage() {
     setMessage("");
     try {
       const updatedService = normalizeService(unwrapResponse(
-        await apiPatch(`/central/api/configs/services/${service.id}/status`, {
-          status: nextStatus,
-        }),
+        await updateServiceStatus(service.id, nextStatus),
       ));
       setService(updatedService);
       await Promise.allSettled([refreshInbounds(), refreshOutbounds()]);
@@ -653,11 +468,7 @@ export default function SettingDetailServicePage() {
     setTogglingEndpointId(id);
     setMessage("");
     try {
-      unwrapResponse(
-        await apiPatch(`/central/api/configs/${type}s/${id}/status`, {
-          status: nextStatus,
-        }),
-      );
+      unwrapResponse(await updateEndpointStatus(type, id, nextStatus));
       if (type === "inbound") {
         await refreshInbounds();
       } else {
