@@ -141,8 +141,8 @@ curl "http://localhost:9200/security-logs-*/_search?q=traceId:<trace-id>"
 Kibana: mở `http://localhost:5601`, vào `Analytics > Discover`, chọn data view `Security Logs`
 (`security-logs-*`), rồi filter theo `traceId`, `serviceName`, `endpointName`, `resultStatus`, `retentionBucket`.
 
-Elasticsearch templates and ILM policies live under `elasticsearch/`; Logstash pipeline lives under
-`logstash/pipeline/security-log.conf`. Rollback runtime by setting `app.security.audit.kafka.enabled=false` or stopping
+Elasticsearch templates and ILM policies live under `central/elasticsearch/`; Logstash pipeline lives under
+`central/logstash/pipeline/security-log.conf`. Rollback runtime by setting `app.security.audit.kafka.enabled=false` or stopping
 Logstash/Elasticsearch; `SECURITY_AUDIT` logger output remains unchanged.
 
 ### 4.2. MQ Listener
