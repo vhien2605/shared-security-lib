@@ -63,6 +63,18 @@ class KafkaSendCaptureAspectTest {
     }
 
     @Test
+    void captureSendFuture_shouldNotCaptureSecurityAuditTopic() throws Throwable {
+        CompletableFuture<?> future = CompletableFuture.completedFuture("ack");
+        ProceedingJoinPoint joinPoint = joinPoint(new Object[]{"security.logs", "trace-1", "payload"}, future);
+        contextHolder.set(mqContext());
+        KafkaSendCaptureContext.start();
+
+        aspect.captureSendFuture(joinPoint);
+
+        assertThat(KafkaSendCaptureContext.capturedFutures()).isEmpty();
+    }
+
+    @Test
     void captureSendFuture_shouldCaptureCompletableFuture_whenTopicComesFromProducerRecord() throws Throwable {
         CompletableFuture<?> future = CompletableFuture.completedFuture("ack");
         ProducerRecord<String, String> record = new ProducerRecord<>("user.created", "value");

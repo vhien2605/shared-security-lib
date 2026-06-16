@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.kafka.config.AbstractKafkaListenerContainerFactory;
 import org.springframework.kafka.listener.CompositeRecordInterceptor;
 import org.springframework.kafka.listener.DefaultErrorHandler;
@@ -46,6 +47,7 @@ import java.util.Map;
 @AutoConfigureBefore(DataRedisAutoConfiguration.class)
 @ConditionalOnProperty(name = "app.security.enabled", havingValue = "true", matchIfMissing = true)
 @ComponentScan(basePackages = "vdt.mini.shared_lib")
+@EnableConfigurationProperties(SecurityAuditLogProperties.class)
 public class SecurityAutoConfiguration {
 
     @Value("${app.security.kafka.bootstrap-servers:localhost:9094}")
@@ -57,6 +59,13 @@ public class SecurityAutoConfiguration {
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.ACKS_CONFIG, "all");
+        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+        props.put(ProducerConfig.RETRIES_CONFIG, 3);
+        props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 30000);
+        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10000);
+        props.put(ProducerConfig.LINGER_MS_CONFIG, 5);
+        props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4");
         DefaultKafkaProducerFactory<String, String> factory = new DefaultKafkaProducerFactory<>(props);
         return new KafkaTemplate<>(factory);
     }

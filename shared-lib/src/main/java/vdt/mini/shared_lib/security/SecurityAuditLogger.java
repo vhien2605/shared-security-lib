@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import vdt.mini.shared_lib.enums.SecurityDirection;
 import vdt.mini.shared_lib.enums.SecurityErrorCode;
@@ -17,38 +19,62 @@ import java.time.Instant;
 @Service
 public class SecurityAuditLogger {
     private static final Logger auditLog = LoggerFactory.getLogger("SECURITY_AUDIT");
+    private static final Logger internalLog = LoggerFactory.getLogger(SecurityAuditLogger.class);
     private final ObjectMapper objectMapper;
     private final SecurityStatusMapper statusMapper;
+    private final SecurityAuditLogPublisher publisher;
 
     public SecurityAuditLogger(ObjectMapper objectMapper, SecurityStatusMapper statusMapper) {
+        this(objectMapper, statusMapper, (SecurityAuditLogPublisher) null);
+    }
+
+    @Autowired
+    public SecurityAuditLogger(ObjectMapper objectMapper, SecurityStatusMapper statusMapper,
+                               ObjectProvider<SecurityAuditLogPublisher> publisherProvider) {
+        this(objectMapper, statusMapper, publisherProvider == null ? null : publisherProvider.getIfAvailable());
+    }
+
+    public SecurityAuditLogger(ObjectMapper objectMapper, SecurityStatusMapper statusMapper,
+                               SecurityAuditLogPublisher publisher) {
         this.objectMapper = objectMapper;
         this.statusMapper = statusMapper;
+        this.publisher = publisher;
     }
 
     public void log(SecurityRequestContext context, SecurityResultStatus status, SecurityErrorCode errorCode) {
         SecurityLogEvent event = event(context, status, errorCode);
-        try {
-            auditLog.info(objectMapper.writeValueAsString(event));
-        } catch (JsonProcessingException ex) {
-            auditLog.warn("security_audit_log_serialization_failed endpointId={} errorCode={}",
-                    context == null ? null : context.getEndpointId(), errorCode, ex);
-        }
+        writeAndPublish(event, "security_audit_log_serialization_failed",
+                context == null ? null : context.getEndpointId(), errorCode);
     }
 
     public void logOutbound(OutboundExecutionPolicy policy, OutboundContext context, SecurityResultStatus status,
                             SecurityErrorCode errorCode, long durationMs, Integer retryAttempt) {
         SecurityLogEvent event = outboundEvent(policy, context, status, errorCode, durationMs, retryAttempt);
+        writeAndPublish(event, "security_outbound_audit_log_serialization_failed",
+                policy == null ? null : policy.endpointId(), errorCode);
+    }
+
+    private void writeAndPublish(SecurityLogEvent event, String serializationFailureMessage,
+                                 String endpointId, SecurityErrorCode errorCode) {
         try {
             auditLog.info(objectMapper.writeValueAsString(event));
         } catch (JsonProcessingException ex) {
-            auditLog.warn("security_outbound_audit_log_serialization_failed endpointId={} errorCode={}",
-                    policy == null ? null : policy.endpointId(), errorCode, ex);
+            auditLog.warn("{} endpointId={} errorCode={}", serializationFailureMessage, endpointId, errorCode, ex);
+        }
+        if (publisher == null) {
+            return;
+        }
+        try {
+            publisher.publish(event);
+        } catch (RuntimeException ex) {
+            internalLog.warn("security_audit_log_publisher_unexpected_failure endpointId={} errorCode={}",
+                    endpointId, errorCode, ex);
         }
     }
 
     private SecurityLogEvent event(SecurityRequestContext context, SecurityResultStatus status, SecurityErrorCode errorCode) {
         SecurityRequestContext safe = context == null ? new SecurityRequestContext() : context;
-        Integer retentionDays = safe.getRetentionDays() == null ? 30 : safe.getRetentionDays();
+        Integer retentionDays = SecurityLogRetentionBucketMapper.normalizedDays(safe.getRetentionDays());
         SecurityFlowType flowType = "MQ".equalsIgnoreCase(safe.getProtocol())
                 ? SecurityFlowType.INBOUND_MQ_LISTENER
                 : SecurityFlowType.INBOUND_HTTP;
@@ -89,7 +115,7 @@ public class SecurityAuditLogger {
                 safe.getRateLimitWindowSeconds(),
                 safe.getRemainingQuota(),
                 retentionDays,
-                retentionDays + "d",
+                SecurityLogRetentionBucketMapper.bucket(retentionDays),
                 null,
                 null,
                 null,
@@ -99,7 +125,8 @@ public class SecurityAuditLogger {
     private SecurityLogEvent outboundEvent(OutboundExecutionPolicy policy, OutboundContext context,
                                            SecurityResultStatus status, SecurityErrorCode errorCode,
                                            long durationMs, Integer retryAttempt) {
-        Integer retentionDays = policy == null || policy.logRetentionDays() == null ? 30 : policy.logRetentionDays();
+        Integer retentionDays = SecurityLogRetentionBucketMapper.normalizedDays(
+                policy == null ? null : policy.logRetentionDays());
         return new SecurityLogEvent(
                 Instant.now().toString(),
                 context == null ? null : context.traceId(),
@@ -136,7 +163,7 @@ public class SecurityAuditLogger {
                 null,
                 null,
                 retentionDays,
-                retentionDays + "d",
+                SecurityLogRetentionBucketMapper.bucket(retentionDays),
                 policy == null ? null : policy.retryCount(),
                 retryAttempt,
                 policy == null ? null : policy.retryBackoffMs(),

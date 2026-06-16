@@ -1,0 +1,10 @@
+{
+  "index_patterns": ["security-logs-r30-*"],
+  "priority": 200,
+  "composed_of": ["security-log-mappings"],
+  "template": {
+    "settings": {
+      "index.lifecycle.name": "security-log-r30-policy"
+    }
+  }
+}

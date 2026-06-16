@@ -72,6 +72,19 @@ class KafkaOutboundMetadataEnricherTest {
         assertForbiddenHeadersMissing(record);
     }
 
+    @Test
+    void enrich_shouldNoOpForSecurityAuditTopic() {
+        contextHolder.set(new OutboundContext("service-1", "endpoint-1", "Audit", null,
+                "PUB", "MQ", "trace-1", "corr-1", Instant.now(), "nonce"));
+        ProducerRecord<String, String> record = new ProducerRecord<>("security.logs", "payload");
+
+        enricher.enrich(record);
+
+        assertThat(record.headers().lastHeader("X-Trace-Id")).isNull();
+        assertThat(record.headers().lastHeader("X-Correlation-Id")).isNull();
+        assertForbiddenHeadersMissing(record);
+    }
+
     private static String headerValue(ProducerRecord<String, String> record, String key) {
         Header header = record.headers().lastHeader(key);
         return header == null ? null : new String(header.value(), StandardCharsets.UTF_8);

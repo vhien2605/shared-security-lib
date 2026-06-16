@@ -2,6 +2,7 @@ package vdt.mini.shared_lib.mq;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Headers;
+import vdt.mini.shared_lib.security.SecurityAuditLogPublisher;
 import vdt.mini.shared_lib.web.OutboundContext;
 import vdt.mini.shared_lib.web.OutboundContextHolder;
 
@@ -14,7 +15,8 @@ import java.util.Set;
 public class KafkaOutboundMetadataEnricher {
     public static final String TRACE_ID_HEADER = "X-Trace-Id";
     public static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
-    private static final Set<String> CONTROL_PLANE_TOPICS = Set.of("security.endpoint.registration");
+    private static final Set<String> CONTROL_PLANE_TOPICS = Set.of(
+            "security.endpoint.registration", SecurityAuditLogPublisher.TOPIC);
 
     private final OutboundContextHolder contextHolder;
 
