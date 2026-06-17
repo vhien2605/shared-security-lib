@@ -88,13 +88,17 @@ public class SecurityEndpointScanner {
 
             endpointRegistry.replaceAll(inbounds, outbounds);
 
+            IdentityManager.ServiceMetadata metadata = identityManager.ensureServiceMetadata(
+                    serviceName, baseUrl, serviceDescription
+            );
+
             ServiceRegistrationEvent event = new ServiceRegistrationEvent(
-                    serviceId, serviceName, baseUrl, serviceDescription, inbounds, outbounds
+                    serviceId, metadata.serviceName(), metadata.baseUrl(), metadata.description(), inbounds, outbounds
             );
 
             kafkaPublisher.send(registrationTopic, event);
             log.info("Registered {} inbound and {} outbound endpoints for service '{}'",
-                    inbounds.size(), outbounds.size(), serviceName);
+                    inbounds.size(), outbounds.size(), metadata.serviceName());
 
             // Chủ động poll Redis cache để lấy settings (nếu có) — không đợi pub/sub
             if (syncEnabled) {

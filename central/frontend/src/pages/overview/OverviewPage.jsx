@@ -1,7 +1,7 @@
 import { KIBANA_BASE_URL } from '../../constants'
 import './OverviewPage.css'
 
-const KIBANA_DASHBOARD_PATH = '/app/dashboards#/view/da1569e0-4411-442a-9fd7-d2d3e3e4975a?embed=true&_g=%28refreshInterval%3A%28pause%3A%21t%2Cvalue%3A60000%29%2Ctime%3A%28from%3Anow-12h%2Cto%3Anow%29%29&show-top-menu=true&show-query-input=true&show-time-filter=true'
+const KIBANA_DASHBOARD_PATH = '/app/dashboards#/view/2d582cb8-1d15-43cd-817b-3d238e08afdc?embed=true&_g=%28refreshInterval%3A%28pause%3A%21t%2Cvalue%3A60000%29%2Ctime%3A%28from%3Anow-15m%2Cto%3Anow%29%29&show-top-menu=true&show-query-input=true&show-time-filter=true'
 
 export default function OverviewPage() {
   const dashboardSrc = `${KIBANA_BASE_URL}${KIBANA_DASHBOARD_PATH}`
