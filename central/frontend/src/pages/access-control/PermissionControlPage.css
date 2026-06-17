@@ -1,11 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Manrope:wght@600;700&family=JetBrains+Mono:wght@500&family=Material+Symbols+Outlined:wght@400&display=swap');
-
 .permission-page {
   color: #1a1c1c;
   display: flex;
   flex-direction: column;
   gap: 28px;
-  font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+  font-family: var(--font-ui);
 }
 
 .permission-page__header {
@@ -17,7 +15,7 @@
 
 .permission-page__eyebrow {
   color: #af101a;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-tech);
   font-size: 12px;
   letter-spacing: .08em;
   margin: 0 0 6px;
@@ -26,7 +24,7 @@
 
 .permission-page__header h2 {
   color: #1a1c1c;
-  font-family: 'Manrope', system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 32px;
   line-height: 1.15;
   margin: 0 0 8px;
@@ -102,7 +100,7 @@
   align-items: center;
   color: #1a1c1c;
   display: flex;
-  font-family: 'Manrope', system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 22px;
   gap: 8px;
   margin: 0;
@@ -131,7 +129,7 @@
   color: #546067;
   display: flex;
   flex-direction: column;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 700;
   gap: 5px;
@@ -142,7 +140,7 @@
   border: 1px solid #e4beba;
   border-radius: 6px;
   color: #1a1c1c;
-  font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 13px;
   padding: 10px 12px;
 }
@@ -238,7 +236,7 @@
 .permission-table th {
   background: #e8e8e8;
   color: #5b403d;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-tech);
   font-size: 11px;
   letter-spacing: .06em;
   padding: 14px 16px;
@@ -260,7 +258,7 @@
 
 .permission-table code,
 .permission-mono {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-tech);
 }
 
 .permission-table code {
@@ -423,7 +421,7 @@
 
 .permission-modal__header h3 {
   color: #af101a;
-  font-family: 'Manrope', system-ui, sans-serif;
+  font-family: var(--font-ui);
   margin: 0;
 }
 
@@ -440,7 +438,7 @@
   color: #546067;
   display: flex;
   flex-direction: column;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 700;
   gap: 6px;
@@ -453,7 +451,7 @@
   border: 1px solid #e4beba;
   border-radius: 6px;
   color: #1a1c1c;
-  font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 14px;
   padding: 10px 12px;
 }
@@ -469,7 +467,7 @@
 .permission-checkbox {
   align-items: center;
   flex-direction: row !important;
-  font-family: 'Be Vietnam Pro', system-ui, sans-serif !important;
+  font-family: var(--font-ui) !important;
   text-transform: none !important;
 }
 

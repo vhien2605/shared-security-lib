@@ -1,27 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Be+Vietnam+Pro:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
-
-.material-symbols-outlined {
-  font-family: 'Material Symbols Outlined';
-  font-weight: normal;
-  font-style: normal;
-  font-size: 24px;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  -webkit-font-feature-settings: 'liga';
-  -webkit-font-smoothing: antialiased;
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
-
 .settings-page {
   background-color: #f9f9f9;
   color: #1a1c1c;
-  font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   min-height: 100%;
 }
 
@@ -41,7 +21,7 @@
 .settings-page-header h2 {
   margin: 0 0 0.5rem;
   color: #1a1c1c;
-  font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   font-size: 30px;
   line-height: 40px;
   font-weight: 700;
@@ -49,7 +29,7 @@
 
 .settings-page-header p {
   color: #5b403d;
-  font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   font-size: 14px;
   line-height: 20px;
   font-weight: 400;
@@ -116,7 +96,7 @@
 
 .settings-stat-card strong {
   color: #1a1c1c;
-  font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   font-size: 24px;
   line-height: 32px;
   font-weight: 700;
@@ -143,7 +123,7 @@
 .settings-global-card h3 {
   margin: 0;
   color: #1a1c1c;
-  font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   font-size: 18px;
   line-height: 28px;
   font-weight: 700;
@@ -188,6 +168,7 @@
 .settings-table thead tr {
   background-color: #eeeeee;
   color: #5b403d;
+  font-family: var(--font-tech);
   font-size: 12px;
   line-height: 16px;
   letter-spacing: 0.05em;
@@ -249,7 +230,7 @@
 
 .settings-muted-cell {
   color: #5b403d !important;
-  font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
 }
 
 .settings-table code {
@@ -257,7 +238,7 @@
   background-color: rgba(255, 218, 214, 0.3);
   padding: 0.125rem 0.5rem;
   border-radius: 0.25rem;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-tech);
   font-size: 12px;
   line-height: 16px;
   letter-spacing: 0.05em;
@@ -272,7 +253,7 @@
   font-size: 12px;
   line-height: 16px;
   font-weight: 500;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-tech);
 }
 
 .settings-status--active {

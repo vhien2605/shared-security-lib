@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap');
-
 .login-page {
   --lp-bg: #ffffff;
   --lp-surface: #ffffff;
@@ -17,7 +15,7 @@
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
-  font-family: 'Be Vietnam Pro', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--font-ui);
   isolation: isolate;
   overflow-x: clip;
 }
@@ -73,7 +71,7 @@
   margin: 0;
   font-size: 1.25rem;
   font-weight: 800;
-  font-family: Manrope, 'Be Vietnam Pro', sans-serif;
+  font-family: var(--font-ui);
 }
 
 .login-page__hero-brand-sub {
@@ -88,7 +86,7 @@
   margin: auto 0 0;
   max-width: 16ch;
   color: #ffffff;
-  font-family: Manrope, 'Be Vietnam Pro', sans-serif;
+  font-family: var(--font-ui);
   font-size: clamp(2rem, 4.3vw, 3.8rem);
   font-weight: 800;
   line-height: 1.12;
@@ -179,7 +177,7 @@
 .login-form__brand-title {
   margin: 0;
   color: var(--lp-text);
-  font-family: Manrope, 'Be Vietnam Pro', sans-serif;
+  font-family: var(--font-ui);
   font-size: 1.2rem;
   font-weight: 700;
 }
@@ -206,7 +204,7 @@
 .login-form__title {
   margin: 0.25rem 0 0.25rem;
   color: var(--lp-text);
-  font-family: Manrope, 'Be Vietnam Pro', sans-serif;
+  font-family: var(--font-ui);
   font-size: 2rem;
   font-weight: 800;
 }

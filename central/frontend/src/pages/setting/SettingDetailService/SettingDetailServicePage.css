@@ -1,11 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
-
 .setting-detail-page {
   min-height: 100%;
   background: #f9f9f9;
   color: #1a1c1c;
-  font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
 }
 
 .setting-detail-container {
@@ -46,7 +43,7 @@
 .setting-detail-heading-row h2 {
   margin: 0 0 0.5rem;
   color: #1a1c1c;
-  font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   font-size: 30px;
   line-height: 40px;
   font-weight: 700;
@@ -138,7 +135,7 @@
 
 .setting-detail-meta-item span {
   color: #5b403d;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-ui);
   font-size: 12px;
   line-height: 16px;
   letter-spacing: 0.05em;
@@ -156,7 +153,7 @@
   width: fit-content;
   padding: 0.125rem 0.625rem;
   border-radius: 999px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-tech);
   font-size: 12px;
 }
 
@@ -219,7 +216,7 @@
   background: #eeeeee;
   border-bottom: 1px solid #e4beba;
   color: #5b403d;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-tech);
   font-size: 11px;
   line-height: 16px;
   letter-spacing: 0.04em;
@@ -242,7 +239,7 @@
   display: inline-block;
   max-width: 100%;
   color: #af101a;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-tech);
   font-size: 12px;
   overflow-wrap: anywhere;
 }
@@ -392,14 +389,14 @@
 
 .setting-detail-template-header h3 {
   margin: 0;
-  font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   font-size: 20px;
   font-weight: 700;
 }
 
 .setting-detail-template-header span {
   color: #546067;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-tech);
   font-size: 12px;
 }
 

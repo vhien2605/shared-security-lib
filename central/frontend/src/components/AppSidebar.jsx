@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { SIDEBAR_ITEMS } from '../constants/sidebarItems'
 
 function SidebarIcon({ type }) {
@@ -77,6 +77,22 @@ function SidebarIcon({ type }) {
 }
 
 export default memo(function AppSidebar() {
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  const navigateOnPointerDown = (event, path) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return
+    }
+
+    if (location.pathname === path) {
+      return
+    }
+
+    window.dispatchEvent(new Event('app:navigation-start'))
+    navigate(path)
+  }
+
   return (
     <aside className="app-sidebar">
       <div className="app-sidebar__brand">
@@ -96,6 +112,7 @@ export default memo(function AppSidebar() {
           <NavLink
             key={item.path}
             to={item.path}
+            onPointerDown={(event) => navigateOnPointerDown(event, item.path)}
             className={({ isActive }) =>
               isActive ? 'app-sidebar__item app-sidebar__item--active' : 'app-sidebar__item'
             }

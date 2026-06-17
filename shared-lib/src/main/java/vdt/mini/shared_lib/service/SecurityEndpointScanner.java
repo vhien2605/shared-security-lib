@@ -55,10 +55,10 @@ public class SecurityEndpointScanner {
 
     @Autowired
     public SecurityEndpointScanner(ApplicationContext applicationContext,
-                                    IdentityManager identityManager,
-                                    KafkaPublisher kafkaPublisher,
-                                    SecuritySettingsStore securitySettingsStore,
-                                    EndpointRegistry endpointRegistry) {
+                                   IdentityManager identityManager,
+                                   KafkaPublisher kafkaPublisher,
+                                   SecuritySettingsStore securitySettingsStore,
+                                   EndpointRegistry endpointRegistry) {
         this.applicationContext = applicationContext;
         this.identityManager = identityManager;
         this.kafkaPublisher = kafkaPublisher;
@@ -92,10 +92,11 @@ public class SecurityEndpointScanner {
                     serviceName, baseUrl, serviceDescription
             );
 
+
+            //pub event register to central
             ServiceRegistrationEvent event = new ServiceRegistrationEvent(
                     serviceId, metadata.serviceName(), metadata.baseUrl(), metadata.description(), inbounds, outbounds
             );
-
             kafkaPublisher.send(registrationTopic, event);
             log.info("Registered {} inbound and {} outbound endpoints for service '{}'",
                     inbounds.size(), outbounds.size(), metadata.serviceName());
