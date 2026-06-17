@@ -26,6 +26,7 @@ public record SecurityLogEvent(
         String sourceIp,
         String authType,
         String denyReason,
+        String alertSeverity,
         SecurityResultStatus status,
         String resultCode,
         SecurityErrorCode errorCode,

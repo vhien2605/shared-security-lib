@@ -235,6 +235,7 @@ public class InboundSecurityDecisionService {
         context.setThresholdMs(settings.getResponseTimeThresholdMs());
         context.setTimeoutMs(settings.getTimeoutMs());
         context.setRetentionDays(settings.getLogRetentionDays());
+        context.setAlertSeverity(settings.getAlertSeverity());
     }
 
     private boolean isInactive(String status) {
