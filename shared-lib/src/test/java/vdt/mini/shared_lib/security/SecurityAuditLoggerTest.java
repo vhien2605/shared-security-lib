@@ -56,6 +56,7 @@ class SecurityAuditLoggerTest {
         assertThat(event.get("correlationId").asText()).isEqualTo("corr-1");
         assertThat(event.get("flowType").asText()).isEqualTo("OUTBOUND_HTTP");
         assertThat(event.get("retentionBucket").asText()).isEqualTo("r30");
+        assertThat(event.get("alertSeverity").asText()).isEqualTo("CRITICAL");
     }
 
     @Test
@@ -66,12 +67,14 @@ class SecurityAuditLoggerTest {
         context.setTraceId("trace-1");
         context.setEndpointId("endpoint-1");
         context.setRetentionDays(14);
+        context.setAlertSeverity("WARNING");
 
         logger.log(context, SecurityResultStatus.SUCCESS, null);
 
         assertThat(appender.list).hasSize(1);
         JsonNode event = objectMapper.readTree(appender.list.getFirst().getFormattedMessage());
         assertThat(event.get("retentionBucket").asText()).isEqualTo("r14");
+        assertThat(event.get("alertSeverity").asText()).isEqualTo("WARNING");
         verify(publisher).publish(any(SecurityLogEvent.class));
     }
 
@@ -89,7 +92,7 @@ class SecurityAuditLoggerTest {
 
     private OutboundExecutionPolicy policy() {
         return new OutboundExecutionPolicy("endpoint-1", "Profile API", "service-1", "user-service", "http://profile/users", null,
-                "GET", "HTTP", 1000, 1, 0, null, 30, "IGNORE", null, null,
+                "GET", "HTTP", 1000, 1, 0, null, 30, "IGNORE", "CRITICAL", null,
                 List.of(), new OutboundSettingsDTO());
     }
 }

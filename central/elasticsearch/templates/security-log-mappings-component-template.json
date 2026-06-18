@@ -29,6 +29,7 @@
         "sourceIp": { "type": "ip", "ignore_malformed": true },
         "authType": { "type": "keyword" },
         "denyReason": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+        "alertSeverity": { "type": "keyword" },
         "status": { "type": "keyword" },
         "resultCode": { "type": "keyword" },
         "errorCode": { "type": "keyword" },

@@ -29,6 +29,7 @@ public class SecurityRequestContext {
     private Integer rateLimitWindowSeconds;
     private Long remainingQuota;
     private Integer retentionDays;
+    private String alertSeverity;
     private InboundSettingsDTO inboundSettings;
 
     public String getTraceId() { return traceId; }
@@ -83,6 +84,8 @@ public class SecurityRequestContext {
     public void setRemainingQuota(Long remainingQuota) { this.remainingQuota = remainingQuota; }
     public Integer getRetentionDays() { return retentionDays; }
     public void setRetentionDays(Integer retentionDays) { this.retentionDays = retentionDays; }
+    public String getAlertSeverity() { return alertSeverity; }
+    public void setAlertSeverity(String alertSeverity) { this.alertSeverity = alertSeverity; }
     public InboundSettingsDTO getInboundSettings() { return inboundSettings; }
     public void setInboundSettings(InboundSettingsDTO inboundSettings) { this.inboundSettings = inboundSettings; }
 }

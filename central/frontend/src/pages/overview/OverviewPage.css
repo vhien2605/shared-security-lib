@@ -1,10 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Be+Vietnam+Pro:wght@300;400;500;600&display=swap');
-
 .overview-page {
   min-height: 100%;
   background-color: #f9f9f9;
   color: #1a1c1c;
-  font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
 }
 
 .overview-container {
@@ -20,7 +18,7 @@
 .overview-page-header h2 {
   margin: 0 0 0.5rem;
   color: #1a1c1c;
-  font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   font-size: 30px;
   line-height: 40px;
   font-weight: 700;
@@ -36,7 +34,9 @@
 }
 
 .overview-dashboard-card {
+  position: relative;
   width: 100%;
+  min-height: 600px;
   background-color: #ffffff;
   border: 1px solid #e4beba;
   border-radius: 1rem;
@@ -49,6 +49,41 @@
   width: 100%;
   min-height: 600px;
   border: 0;
+  pointer-events: none;
+}
+
+.overview-dashboard-card__iframe--loaded {
+  pointer-events: auto;
+}
+
+.overview-dashboard-card__loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: #5b403d;
+  background: rgba(255, 255, 255, 0.82);
+  font-size: 14px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.overview-dashboard-card__spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid rgba(175, 16, 26, 0.22);
+  border-top-color: #af101a;
+  border-radius: 999px;
+  animation: overview-dashboard-spin 0.8s linear infinite;
+}
+
+@keyframes overview-dashboard-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 900px) {
@@ -57,6 +92,10 @@
   }
 
   .overview-dashboard-card__iframe {
+    min-height: 520px;
+  }
+
+  .overview-dashboard-card {
     min-height: 520px;
   }
 }

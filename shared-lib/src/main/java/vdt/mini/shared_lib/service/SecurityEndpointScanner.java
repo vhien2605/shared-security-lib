@@ -55,10 +55,10 @@ public class SecurityEndpointScanner {
 
     @Autowired
     public SecurityEndpointScanner(ApplicationContext applicationContext,
-                                    IdentityManager identityManager,
-                                    KafkaPublisher kafkaPublisher,
-                                    SecuritySettingsStore securitySettingsStore,
-                                    EndpointRegistry endpointRegistry) {
+                                   IdentityManager identityManager,
+                                   KafkaPublisher kafkaPublisher,
+                                   SecuritySettingsStore securitySettingsStore,
+                                   EndpointRegistry endpointRegistry) {
         this.applicationContext = applicationContext;
         this.identityManager = identityManager;
         this.kafkaPublisher = kafkaPublisher;
@@ -88,13 +88,18 @@ public class SecurityEndpointScanner {
 
             endpointRegistry.replaceAll(inbounds, outbounds);
 
-            ServiceRegistrationEvent event = new ServiceRegistrationEvent(
-                    serviceId, serviceName, baseUrl, serviceDescription, inbounds, outbounds
+            IdentityManager.ServiceMetadata metadata = identityManager.ensureServiceMetadata(
+                    serviceName, baseUrl, serviceDescription
             );
 
+
+            //pub event register to central
+            ServiceRegistrationEvent event = new ServiceRegistrationEvent(
+                    serviceId, metadata.serviceName(), metadata.baseUrl(), metadata.description(), inbounds, outbounds
+            );
             kafkaPublisher.send(registrationTopic, event);
             log.info("Registered {} inbound and {} outbound endpoints for service '{}'",
-                    inbounds.size(), outbounds.size(), serviceName);
+                    inbounds.size(), outbounds.size(), metadata.serviceName());
 
             // Chủ động poll Redis cache để lấy settings (nếu có) — không đợi pub/sub
             if (syncEnabled) {

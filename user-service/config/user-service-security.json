@@ -1,5 +1,8 @@
 {
   "serviceId" : "a6e37691-c825-40eb-ad74-4e1f4fcb86fd",
+  "name" : "user-service",
+  "baseUrl" : "http://localhost:8081",
+  "description" : "Quản lí account người dùng",
   "inbounds" : {
     "HTTP_PUT_/users/update-v2" : {
       "endpointId" : "5c0cae42-c83d-4b8d-98be-e0f162449153",

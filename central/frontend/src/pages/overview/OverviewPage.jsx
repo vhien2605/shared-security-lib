@@ -1,10 +1,23 @@
+import { useEffect, useState } from 'react'
 import { KIBANA_BASE_URL } from '../../constants'
 import './OverviewPage.css'
 
-const KIBANA_DASHBOARD_PATH = '/app/dashboards#/view/da1569e0-4411-442a-9fd7-d2d3e3e4975a?embed=true&_g=%28refreshInterval%3A%28pause%3A%21t%2Cvalue%3A60000%29%2Ctime%3A%28from%3Anow-12h%2Cto%3Anow%29%29&show-top-menu=true&show-query-input=true&show-time-filter=true'
+const KIBANA_DASHBOARD_PATH = '/app/dashboards#/view/2d582cb8-1d15-43cd-817b-3d238e08afdc?embed=true&_g=%28refreshInterval%3A%28pause%3A%21t%2Cvalue%3A60000%29%2Ctime%3A%28from%3Anow-15m%2Cto%3Anow%29%29&show-top-menu=true&show-query-input=true&show-time-filter=true'
 
 export default function OverviewPage() {
+  const [isDashboardLoaded, setIsDashboardLoaded] = useState(false)
+  const [shouldRenderDashboard, setShouldRenderDashboard] = useState(true)
   const dashboardSrc = `${KIBANA_BASE_URL}${KIBANA_DASHBOARD_PATH}`
+
+  useEffect(() => {
+    const teardownDashboard = () => setShouldRenderDashboard(false)
+
+    window.addEventListener('app:navigation-start', teardownDashboard)
+
+    return () => {
+      window.removeEventListener('app:navigation-start', teardownDashboard)
+    }
+  }, [])
 
   return (
     <section className="overview-page">
@@ -17,15 +30,28 @@ export default function OverviewPage() {
           </p>
         </header>
 
-        <div className="overview-dashboard-card">
-          <iframe
-            className="overview-dashboard-card__iframe"
-            src={dashboardSrc}
-            title="Biểu đồ tổng quan Kibana"
-            height="600"
-            width="800"
-            loading="lazy"
-          />
+        <div className="overview-dashboard-card" aria-busy={!isDashboardLoaded}>
+          {!isDashboardLoaded && (
+            <div className="overview-dashboard-card__loading">
+              <span className="overview-dashboard-card__spinner" aria-hidden="true" />
+              <span>Đang tải Kibana dashboard...</span>
+            </div>
+          )}
+          {shouldRenderDashboard && (
+            <iframe
+              className={
+                isDashboardLoaded
+                  ? 'overview-dashboard-card__iframe overview-dashboard-card__iframe--loaded'
+                  : 'overview-dashboard-card__iframe'
+              }
+              src={dashboardSrc}
+              title="Biểu đồ tổng quan Kibana"
+              height="600"
+              width="800"
+              loading="lazy"
+              onLoad={() => setIsDashboardLoaded(true)}
+            />
+          )}
         </div>
       </div>
     </section>

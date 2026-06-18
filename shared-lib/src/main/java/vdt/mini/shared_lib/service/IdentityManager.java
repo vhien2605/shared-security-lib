@@ -27,6 +27,9 @@ public class IdentityManager {
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
     private String serviceId;
+    private String serviceName;
+    private String baseUrl;
+    private String description;
     private Map<String, InboundEndpointDTO> inbounds;
     private Map<String, OutboundEndpointDTO> outbounds;
 
@@ -44,6 +47,12 @@ public class IdentityManager {
                 Map<String, Object> data = objectMapper.readValue(identityFile,
                         new TypeReference<Map<String, Object>>() {});
                 this.serviceId = (String) data.getOrDefault("serviceId", UUID.randomUUID().toString());
+                this.serviceName = readOptionalString(data.get("name"));
+                if (serviceName == null) {
+                    this.serviceName = readOptionalString(data.get("serviceName"));
+                }
+                this.baseUrl = readOptionalString(data.get("baseUrl"));
+                this.description = readOptionalString(data.get("description"));
 
                 Object inboundsRaw = data.get("inbounds");
                 if (inboundsRaw instanceof Map) {
@@ -65,6 +74,9 @@ public class IdentityManager {
                         serviceId, inbounds.size(), outbounds.size());
             } else {
                 this.serviceId = UUID.randomUUID().toString();
+                this.serviceName = null;
+                this.baseUrl = null;
+                this.description = null;
                 this.inbounds = new LinkedHashMap<>();
                 this.outbounds = new LinkedHashMap<>();
                 log.info("No identity file found, generated serviceId={}", serviceId);
@@ -73,6 +85,9 @@ public class IdentityManager {
         } catch (IOException e) {
             log.warn("Failed to load identity file, generating new IDs", e);
             this.serviceId = UUID.randomUUID().toString();
+            this.serviceName = null;
+            this.baseUrl = null;
+            this.description = null;
             this.inbounds = new LinkedHashMap<>();
             this.outbounds = new LinkedHashMap<>();
         } finally {
@@ -142,6 +157,31 @@ public class IdentityManager {
         }
     }
 
+    public ServiceMetadata ensureServiceMetadata(String defaultServiceName, String defaultBaseUrl, String defaultDescription) {
+        lock.writeLock().lock();
+        try {
+            boolean changed = false;
+            if (isBlank(serviceName) && !isBlank(defaultServiceName)) {
+                serviceName = defaultServiceName;
+                changed = true;
+            }
+            if (isBlank(baseUrl) && !isBlank(defaultBaseUrl)) {
+                baseUrl = defaultBaseUrl;
+                changed = true;
+            }
+            if (isBlank(description) && !isBlank(defaultDescription)) {
+                description = defaultDescription;
+                changed = true;
+            }
+            if (changed) {
+                save();
+            }
+            return new ServiceMetadata(serviceName, baseUrl, description);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
     public Map<String, OutboundEndpointDTO> getKnownOutbounds() {
         lock.readLock().lock();
         try {
@@ -187,6 +227,17 @@ public class IdentityManager {
         );
     }
 
+    private String readOptionalString(Object value) {
+        if (value instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        return null;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
     private void save() {
         try {
             File parentDir = identityFile.getParentFile();
@@ -195,6 +246,9 @@ public class IdentityManager {
             }
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("serviceId", serviceId);
+            data.put("name", serviceName);
+            data.put("baseUrl", baseUrl);
+            data.put("description", description);
             data.put("inbounds", inbounds);
             data.put("outbounds", outbounds);
             objectMapper.writeValue(identityFile, data);
@@ -202,5 +256,8 @@ public class IdentityManager {
         } catch (IOException e) {
             log.error("Failed to save identity file", e);
         }
+    }
+
+    public record ServiceMetadata(String serviceName, String baseUrl, String description) {
     }
 }
