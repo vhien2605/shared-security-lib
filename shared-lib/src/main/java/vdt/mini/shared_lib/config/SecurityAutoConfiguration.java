@@ -30,10 +30,10 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.util.StringUtils;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
-import vdt.mini.shared_lib.service.IdentityManager;
 import vdt.mini.shared_lib.service.RedisSecurityRuntimeSubscriber;
 import vdt.mini.shared_lib.service.RedisSecurityRuntimeKeys;
 import vdt.mini.shared_lib.service.RedisSettingsSubscriber;
+import vdt.mini.shared_lib.service.SecurityIdGenerator;
 import vdt.mini.shared_lib.exception.InboundSecurityException;
 import vdt.mini.shared_lib.mq.KafkaOutboundMetadataEnricher;
 import vdt.mini.shared_lib.web.OutboundFeignMetadataInterceptor;
@@ -134,6 +134,12 @@ public class SecurityAutoConfiguration {
         @Value("${app.security.redis.password:redis123}")
         private String redisPassword;
 
+        @Value("${app.security.namespace:default}")
+        private String namespace;
+
+        @Value("${app.security.service.name:my-service}")
+        private String serviceName;
+
         @Bean
         public RedisConnectionFactory securityRedisConnectionFactory() {
             RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(redisHost, redisPort);
@@ -153,11 +159,10 @@ public class SecurityAutoConfiguration {
         public RedisMessageListenerContainer securityRedisListenerContainer(
                 RedisConnectionFactory securityRedisConnectionFactory,
                 RedisSettingsSubscriber subscriber,
-                RedisSecurityRuntimeSubscriber runtimeSubscriber,
-                IdentityManager identityManager) {
+                RedisSecurityRuntimeSubscriber runtimeSubscriber) {
             RedisMessageListenerContainer container = new RedisMessageListenerContainer();
             container.setConnectionFactory(securityRedisConnectionFactory);
-            String serviceId = identityManager.getOrCreateServiceId();
+            String serviceId = resolveDeterministicServiceId(namespace, serviceName);
             String settingsChannel = RedisSecurityRuntimeKeys.legacySettingsChannel(serviceId);
             String runtimeChannel = RedisSecurityRuntimeKeys.eventsChannel(serviceId);
             container.addMessageListener(subscriber, new PatternTopic(settingsChannel));
@@ -166,6 +171,10 @@ public class SecurityAutoConfiguration {
                     "Redis security listeners subscribed serviceId={} settingsChannel={} runtimeChannel={}",
                     serviceId, settingsChannel, runtimeChannel);
             return container;
+        }
+
+        static String resolveDeterministicServiceId(String namespace, String serviceName) {
+            return SecurityIdGenerator.serviceId(namespace, serviceName);
         }
     }
 }
