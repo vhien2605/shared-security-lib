@@ -1,18 +1,15 @@
 package vdt.mini.shared_lib.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import vdt.mini.shared_lib.document.InboundEndpointDTO;
 import vdt.mini.shared_lib.document.OutboundEndpointDTO;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -22,9 +19,9 @@ public class IdentityManager {
 
     private static final Logger log = LoggerFactory.getLogger(IdentityManager.class);
 
-    private final File identityFile;
-    private final ObjectMapper objectMapper;
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+    private final String namespace;
+    private final String configuredServiceName;
 
     private String serviceId;
     private String serviceName;
@@ -33,75 +30,34 @@ public class IdentityManager {
     private Map<String, InboundEndpointDTO> inbounds;
     private Map<String, OutboundEndpointDTO> outbounds;
 
-    public IdentityManager(@Value("${app.security.identity-file:security-identity.json}") String identityFilePath) {
-        this.identityFile = new File(identityFilePath);
-        this.objectMapper = new ObjectMapper();
-        this.objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
-        load();
-    }
-
-    private void load() {
-        lock.writeLock().lock();
-        try {
-            if (identityFile.exists()) {
-                Map<String, Object> data = objectMapper.readValue(identityFile,
-                        new TypeReference<Map<String, Object>>() {});
-                this.serviceId = (String) data.getOrDefault("serviceId", UUID.randomUUID().toString());
-                this.serviceName = readOptionalString(data.get("name"));
-                if (serviceName == null) {
-                    this.serviceName = readOptionalString(data.get("serviceName"));
-                }
-                this.baseUrl = readOptionalString(data.get("baseUrl"));
-                this.description = readOptionalString(data.get("description"));
-
-                Object inboundsRaw = data.get("inbounds");
-                if (inboundsRaw instanceof Map) {
-                    this.inbounds = objectMapper.convertValue(inboundsRaw,
-                            new TypeReference<Map<String, InboundEndpointDTO>>() {});
-                } else {
-                    this.inbounds = new LinkedHashMap<>();
-                }
-
-                Object outboundsRaw = data.get("outbounds");
-                if (outboundsRaw instanceof Map) {
-                    this.outbounds = objectMapper.convertValue(outboundsRaw,
-                            new TypeReference<Map<String, OutboundEndpointDTO>>() {});
-                } else {
-                    this.outbounds = new LinkedHashMap<>();
-                }
-
-                log.info("Loaded identity: serviceId={}, inbounds={}, outbounds={}",
-                        serviceId, inbounds.size(), outbounds.size());
-            } else {
-                this.serviceId = UUID.randomUUID().toString();
-                this.serviceName = null;
-                this.baseUrl = null;
-                this.description = null;
-                this.inbounds = new LinkedHashMap<>();
-                this.outbounds = new LinkedHashMap<>();
-                log.info("No identity file found, generated serviceId={}", serviceId);
-                save();
-            }
-        } catch (IOException e) {
-            log.warn("Failed to load identity file, generating new IDs", e);
-            this.serviceId = UUID.randomUUID().toString();
-            this.serviceName = null;
-            this.baseUrl = null;
-            this.description = null;
-            this.inbounds = new LinkedHashMap<>();
-            this.outbounds = new LinkedHashMap<>();
-        } finally {
-            lock.writeLock().unlock();
-        }
+    @Autowired
+    public IdentityManager(@Value("${app.security.namespace:default}") String namespace,
+                           @Value("${app.security.service.name:my-service}") String configuredServiceName) {
+        this.namespace = namespace;
+        this.configuredServiceName = configuredServiceName;
+        this.serviceId = resolveInitialServiceId(namespace, configuredServiceName);
+        this.serviceName = null;
+        this.baseUrl = null;
+        this.description = null;
+        this.inbounds = new LinkedHashMap<>();
+        this.outbounds = new LinkedHashMap<>();
+        log.debug("Initialized deterministic in-memory identity serviceId={}", serviceId);
     }
 
     public String getOrCreateServiceId() {
         lock.readLock().lock();
         try {
+            if (!isBlank(namespace) && !isBlank(configuredServiceName)) {
+                return SecurityIdGenerator.serviceId(namespace, configuredServiceName);
+            }
             return serviceId;
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    public String resolveServiceId(String namespace, String serviceName) {
+        return SecurityIdGenerator.serviceId(namespace, serviceName);
     }
 
     public InboundEndpointDTO getOrCreateInbound(String compositeKey, InboundEndpointDTO dto) {
@@ -114,8 +70,7 @@ public class IdentityManager {
             String newId = UUID.randomUUID().toString();
             dto.setEndpointId(newId);
             inbounds.put(compositeKey, dto);
-            log.info("Generated new inbound endpointId={} for key={}", newId, compositeKey);
-            save();
+            log.debug("Stored in-memory inbound endpointId={} for key={}", newId, compositeKey);
             return dto;
         } finally {
             lock.writeLock().unlock();
@@ -132,8 +87,7 @@ public class IdentityManager {
             String newId = UUID.randomUUID().toString();
             dto.setEndpointId(newId);
             outbounds.put(compositeKey, dto);
-            log.info("Generated new outbound endpointId={} for key={}", newId, compositeKey);
-            save();
+            log.debug("Stored in-memory outbound endpointId={} for key={}", newId, compositeKey);
             return dto;
         } finally {
             lock.writeLock().unlock();
@@ -160,21 +114,14 @@ public class IdentityManager {
     public ServiceMetadata ensureServiceMetadata(String defaultServiceName, String defaultBaseUrl, String defaultDescription) {
         lock.writeLock().lock();
         try {
-            boolean changed = false;
             if (isBlank(serviceName) && !isBlank(defaultServiceName)) {
                 serviceName = defaultServiceName;
-                changed = true;
             }
             if (isBlank(baseUrl) && !isBlank(defaultBaseUrl)) {
                 baseUrl = defaultBaseUrl;
-                changed = true;
             }
             if (isBlank(description) && !isBlank(defaultDescription)) {
                 description = defaultDescription;
-                changed = true;
-            }
-            if (changed) {
-                save();
             }
             return new ServiceMetadata(serviceName, baseUrl, description);
         } finally {
@@ -193,6 +140,50 @@ public class IdentityManager {
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    public void saveDeterministicMetadata(String serviceId,
+                                          String serviceName,
+                                          String baseUrl,
+                                          String description,
+                                          List<InboundEndpointDTO> inbounds,
+                                          List<OutboundEndpointDTO> outbounds) {
+        lock.writeLock().lock();
+        try {
+            this.serviceId = requireText(serviceId, "serviceId");
+            this.serviceName = serviceName;
+            this.baseUrl = baseUrl;
+            this.description = description;
+            this.inbounds = new LinkedHashMap<>();
+            for (InboundEndpointDTO inbound : safeList(inbounds)) {
+                if (inbound == null) {
+                    continue;
+                }
+                String destination = inbound.getProtocol() != null && inbound.getProtocol().trim().equalsIgnoreCase("MQ")
+                        ? inbound.getTopic()
+                        : inbound.getPath();
+                this.inbounds.put(buildCompositeKey(inbound.getProtocol(), inbound.getMethod(), destination), copyInbound(inbound));
+            }
+            this.outbounds = new LinkedHashMap<>();
+            for (OutboundEndpointDTO outbound : safeList(outbounds)) {
+                if (outbound == null) {
+                    continue;
+                }
+                String destination = outbound.getProtocol() != null && outbound.getProtocol().trim().equalsIgnoreCase("MQ")
+                        ? outbound.getTopic()
+                        : outbound.getTargetUrl();
+                this.outbounds.put(buildCompositeKey(outbound.getProtocol(), outbound.getMethod(), destination), copyOutbound(outbound));
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    private String resolveInitialServiceId(String namespace, String serviceName) {
+        if (!isBlank(namespace) && !isBlank(serviceName)) {
+            return SecurityIdGenerator.serviceId(namespace, serviceName);
+        }
+        return UUID.randomUUID().toString();
     }
 
     private InboundEndpointDTO copyInbound(InboundEndpointDTO source) {
@@ -227,35 +218,19 @@ public class IdentityManager {
         );
     }
 
-    private String readOptionalString(Object value) {
-        if (value instanceof String text && !text.isBlank()) {
-            return text;
-        }
-        return null;
-    }
-
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
 
-    private void save() {
-        try {
-            File parentDir = identityFile.getParentFile();
-            if (parentDir != null && !parentDir.exists()) {
-                parentDir.mkdirs();
-            }
-            Map<String, Object> data = new LinkedHashMap<>();
-            data.put("serviceId", serviceId);
-            data.put("name", serviceName);
-            data.put("baseUrl", baseUrl);
-            data.put("description", description);
-            data.put("inbounds", inbounds);
-            data.put("outbounds", outbounds);
-            objectMapper.writeValue(identityFile, data);
-            log.debug("Saved identity file to {}", identityFile.getAbsolutePath());
-        } catch (IOException e) {
-            log.error("Failed to save identity file", e);
+    private String requireText(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " must not be blank");
         }
+        return value.trim();
+    }
+
+    private <T> List<T> safeList(List<T> values) {
+        return values == null ? List.of() : values;
     }
 
     public record ServiceMetadata(String serviceName, String baseUrl, String description) {

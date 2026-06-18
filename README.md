@@ -11,8 +11,9 @@ Giải pháp: Xây dựng một Thư viện dùng chung (Shared Library) kết h
 
 ## 1. Giới thiệu
 
-Shared-lib cung cấp 2 annotation `@InBoundSecurity` và `@OutBoundSecurity` để tự động đăng ký endpoint của secureService
-lên management-secureService qua Kafka khi secureService khởi động.
+Shared-lib cung cấp 2 annotation `@InBoundSecurity` và `@OutBoundSecurity` để tự động scan endpoint của secureService,
+đồng bộ cấu hình runtime từ Redis và, với instance registrar, đăng ký endpoint lên management-secureService qua Kafka khi
+secureService khởi động.
 
 **Luồng dữ liệu:**
 
@@ -23,14 +24,21 @@ Service startup
     ├── SecurityEndpointScanner quét bean
     │     ├── Tìm method có @InBoundSecurity
     │     └── Tìm method có @OutBoundSecurity
-    ├── IdentityManager
-    │     ├── Load/UUID từ identity file
-    │     └── Gen UUID mới cho endpoint chưa có
-    ├── Build ServiceRegistrationEvent
-    │     ├── serviceId, serviceName, baseUrl
-    │     ├── List<InboundEndpointDTO>
-    │     └── List<OutboundEndpointDTO>
-    └── KafkaPublisher → topic security.endpoint.registration
+    ├── SecurityIdGenerator
+    │     ├── serviceId = SHA-256(namespace + ":" + serviceName), lấy 32 ký tự đầu
+    │     └── endpointId = SHA-256(serviceId + endpoint metadata), lấy 32 ký tự đầu
+    ├── EndpointRegistry cập nhật endpoint local
+    ├── Nếu app.security.registration.enabled=true
+    │     ├── Build ServiceRegistrationEvent từ config + annotation đã scan
+    │     │     ├── serviceId, serviceName, baseUrl
+    │     │     ├── List<InboundEndpointDTO>
+    │     │     └── List<OutboundEndpointDTO>
+    │     └── KafkaPublisher → topic security.endpoint.registration
+    ├── Nếu app.security.registration.enabled=false
+    │     └── Không publish Kafka registration
+    └── Redis sync
+          ├── Poll config từ Redis nếu app.security.settings.sync.enabled=true
+          └── Subscribe Redis channel theo deterministic serviceId
 ```
 
 ## 2. Thêm dependency
@@ -50,18 +58,27 @@ Service startup
 
 ```properties
 spring.application.name=user-secureService
+app.security.namespace=mini-project
 app.security.service.name=user-secureService
 app.security.service.base-url=http://user-secureService:8081
 app.security.service.description=Quản lý account người dùng
 ```
 
+`app.security.namespace` và `app.security.service.name` là input để sinh deterministic `serviceId`:
+
+```text
+serviceId = first32Hex(SHA-256(trim(namespace) + ":" + trim(serviceName)))
+```
+
+Các instance của cùng một logical service phải cấu hình cùng `namespace` và `service.name` để cùng poll/sub Redis config.
+
 ### 3.2. Tuỳ chọn (có giá trị mặc định)
 
 ```properties
-# File lưu UUID (mặc định: config/security-identity.json)
-app.security.identity-file=config/security-identity.json
 # Kafka topic (mặc định: security.endpoint.registration)
 app.security.registration.topic=security.endpoint.registration
+# Chỉ registrar/master bật true để publish Kafka registration (mặc định: true)
+app.security.registration.enabled=true
 # Bật/tắt (mặc định: true)
 app.security.enabled=true
 app.security.redis.host=localhost
@@ -70,7 +87,39 @@ app.security.redis.password=redis123
 app.security.settings.sync.enabled=true
 ```
 
-### 3.3. Kafka connection
+### 3.3. Registrar và follower trong môi trường nhiều instance
+
+Mọi instance đều cần bật security và Redis sync để scan endpoint, derive ID, poll Redis và subscribe Redis channel:
+
+```properties
+app.security.enabled=true
+app.security.settings.sync.enabled=true
+app.security.namespace=mini-project
+app.security.service.name=user-secureService
+```
+
+Chỉ một instance registrar/master của mỗi logical service bật registration:
+
+```properties
+# Registrar/master
+app.security.registration.enabled=true
+```
+
+Các instance follower/slave tắt registration:
+
+```properties
+# Follower/slave
+app.security.registration.enabled=false
+```
+
+Khác biệt duy nhất:
+
+| Mode | Publish Kafka registration | Poll/sub Redis |
+|------|----------------------------|----------------|
+| Registrar/master | Có | Có |
+| Follower/slave | Không | Có |
+
+### 3.4. Kafka connection
 
 Không cần config Kafka. Shared-lib tự tạo `KafkaTemplate` riêng với:
 
@@ -114,37 +163,6 @@ public class OrderController {
 }
 ```
 
-## 7. Security audit log ELK sync
-
-Shared-lib luôn ghi audit JSON vào logger `SECURITY_AUDIT` và best-effort publish cùng event vào Kafka topic
-`security.logs`. Service import không cần tự tạo producer hoặc tự publish audit log.
-
-```properties
-app.security.kafka.bootstrap-servers=localhost:9094
-app.security.audit.kafka.enabled=true
-```
-
-Topic audit log là giá trị cố định trong shared-lib: `security.logs`; service sử dụng lib không cần và không nên cấu hình topic này.
-
-`retentionDays` từ inbound/outbound settings được map thành `retentionBucket`: `<=14 -> r14`, `<=30 -> r30`, còn lại
-`r90`; giá trị thiếu dùng `30/r30`. Kafka publish là async, lỗi serialize/send/ack chỉ ghi warning nội bộ trong
-shared-lib và không làm fail inbound/outbound business flow.
-
-Local ELK stack:
-
-```powershell
-docker compose up -d kafka elasticsearch elasticsearch-template-loader logstash kibana kibana-setup
-docker exec -it kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic security.logs --from-beginning --max-messages 5
-curl "http://localhost:9200/security-logs-*/_search?q=traceId:<trace-id>"
-```
-
-Kibana: mở `http://localhost:5601`, vào `Analytics > Discover`, chọn data view `Security Logs`
-(`security-logs-*`), rồi filter theo `traceId`, `serviceName`, `endpointName`, `resultStatus`, `retentionBucket`.
-
-Elasticsearch templates and ILM policies live under `central/elasticsearch/`; Logstash pipeline lives under
-`central/logstash/pipeline/security-log.conf`. Rollback runtime by setting `app.security.audit.kafka.enabled=false` or stopping
-Logstash/Elasticsearch; `SECURITY_AUDIT` logger output remains unchanged.
-
 ### 4.2. MQ Listener
 
 ```java
@@ -157,7 +175,7 @@ public class OrderEventListener {
             name = "order-event-listener",
             topic = "order.events",
             protocol = EndpointProtocol.MQ,
-            method = EndpointMethod.POST,
+            method = EndpointMethod.SUB,
             description = "Lắng nghe sự kiện đơn hàng"
     )
     public void onOrderEvent(String message) {
@@ -174,7 +192,7 @@ public class OrderEventListener {
 | `protocol`    | Có                    | `HTTP`, `MQ`, hoặc `WEBHOOK`             |
 | `path`        | Không (nếu dùng HTTP) | URL path cho HTTP webhook                |
 | `topic`       | Không (nếu dùng MQ)   | Topic name cho message listener          |
-| `method`      | Không (mặc định POST) | HTTP method                              |
+| `method`      | Không (mặc định POST) | HTTP method hoặc `SUB` cho MQ listener   |
 | `description` | Không                 | Mô tả chức năng                          |
 
 ## 5. Annotation OutBoundSecurity
@@ -234,7 +252,7 @@ public class NotificationService {
             name = "publish-notification",
             topic = "notification.events",
             protocol = EndpointProtocol.MQ,
-            method = EndpointMethod.POST,
+            method = EndpointMethod.PUB,
             description = "Gửi thông báo qua Kafka"
     )
     public void sendNotification(Notification notif) {
@@ -251,30 +269,51 @@ public class NotificationService {
 | `protocol`    | Có                    | `HTTP` hoặc `MQ`                         |
 | `targetUrl`   | Không (nếu dùng HTTP) | URL đích cho HTTP client                 |
 | `topic`       | Không (nếu dùng MQ)   | Topic name cho publisher                 |
-| `method`      | Không (mặc định POST) | HTTP method                              |
+| `method`      | Không (mặc định POST) | HTTP method hoặc `PUB` cho MQ publisher  |
 | `description` | Không                 | Mô tả chức năng                          |
 
-## 6. Identity file
+## 6. Deterministic identity
 
-### 6.1. Vị trí
+Shared-lib không đọc hoặc ghi identity file trong luồng startup/registration. Khi start/restart, mọi instance derive
+`serviceId`, `endpointId` và metadata endpoint trực tiếp từ config và annotation đang có, rồi cập nhật registry local.
+Registrar/master publish Kafka registration event; follower/slave không publish event.
 
-Mặc định: tương đối với working directory của secureService.
+Mọi instance derive ID từ cùng rule:
 
-Ví dụ:
-
-- `user-secureService/` chạy ở `/app/user-secureService/` → file ở
-  `/app/user-secureService/security/user-secureService-identity.json`
-- Có thể override bằng `app.security.identity-file`
-
-### 6.2. Cấu trúc
-
-```json
-{
-  "serviceId": "a1b2c3d4-e5f6-...",
-  "endpoints": {
-    "HTTP_POST_/api/orders/webhook": "b2c3d4e5-...",
-    "MQ_order-events": "c3d4e5f6-...",
-    "HTTP_POST_https://partner.com/api/pay": "d4e5f6a7-..."
-  }
-}
+```text
+serviceId  = first32Hex(SHA-256(namespace + ":" + serviceName))
+endpointId = first32Hex(SHA-256(serviceId + "|" + direction + "|" + protocol + "|" + method + "|" + destination + "|"))
 ```
+
+Trong phase hiện tại, `consumerGroup` trong endpoint identity để rỗng vì annotation/DTO chưa có field này.
+
+## 7. Security audit log ELK sync
+
+Shared-lib luôn ghi audit JSON vào logger `SECURITY_AUDIT` và best-effort publish cùng event vào Kafka topic
+`security.logs`. Service import không cần tự tạo producer hoặc tự publish audit log.
+
+```properties
+app.security.kafka.bootstrap-servers=localhost:9094
+app.security.audit.kafka.enabled=true
+```
+
+Topic audit log là giá trị cố định trong shared-lib: `security.logs`; service sử dụng lib không cần và không nên cấu hình topic này.
+
+`retentionDays` từ inbound/outbound settings được map thành `retentionBucket`: `<=14 -> r14`, `<=30 -> r30`, còn lại
+`r90`; giá trị thiếu dùng `30/r30`. Kafka publish là async, lỗi serialize/send/ack chỉ ghi warning nội bộ trong
+shared-lib và không làm fail inbound/outbound business flow.
+
+Local ELK stack:
+
+```powershell
+docker compose up -d kafka elasticsearch elasticsearch-template-loader logstash kibana kibana-setup
+docker exec -it kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic security.logs --from-beginning --max-messages 5
+curl "http://localhost:9200/security-logs-*/_search?q=traceId:<trace-id>"
+```
+
+Kibana: mở `http://localhost:5601`, vào `Analytics > Discover`, chọn data view `Security Logs`
+(`security-logs-*`), rồi filter theo `traceId`, `serviceName`, `endpointName`, `resultStatus`, `retentionBucket`.
+
+Elasticsearch templates and ILM policies live under `central/elasticsearch/`; Logstash pipeline lives under
+`central/logstash/pipeline/security-log.conf`. Rollback runtime by setting `app.security.audit.kafka.enabled=false` or stopping
+Logstash/Elasticsearch; `SECURITY_AUDIT` logger output remains unchanged.
