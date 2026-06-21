@@ -13,6 +13,7 @@ import ClientManagementPage from '../pages/client/ClientManagementPage'
 import ClientDetailPage from '../pages/client/ClientDetailPage'
 import PermissionControlPage from '../pages/access-control/PermissionControlPage'
 import OverviewPage from '../pages/overview/OverviewPage'
+import SecurityLogPage from '../pages/security-log/SecurityLogPage'
 
 const routes = [
   {
@@ -119,6 +120,16 @@ const routes = [
       <ProtectedRoute>
         <HeaderSidebarLayout>
           <PermissionControlPage />
+        </HeaderSidebarLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/security-logs',
+    element: (
+      <ProtectedRoute>
+        <HeaderSidebarLayout>
+          <SecurityLogPage />
         </HeaderSidebarLayout>
       </ProtectedRoute>
     ),

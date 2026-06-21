@@ -49,8 +49,8 @@ async function doFetch(path, options = {}) {
   return data
 }
 
-export async function apiGet(path) {
-  return doFetch(path, { method: 'GET' })
+export async function apiGet(path, options = {}) {
+  return doFetch(path, { ...options, method: 'GET' })
 }
 
 export async function apiPost(path, body) {
