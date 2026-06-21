@@ -1,26 +1,37 @@
 .security-log-page {
-  padding: 24px;
+  min-height: 100%;
   min-width: 0;
+  background: #f9f9f9;
   color: #1f2937;
   font-family: var(--font-ui);
+}
+
+.security-log-container {
+  max-width: 1440px;
+  margin: 0 auto;
 }
 
 .security-log-page__header {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 2rem;
 }
 
 .security-log-page__header h1 {
-  margin: 0;
-  font-size: 28px;
-  color: #111827;
+  margin: 0 0 0.5rem;
+  color: #1a1c1c;
+  font-size: 30px;
+  line-height: 40px;
+  font-weight: 700;
 }
 
 .security-log-page__header p {
-  margin: 6px 0 0;
-  color: #6b7280;
+  max-width: 760px;
+  margin: 0;
+  color: #5b403d;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .security-log-page__refreshing,
@@ -430,7 +441,7 @@
 
 @media (max-width: 720px) {
   .security-log-page {
-    padding: 16px;
+    padding: 0;
   }
 
   .security-log-page__header,

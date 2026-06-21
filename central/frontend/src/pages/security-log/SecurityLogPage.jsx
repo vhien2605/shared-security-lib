@@ -123,28 +123,30 @@ export default function SecurityLogPage() {
 
   return (
     <main className="security-log-page">
-      <header className="security-log-page__header">
-        <div>
-          <h1>Nhật ký hệ thống</h1>
-          <p>Tra cứu security logs từ Elasticsearch theo thời gian, service, endpoint và trace.</p>
+      <div className="security-log-container">
+        <header className="security-log-page__header">
+          <div>
+            <h1>Nhật ký hệ thống</h1>
+            <p>Tra cứu security logs từ Elasticsearch theo thời gian, service, endpoint và trace.</p>
+          </div>
+          {isRefreshing ? <span className="security-log-page__refreshing">Đang refresh...</span> : null}
+        </header>
+        <div className="security-log-page__layout">
+          <SecurityLogFilters filters={draftFilters} onChange={setDraftFilters} onApply={applyFilters} onReset={resetFilters} disabled={busy} />
+          <section className="security-log-page__main">
+            <SecurityLogToolbar
+              totalElements={pageInfo.totalElements}
+              lastUpdatedAt={lastUpdatedAt}
+              autoRefreshMs={autoRefreshMs}
+              onAutoRefreshChange={setAutoRefreshMs}
+              onRefresh={() => loadLogs({ refresh: true })}
+              isBusy={busy}
+            />
+            <SecurityLogTable logs={logs} selectedLog={selectedLog} onSelect={setSelectedLog} isLoading={isInitialLoading} error={error} onRetry={() => loadLogs({ refresh: logs.length > 0 })} />
+            <SecurityLogPagination pageInfo={pageInfo} onPageChange={(page) => loadLogs({ page })} onSizeChange={(size) => loadLogs({ page: 0, size })} disabled={busy} />
+          </section>
+          <SecurityLogDetail log={selectedLog} onClose={() => setSelectedLog(null)} onCopy={copyValue} copyMessage={copyMessage} />
         </div>
-        {isRefreshing ? <span className="security-log-page__refreshing">Đang refresh...</span> : null}
-      </header>
-      <div className="security-log-page__layout">
-        <SecurityLogFilters filters={draftFilters} onChange={setDraftFilters} onApply={applyFilters} onReset={resetFilters} disabled={busy} />
-        <section className="security-log-page__main">
-          <SecurityLogToolbar
-            totalElements={pageInfo.totalElements}
-            lastUpdatedAt={lastUpdatedAt}
-            autoRefreshMs={autoRefreshMs}
-            onAutoRefreshChange={setAutoRefreshMs}
-            onRefresh={() => loadLogs({ refresh: true })}
-            isBusy={busy}
-          />
-          <SecurityLogTable logs={logs} selectedLog={selectedLog} onSelect={setSelectedLog} isLoading={isInitialLoading} error={error} onRetry={() => loadLogs({ refresh: logs.length > 0 })} />
-          <SecurityLogPagination pageInfo={pageInfo} onPageChange={(page) => loadLogs({ page })} onSizeChange={(size) => loadLogs({ page: 0, size })} disabled={busy} />
-        </section>
-        <SecurityLogDetail log={selectedLog} onClose={() => setSelectedLog(null)} onCopy={copyValue} copyMessage={copyMessage} />
       </div>
     </main>
   )
