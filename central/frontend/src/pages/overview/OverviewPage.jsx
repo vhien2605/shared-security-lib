@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { KIBANA_BASE_URL } from '../../constants'
 import './OverviewPage.css'
 
-const KIBANA_DASHBOARD_PATH = '/app/dashboards#/view/9d6706c0-b94d-4f16-92f3-62c1be0f2a73?embed=true&_g=%28refreshInterval%3A%28pause%3A%21t%2Cvalue%3A60000%29%2Ctime%3A%28from%3Anow-1h%2Cto%3Anow%29%29&show-top-menu=true&show-query-input=true&show-time-filter=true'
+const KIBANA_DASHBOARD_PATH = '/app/dashboards#/view/0b67bb58-c37f-4a9e-950f-9d806974860c?embed=true&_g=%28refreshInterval%3A%28pause%3A%21t%2Cvalue%3A60000%29%2Ctime%3A%28from%3Anow%2Fd%2Cto%3Anow%2Fd%29%29&show-top-menu=true&show-query-input=true&show-time-filter=true'
 
 export default function OverviewPage() {
   const [isDashboardLoaded, setIsDashboardLoaded] = useState(false)
