@@ -82,7 +82,7 @@ services:
       - security-library
   elasticsearch:
     container_name: elasticsearch
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.4
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.8
     restart: always
     environment:
       discovery.type: single-node
@@ -120,7 +120,7 @@ services:
       - security-library
   logstash:
     container_name: logstash
-    image: docker.elastic.co/logstash/logstash:8.19.4
+    image: docker.elastic.co/logstash/logstash:9.2.8
     restart: always
     depends_on:
       - kafka
@@ -133,7 +133,7 @@ services:
       - security-library
   kibana:
     container_name: kibana
-    image: docker.elastic.co/kibana/kibana:8.19.4
+    image: docker.elastic.co/kibana/kibana:9.2.8
     restart: always
     depends_on:
       - elasticsearch
