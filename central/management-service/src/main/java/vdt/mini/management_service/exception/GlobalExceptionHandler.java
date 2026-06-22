@@ -19,10 +19,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({AppException.class})
     public ApiResponse handleAppException(AppException e, WebRequest request) {
         log.info("---------------------------Application exception handler start---------------------------");
-        String error = e.getMessage();
         return ApiErrorResponse.builder()
                 .status(e.getErrorCode().getCode())
-                .message(e.getErrorCode().getMessage())
+                .message(e.getMessage() == null ? e.getErrorCode().getMessage() : e.getMessage())
                 .error(e.getErrorCode().name())
                 .path(request.getDescription(false))
                 .build();
