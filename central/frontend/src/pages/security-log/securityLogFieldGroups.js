@@ -62,11 +62,4 @@ export const FLOW_FIELD_GROUPS = {
       ['retryCount', 'Retry count'], ['retryAttempt', 'Retry attempt'], ['retryBackoffMs', 'Retry backoff', formatDuration], ['rollbackStrategy', 'Rollback strategy'],
     ],
   },
-  OUTBOUND_MQ_PUBLISHER: {
-    title: 'Outbound MQ Publisher',
-    fields: [
-      ['topic', 'Topic'], ['messageSizeBytes', 'Message size', formatBytes], ['producerClientId', 'Producer client ID'], ['retryCount', 'Retry count'],
-      ['retryAttempt', 'Retry attempt'], ['retryBackoffMs', 'Retry backoff', formatDuration], ['rollbackStrategy', 'Rollback strategy'],
-    ],
-  },
 }

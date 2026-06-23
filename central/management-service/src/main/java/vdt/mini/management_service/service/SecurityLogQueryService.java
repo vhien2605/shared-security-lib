@@ -33,7 +33,7 @@ public class SecurityLogQueryService {
     private static final int MAX_SIZE = 100;
     private static final Set<String> SORT_DIRECTIONS = Set.of("ASC", "DESC");
     private static final Map<String, Set<String>> ALLOWED_VALUES = Map.of(
-            "flowType", Set.of("INBOUND_HTTP", "INBOUND_MQ_LISTENER", "OUTBOUND_HTTP", "OUTBOUND_MQ_PUBLISHER"),
+            "flowType", Set.of("INBOUND_HTTP", "INBOUND_MQ_LISTENER", "OUTBOUND_HTTP", "OUTBOUND_MQ"),
             "direction", Set.of("INBOUND", "OUTBOUND"),
             "protocol", Set.of("HTTP", "HTTPS", "MQ", "KAFKA", "RABBITMQ", "GRPC"),
             "method", Set.of("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE", "PUBLISH", "CONSUME"),
