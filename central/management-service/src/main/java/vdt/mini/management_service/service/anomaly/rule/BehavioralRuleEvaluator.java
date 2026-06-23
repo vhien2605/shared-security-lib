@@ -12,10 +12,10 @@ import java.util.List;
 @Service
 public class BehavioralRuleEvaluator implements RuleEvaluator {
     private static final double RATE_ROBUST_Z_THRESHOLD = 5.0;
-    private static final double MIN_RATE_DELTA = 0.10;
-    private static final double MIN_FAILURE_RATE = 0.10;
-    private static final double MIN_DENIED_RATE = 0.10;
-    private static final double MIN_RETRY_RATE = 0.15;
+    private static final double MIN_RATE_DELTA = 0.30;
+    private static final double MIN_FAILURE_RATE = 0.30;
+    private static final double MIN_DENIED_RATE = 0.30;
+    private static final double MIN_RETRY_RATE = 0.30;
     private static final long MIN_RATE_EVENT_COUNT = 10;
 
     @Override

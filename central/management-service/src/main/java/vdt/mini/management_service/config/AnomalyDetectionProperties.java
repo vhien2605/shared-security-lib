@@ -38,7 +38,6 @@ public class AnomalyDetectionProperties {
         private int lookbackDays = 14;
         private long minLogSamples = 500;
         private long minBehaviorWindows = 100;
-        private int maxLogsPerRun = 10000;
         private int knownValueLimit = 200;
         public int getLookbackDays() { return lookbackDays; }
         public void setLookbackDays(int lookbackDays) { this.lookbackDays = lookbackDays; }
@@ -46,8 +45,6 @@ public class AnomalyDetectionProperties {
         public void setMinLogSamples(long minLogSamples) { this.minLogSamples = minLogSamples; }
         public long getMinBehaviorWindows() { return minBehaviorWindows; }
         public void setMinBehaviorWindows(long minBehaviorWindows) { this.minBehaviorWindows = minBehaviorWindows; }
-        public int getMaxLogsPerRun() { return maxLogsPerRun; }
-        public void setMaxLogsPerRun(int maxLogsPerRun) { this.maxLogsPerRun = maxLogsPerRun; }
         public int getKnownValueLimit() { return knownValueLimit; }
         public void setKnownValueLimit(int knownValueLimit) { this.knownValueLimit = knownValueLimit; }
     }

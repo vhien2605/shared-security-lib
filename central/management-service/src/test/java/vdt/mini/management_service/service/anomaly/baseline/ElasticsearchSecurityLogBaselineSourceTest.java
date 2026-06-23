@@ -33,7 +33,7 @@ class ElasticsearchSecurityLogBaselineSourceTest {
     }
 
     @Test
-    void loadRecentLogsForService_shouldReturnEmptyWhenMaxExceeded() {
+    void loadRecentLogsForService_shouldKeepResultsWhenMoreThanPreviousMaxLimit() {
         ElasticsearchOperations operations = mock(ElasticsearchOperations.class);
         @SuppressWarnings("unchecked") SearchHits<SecurityEventLog> hits = mock(SearchHits.class);
         @SuppressWarnings("unchecked") SearchHit<SecurityEventLog> first = mock(SearchHit.class);
@@ -42,10 +42,8 @@ class ElasticsearchSecurityLogBaselineSourceTest {
         when(second.getContent()).thenReturn(log("svc-1"));
         when(hits.getSearchHits()).thenReturn(List.of(first, second));
         when(operations.search(any(Query.class), eq(SecurityEventLog.class))).thenReturn(hits);
-        AnomalyDetectionProperties properties = AnomalyTestFixtures.properties();
-        properties.getBaseline().setMaxLogsPerRun(1);
 
-        assertTrue(new ElasticsearchSecurityLogBaselineSource(operations, properties).loadRecentLogsForService("svc-1").isEmpty());
+        assertEquals(2, new ElasticsearchSecurityLogBaselineSource(operations, AnomalyTestFixtures.properties()).loadRecentLogsForService("svc-1").size());
     }
 
     private SecurityEventLog log(String serviceId) {

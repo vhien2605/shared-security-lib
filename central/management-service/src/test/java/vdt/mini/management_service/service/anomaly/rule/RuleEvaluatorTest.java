@@ -47,4 +47,16 @@ class RuleEvaluatorTest {
         assertEquals(AnomalyDecision.ANOMALY, result.decision());
         assertEquals(AnomalyType.FAILURE_SPIKE, result.matches().getFirst().anomalyType());
     }
+
+    @Test
+    void behavioralEvaluator_shouldNotDetectFailureSpikeBelowMinimumFailureRate() {
+        RollingWindowSnapshot snapshot = new RollingWindowSnapshot(Instant.EPOCH, Instant.EPOCH.plusSeconds(60), 50, 50, 10, 0, 0, 0.2, 0, 0, null, null, null, null, null, null, null, 0, 0, 0, null, 0, Instant.EPOCH);
+        AnomalyContext context = new AnomalyContext(AnomalyTestFixtures.event("2026-06-23T00:00:00Z", 10), AnomalyTestFixtures.key(), null, null, AnomalyTestFixtures.behaviorBaseline(2), snapshot,
+                null, new BehaviorDeviation(null, 99.0, null, null, null, null, null, null, null, null, null), new BaselineConfidence(false, true, true, true));
+
+        var result = new BehavioralRuleEvaluator().evaluate(context);
+
+        assertEquals(AnomalyDecision.NORMAL, result.decision());
+        assertTrue(result.matches().isEmpty());
+    }
 }
