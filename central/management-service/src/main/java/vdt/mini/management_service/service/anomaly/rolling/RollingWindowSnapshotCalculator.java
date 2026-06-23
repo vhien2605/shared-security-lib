@@ -32,8 +32,8 @@ public class RollingWindowSnapshotCalculator {
             return RollingWindowSnapshot.empty(windowStart, windowEnd);
         }
         long failed = valid.stream().filter(this::isFailed).count();
-        long denied = valid.stream().filter(entry -> "DENIED".equalsIgnoreCase(entry.status())).count();
-        long retried = valid.stream().filter(entry -> entry.retryAttempt() != null && entry.retryAttempt() > 0).count();
+        long denied = valid.stream().filter(this::isDenied).count();
+        long retried = valid.stream().filter(this::isRetried).count();
         List<Long> durations = valid.stream().map(RollingWindowEntry::durationMs).filter(Objects::nonNull).toList();
         List<Long> requestSizes = valid.stream().map(RollingWindowEntry::requestSizeBytes).filter(Objects::nonNull).toList();
         List<Long> responseSizes = valid.stream().map(RollingWindowEntry::responseSizeBytes).filter(Objects::nonNull).toList();
@@ -52,7 +52,18 @@ public class RollingWindowSnapshotCalculator {
     }
 
     private boolean isFailed(RollingWindowEntry entry) {
-        return "FAILED".equalsIgnoreCase(entry.status()) || "ERROR".equalsIgnoreCase(entry.status()) || "TIMEOUT".equalsIgnoreCase(entry.status());
+        return "FAILED".equalsIgnoreCase(entry.status())
+                || "ERROR".equalsIgnoreCase(entry.status())
+                || "TIMEOUT".equalsIgnoreCase(entry.status());
+    }
+
+    private boolean isDenied(RollingWindowEntry entry) {
+        return "DENIED".equalsIgnoreCase(entry.status());
+    }
+
+    private boolean isRetried(RollingWindowEntry entry) {
+        return "RETRY".equalsIgnoreCase(entry.status())
+                || (entry.retryAttempt() != null && entry.retryAttempt() > 0);
     }
 
     private double rate(long numerator, long denominator) {

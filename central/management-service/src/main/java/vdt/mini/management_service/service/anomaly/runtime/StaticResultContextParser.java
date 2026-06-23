@@ -21,7 +21,7 @@ public class StaticResultContextParser {
                 event.getRollbackStrategy(),
                 "FAILED".equals(status) || "ERROR".equals(status) || "TIMEOUT".equals(status),
                 "DENIED".equals(status),
-                retryAttempt != null && retryAttempt > 0);
+                "RETRY".equals(status) || (retryAttempt != null && retryAttempt > 0));
     }
 
     private String normalize(String value) {

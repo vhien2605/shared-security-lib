@@ -20,4 +20,17 @@ class StaticResultContextParserTest {
         assertTrue(context.denied());
         assertTrue(context.retried());
     }
+
+    @Test
+    void parse_shouldTreatRetryStatusAsRetriedEvenWithoutRetryAttempt() {
+        var event = AnomalyTestFixtures.event("2026-06-23T00:00:00Z", 10);
+        event.setStatus("retry");
+        event.setRetryAttempt(null);
+
+        StaticResultContext context = new StaticResultContextParser().parse(event);
+
+        assertEquals("RETRY", context.status());
+        assertTrue(context.retried());
+        assertFalse(context.failed());
+    }
 }
