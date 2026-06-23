@@ -18,6 +18,7 @@ import vdt.mini.management_service.repository.AlertConfigRepository;
 import vdt.mini.management_service.repository.InboundEndpointRepository;
 import vdt.mini.management_service.repository.OutboundEndpointRepository;
 import vdt.mini.management_service.repository.ServiceRepository;
+import vdt.mini.management_service.service.anomaly.baseline.BaselineBuildService;
 import vdt.mini.management_service.util.enums.EndpointMethod;
 import vdt.mini.management_service.util.enums.EndpointProtocol;
 import vdt.mini.management_service.util.enums.EndpointStatus;
@@ -41,19 +42,22 @@ public class RegistrationService {
     private final AlertConfigRepository alertConfigRepository;
     private final RedisSettingsSyncService redisSettingsSyncService;
     private final SettingTemplateService settingTemplateService;
+    private final BaselineBuildService baselineBuildService;
 
     public RegistrationService(ServiceRepository serviceRepository,
                                InboundEndpointRepository inboundEndpointRepository,
                                OutboundEndpointRepository outboundEndpointRepository,
-                               AlertConfigRepository alertConfigRepository,
-                               RedisSettingsSyncService redisSettingsSyncService,
-                               SettingTemplateService settingTemplateService) {
+                                AlertConfigRepository alertConfigRepository,
+                                RedisSettingsSyncService redisSettingsSyncService,
+                                SettingTemplateService settingTemplateService,
+                                BaselineBuildService baselineBuildService) {
         this.serviceRepository = serviceRepository;
         this.inboundEndpointRepository = inboundEndpointRepository;
         this.outboundEndpointRepository = outboundEndpointRepository;
         this.alertConfigRepository = alertConfigRepository;
         this.redisSettingsSyncService = redisSettingsSyncService;
         this.settingTemplateService = settingTemplateService;
+        this.baselineBuildService = baselineBuildService;
     }
 
     @Transactional
@@ -220,6 +224,11 @@ public class RegistrationService {
                     @Override
                     public void afterCommit() {
                         redisSettingsSyncService.syncAllEndpointsOfService(serviceId);
+                        try {
+                            baselineBuildService.buildForService(serviceId);
+                        } catch (RuntimeException exception) {
+                            log.warn("Baseline build after registration failed for serviceId={}", serviceId, exception);
+                        }
                     }
                 }
         );
