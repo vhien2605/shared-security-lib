@@ -48,5 +48,12 @@ public final class AnomalyTestFixtures {
                 200.0, 10.0, null, null, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, "behavior-v1", Instant.EPOCH, true);
     }
 
+    public static AnomalyContext context() {
+        return new AnomalyContext(event("2026-06-23T00:00:00Z", 100), key(),
+                new StaticResultContext("FAILED", null, "E1", null, null, 1, null, true, false, true),
+                logBaseline(3), behaviorBaseline(2), RollingWindowSnapshot.empty(Instant.EPOCH, Instant.EPOCH),
+                null, null, new BaselineConfidence(true, true, true, true));
+    }
+
     public static AnomalyGroupKey key() { return new AnomalyGroupKey("svc-1", "ep-1", "INBOUND_HTTP"); }
 }

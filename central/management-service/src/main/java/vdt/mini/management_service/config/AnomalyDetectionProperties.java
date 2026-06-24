@@ -13,6 +13,8 @@ public class AnomalyDetectionProperties {
     private Baseline baseline = new Baseline();
     private Rolling rolling = new Rolling();
     private RobustZ robustZ = new RobustZ();
+    private Risk risk = new Risk();
+    private Incident incident = new Incident();
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -24,6 +26,10 @@ public class AnomalyDetectionProperties {
     public void setRolling(Rolling rolling) { this.rolling = rolling; }
     public RobustZ getRobustZ() { return robustZ; }
     public void setRobustZ(RobustZ robustZ) { this.robustZ = robustZ; }
+    public Risk getRisk() { return risk; }
+    public void setRisk(Risk risk) { this.risk = risk; }
+    public Incident getIncident() { return incident; }
+    public void setIncident(Incident incident) { this.incident = incident; }
 
     public static class Kafka {
         private String logsTopic = "security.logs";
@@ -39,6 +45,7 @@ public class AnomalyDetectionProperties {
         private long minLogSamples = 500;
         private long minBehaviorWindows = 100;
         private int knownValueLimit = 200;
+        private Recompute recompute = new Recompute();
         public int getLookbackDays() { return lookbackDays; }
         public void setLookbackDays(int lookbackDays) { this.lookbackDays = lookbackDays; }
         public long getMinLogSamples() { return minLogSamples; }
@@ -47,6 +54,20 @@ public class AnomalyDetectionProperties {
         public void setMinBehaviorWindows(long minBehaviorWindows) { this.minBehaviorWindows = minBehaviorWindows; }
         public int getKnownValueLimit() { return knownValueLimit; }
         public void setKnownValueLimit(int knownValueLimit) { this.knownValueLimit = knownValueLimit; }
+        public Recompute getRecompute() { return recompute; }
+        public void setRecompute(Recompute recompute) { this.recompute = recompute; }
+
+        public static class Recompute {
+            private boolean enabled = false;
+            private String cron = "0 0 3 ? * SUN";
+            private String zone = "UTC";
+            public boolean isEnabled() { return enabled; }
+            public void setEnabled(boolean enabled) { this.enabled = enabled; }
+            public String getCron() { return cron; }
+            public void setCron(String cron) { this.cron = cron; }
+            public String getZone() { return zone; }
+            public void setZone(String zone) { this.zone = zone; }
+        }
     }
 
     public static class Rolling {
@@ -65,5 +86,26 @@ public class AnomalyDetectionProperties {
         private double epsilon = 1.0;
         public double getEpsilon() { return epsilon; }
         public void setEpsilon(double epsilon) { this.epsilon = epsilon; }
+    }
+
+    public static class Risk {
+        private int mediumSeverityThreshold = 6;
+        private int highSeverityThreshold = 11;
+        private int criticalSeverityThreshold = 16;
+        public int getMediumSeverityThreshold() { return mediumSeverityThreshold; }
+        public void setMediumSeverityThreshold(int mediumSeverityThreshold) { this.mediumSeverityThreshold = mediumSeverityThreshold; }
+        public int getHighSeverityThreshold() { return highSeverityThreshold; }
+        public void setHighSeverityThreshold(int highSeverityThreshold) { this.highSeverityThreshold = highSeverityThreshold; }
+        public int getCriticalSeverityThreshold() { return criticalSeverityThreshold; }
+        public void setCriticalSeverityThreshold(int criticalSeverityThreshold) { this.criticalSeverityThreshold = criticalSeverityThreshold; }
+    }
+
+    public static class Incident {
+        private boolean enabled = true;
+        private Duration dedupWindow = Duration.ofMinutes(5);
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public Duration getDedupWindow() { return dedupWindow; }
+        public void setDedupWindow(Duration dedupWindow) { this.dedupWindow = dedupWindow; }
     }
 }
