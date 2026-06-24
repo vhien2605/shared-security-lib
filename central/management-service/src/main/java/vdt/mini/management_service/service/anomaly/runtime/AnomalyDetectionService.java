@@ -115,8 +115,8 @@ public class AnomalyDetectionService {
     }
 
     private void publish(SecurityLogEventMessage event, AnomalyContext context, List<RuleMatch> matches, AnomalyDecision decision, RiskScoreResult riskScore) {
-        AnomalyType primaryType = anomalyTypeResolver.resolve(matches);
-        if (primaryType == null) return;
+        List<AnomalyType> anomalyTypes = anomalyTypeResolver.resolveAll(matches);
+        if (anomalyTypes.isEmpty()) return;
         Instant now = Instant.now();
         RollingWindowSnapshot snapshot = context.rollingSnapshot();
         Map<String, Object> features = new LinkedHashMap<>();
@@ -128,23 +128,26 @@ public class AnomalyDetectionService {
         features.put("severityInputs", Map.of("decision", decision, "sourceSeverityPoints", riskScore.sourceSeverityPoints(), "highestConfidence", highestConfidence(matches)));
         features.put("compositeMatches", matches.stream().filter(match -> match.ruleId().startsWith("COMPOSITE_")).map(RuleMatch::ruleId).toList());
         String severity = anomalySeverityResolver.resolve(decision, riskScore, highestConfidence(matches), context, matches);
-        IncidentDedupResult dedupResult = incidentDedupService.deduplicate(context, primaryType, severity, riskScore.totalScore(), features, now);
-        features.put("incidentDedup", Map.of("shouldPublish", dedupResult.shouldPublish(), "incidentId", dedupResult.incidentId() == null ? "" : dedupResult.incidentId(), "matchedCount", dedupResult.matchedCount()));
-        if (!dedupResult.shouldPublish()) {
-            log.info("Suppressing duplicate anomaly publish for incidentId={} key={} type={}", dedupResult.incidentId(), context.groupKey(), primaryType);
-            return;
-        }
-        AnomalyEvent anomalyEvent = new AnomalyEvent(UUID.randomUUID().toString(), dedupResult.incidentId(), now, "LOG_RULE_ENGINE", primaryType, severity,
-                event.getTraceId(), event.getCorrelationId(), event.getServiceId(), event.getServiceName(), event.getEndpointId(), event.getEndpointName(), event.getFlowType(), event.getDirection(),
-                decision, riskScore.totalScore(), highestConfidence(matches), matches.stream().map(RuleMatch::ruleId).toList(),
-                matches.stream().flatMap(match -> match.detectedFeatures().stream()).distinct().toList(), features, RuleSetVersion.CURRENT,
-                context.logBaseline() == null ? null : context.logBaseline().baselineVersion(), context.behaviorBaseline() == null ? null : context.behaviorBaseline().baselineVersion(),
-                snapshot == null ? null : snapshot.windowStart(), snapshot == null ? null : snapshot.windowEnd(), snapshot == null ? 0 : snapshot.windowSampleCount(),
-                dedupResult.firstSeenAt(), dedupResult.lastSeenAt(), dedupResult.matchedCount(), now);
-        try {
-            publisher.publish(anomalyEvent);
-        } catch (RuntimeException exception) {
-            log.warn("Failed to hand off anomaly event id={}", anomalyEvent.anomalyId(), exception);
+        for (AnomalyType anomalyType : anomalyTypes) {
+            Map<String, Object> eventFeatures = new LinkedHashMap<>(features);
+            IncidentDedupResult dedupResult = incidentDedupService.deduplicate(context, anomalyType, severity, riskScore.totalScore(), eventFeatures, now);
+            eventFeatures.put("incidentDedup", Map.of("shouldPublish", dedupResult.shouldPublish(), "incidentId", dedupResult.incidentId() == null ? "" : dedupResult.incidentId(), "matchedCount", dedupResult.matchedCount()));
+            if (!dedupResult.shouldPublish()) {
+                log.info("Suppressing duplicate anomaly publish for incidentId={} key={} type={}", dedupResult.incidentId(), context.groupKey(), anomalyType);
+                continue;
+            }
+            AnomalyEvent anomalyEvent = new AnomalyEvent(UUID.randomUUID().toString(), dedupResult.incidentId(), now, "LOG_RULE_ENGINE", anomalyType, severity,
+                    event.getTraceId(), event.getCorrelationId(), event.getServiceId(), event.getServiceName(), event.getEndpointId(), event.getEndpointName(), event.getFlowType(), event.getDirection(),
+                    decision, riskScore.totalScore(), highestConfidence(matches), matches.stream().map(RuleMatch::ruleId).toList(),
+                    matches.stream().flatMap(match -> match.detectedFeatures().stream()).distinct().toList(), eventFeatures, RuleSetVersion.CURRENT,
+                    context.logBaseline() == null ? null : context.logBaseline().baselineVersion(), context.behaviorBaseline() == null ? null : context.behaviorBaseline().baselineVersion(),
+                    snapshot == null ? null : snapshot.windowStart(), snapshot == null ? null : snapshot.windowEnd(), snapshot == null ? 0 : snapshot.windowSampleCount(),
+                    dedupResult.firstSeenAt(), dedupResult.lastSeenAt(), dedupResult.matchedCount(), now);
+            try {
+                publisher.publish(anomalyEvent);
+            } catch (RuntimeException exception) {
+                log.warn("Failed to hand off anomaly event id={}", anomalyEvent.anomalyId(), exception);
+            }
         }
     }
 

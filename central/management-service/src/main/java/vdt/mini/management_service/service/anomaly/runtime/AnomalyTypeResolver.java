@@ -6,8 +6,10 @@ import vdt.mini.management_service.util.enums.AnomalyType;
 import vdt.mini.management_service.util.enums.RuleConfidence;
 
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class AnomalyTypeResolver {
@@ -19,11 +21,25 @@ public class AnomalyTypeResolver {
 
     public AnomalyType resolve(List<RuleMatch> matches) {
         if (matches == null || matches.isEmpty()) return null;
-        return matches.stream().min(Comparator.<RuleMatch>comparingInt(this::categoryRank)
+        return matches.stream().min(priorityComparator()).orElseThrow().anomalyType();
+    }
+
+    public List<AnomalyType> resolveAll(List<RuleMatch> matches) {
+        if (matches == null || matches.isEmpty()) return List.of();
+        return matches.stream()
+                .sorted(priorityComparator())
+                .map(RuleMatch::anomalyType)
+                .collect(Collectors.toCollection(LinkedHashSet::new))
+                .stream()
+                .toList();
+    }
+
+    private Comparator<RuleMatch> priorityComparator() {
+        return Comparator.<RuleMatch>comparingInt(this::categoryRank)
                 .thenComparing(Comparator.<RuleMatch>comparingInt(RuleMatch::riskPoints).reversed())
                 .thenComparing(Comparator.<RuleMatch>comparingInt(match -> confidenceRank(match.confidence())).reversed())
                 .thenComparingInt(match -> typePriority(match.anomalyType()))
-                .thenComparing(RuleMatch::ruleId)).orElseThrow().anomalyType();
+                .thenComparing(RuleMatch::ruleId);
     }
 
     private int categoryRank(RuleMatch match) {

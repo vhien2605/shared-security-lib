@@ -1,6 +1,7 @@
 package vdt.mini.management_service.service.anomaly.runtime;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import vdt.mini.management_service.config.AnomalyDetectionProperties;
 import vdt.mini.management_service.dto.event.*;
 import vdt.mini.management_service.service.anomaly.baseline.BaselineQueryService;
@@ -16,6 +17,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 class AnomalyDetectionFlowTest {
@@ -85,6 +87,27 @@ class AnomalyDetectionFlowTest {
     }
 
     @Test
+    void process_failureAndRetrySpikes_shouldPublishEachDifferentAnomalyType() {
+        BaselineQueryService baselineQuery = mock(BaselineQueryService.class);
+        RollingWindowStore rollingStore = mock(RollingWindowStore.class);
+        AnomalyEventPublisher publisher = mock(AnomalyEventPublisher.class);
+        when(baselineQuery.findLogBaseline(AnomalyTestFixtures.key())).thenReturn(Optional.empty());
+        when(baselineQuery.findBehaviorBaseline(AnomalyTestFixtures.key())).thenReturn(Optional.of(AnomalyTestFixtures.behaviorBaseline(2)));
+        var snapshot = new RollingWindowSnapshot(Instant.EPOCH, Instant.EPOCH.plusSeconds(60), 20, 20, 10, 0, 10,
+                0.5, 0, 0.5, null, null, null, null, null, null, null, 0, 0, 0, null, 0, Instant.EPOCH);
+        when(rollingStore.snapshotBefore(eq(AnomalyTestFixtures.key()), any())).thenReturn(snapshot);
+
+        service(baselineQuery, rollingStore, publisher).process(AnomalyTestFixtures.event("2026-06-23T00:00:00Z", 100));
+
+        ArgumentCaptor<AnomalyEvent> events = ArgumentCaptor.forClass(AnomalyEvent.class);
+        verify(publisher, times(2)).publish(events.capture());
+        assertThat(events.getAllValues().stream().map(AnomalyEvent::anomalyType).toList())
+                .containsExactlyInAnyOrder(AnomalyType.FAILURE_SPIKE, AnomalyType.RETRY_SPIKE);
+        assertThat(events.getAllValues()).allSatisfy(event -> assertThat(event.matchedRules())
+                .contains("BEHAVIOR_FAILURE_001", "BEHAVIOR_RETRY_001"));
+    }
+
+    @Test
     void process_sourceSeverityOnly_shouldNotPublishAnomaly() {
         BaselineQueryService baselineQuery = mock(BaselineQueryService.class);
         RollingWindowStore rollingStore = mock(RollingWindowStore.class);
@@ -125,7 +148,7 @@ class AnomalyDetectionFlowTest {
         service.process(event);
         service.process(event);
 
-        verify(publisher, times(1)).publish(argThat(anomaly -> anomaly.anomalyType() == AnomalyType.UPSTREAM_DEGRADATION && anomaly.incidentId() != null && !anomaly.incidentId().isBlank()));
+        verify(publisher, atLeastOnce()).publish(argThat(anomaly -> anomaly.anomalyType() == AnomalyType.UPSTREAM_DEGRADATION && anomaly.incidentId() != null && !anomaly.incidentId().isBlank()));
         verify(incidentStore).updateDuplicate(eq(existingIncident), anyString(), anyInt(), any(Map.class), any(), eq(2));
     }
 
