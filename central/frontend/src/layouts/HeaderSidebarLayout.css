@@ -96,6 +96,108 @@
   border: 2px solid #fff;
 }
 
+.app-header__notify-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.app-header__badge {
+  position: absolute;
+  top: -7px;
+  right: -9px;
+  min-width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: #af101a;
+  color: #fff;
+  border: 2px solid #fff;
+  font-size: 10px;
+  line-height: 13px;
+  font-weight: 700;
+  text-align: center;
+  padding: 0 3px;
+}
+
+.app-header__notifications {
+  position: absolute;
+  right: -12px;
+  top: calc(100% + 14px);
+  width: min(360px, 90vw);
+  max-height: 420px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(17, 24, 39, 0.16);
+  padding: 8px;
+  z-index: 25;
+}
+
+.app-header__notifications-title {
+  padding: 8px 10px 10px;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.app-header__notifications-empty {
+  padding: 16px 10px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.app-header__notification-item {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.app-header__notification-item:hover,
+.app-header__notification-item--unread {
+  background: #fef2f2;
+}
+
+.app-header__notification-item strong {
+  color: #111827;
+  font-size: 13px;
+}
+
+.app-header__notification-item small,
+.app-header__notification-item em {
+  color: #6b7280;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.35;
+}
+
+.app-header__notification-severity {
+  justify-self: start;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #374151;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+}
+
+.app-header__notification-severity--high,
+.app-header__notification-severity--critical {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.app-header__notification-severity--medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .app-header__user-wrap {
   margin-left: 2px;
   border-left: 1px solid #e5e7eb;

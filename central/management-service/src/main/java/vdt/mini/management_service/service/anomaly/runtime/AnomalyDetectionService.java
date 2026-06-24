@@ -1,10 +1,12 @@
 package vdt.mini.management_service.service.anomaly.runtime;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import vdt.mini.management_service.dto.event.*;
 import vdt.mini.management_service.service.anomaly.baseline.BaselineQueryService;
+import vdt.mini.management_service.service.anomaly.alert.AnomalyAlertService;
 import vdt.mini.management_service.service.anomaly.rolling.RollingWindowStore;
 import vdt.mini.management_service.service.anomaly.rule.BehavioralRuleEvaluator;
 import vdt.mini.management_service.service.anomaly.rule.CompositeRiskEvaluator;
@@ -34,20 +36,23 @@ public class AnomalyDetectionService {
     private final AnomalySeverityResolver anomalySeverityResolver;
     private final IncidentDedupService incidentDedupService;
     private final AnomalyEventPublisher publisher;
+    private final AnomalyAlertService alertService;
 
+    @Autowired
     public AnomalyDetectionService(SecurityLogValidator validator,
-                                   StaticResultContextParser staticResultContextParser,
-                                   BaselineQueryService baselineQueryService,
-                                   RollingWindowStore rollingWindowStore,
+                                    StaticResultContextParser staticResultContextParser,
+                                    BaselineQueryService baselineQueryService,
+                                    RollingWindowStore rollingWindowStore,
                                     DeviationCalculatorService deviationCalculatorService,
                                     HistoricalLogRuleEvaluator historicalLogRuleEvaluator,
                                     BehavioralRuleEvaluator behavioralRuleEvaluator,
                                     CompositeRiskScorer compositeRiskScorer,
-                                    CompositeRiskEvaluator compositeRiskEvaluator,
-                                    AnomalyTypeResolver anomalyTypeResolver,
-                                    AnomalySeverityResolver anomalySeverityResolver,
-                                    IncidentDedupService incidentDedupService,
-                                    AnomalyEventPublisher publisher) {
+                                     CompositeRiskEvaluator compositeRiskEvaluator,
+                                     AnomalyTypeResolver anomalyTypeResolver,
+                                     AnomalySeverityResolver anomalySeverityResolver,
+                                     IncidentDedupService incidentDedupService,
+                                     AnomalyEventPublisher publisher,
+                                     AnomalyAlertService alertService) {
         this.validator = validator;
         this.staticResultContextParser = staticResultContextParser;
         this.baselineQueryService = baselineQueryService;
@@ -61,6 +66,25 @@ public class AnomalyDetectionService {
         this.anomalySeverityResolver = anomalySeverityResolver;
         this.incidentDedupService = incidentDedupService;
         this.publisher = publisher;
+        this.alertService = alertService;
+    }
+
+    public AnomalyDetectionService(SecurityLogValidator validator,
+                                   StaticResultContextParser staticResultContextParser,
+                                   BaselineQueryService baselineQueryService,
+                                   RollingWindowStore rollingWindowStore,
+                                   DeviationCalculatorService deviationCalculatorService,
+                                   HistoricalLogRuleEvaluator historicalLogRuleEvaluator,
+                                   BehavioralRuleEvaluator behavioralRuleEvaluator,
+                                   CompositeRiskScorer compositeRiskScorer,
+                                   CompositeRiskEvaluator compositeRiskEvaluator,
+                                   AnomalyTypeResolver anomalyTypeResolver,
+                                   AnomalySeverityResolver anomalySeverityResolver,
+                                   IncidentDedupService incidentDedupService,
+                                   AnomalyEventPublisher publisher) {
+        this(validator, staticResultContextParser, baselineQueryService, rollingWindowStore, deviationCalculatorService,
+                historicalLogRuleEvaluator, behavioralRuleEvaluator, compositeRiskScorer, compositeRiskEvaluator,
+                anomalyTypeResolver, anomalySeverityResolver, incidentDedupService, publisher, null);
     }
 
     public void process(SecurityLogEventMessage event) {
@@ -95,7 +119,11 @@ public class AnomalyDetectionService {
         } catch (RuntimeException exception) {
             log.warn("Anomaly processing degraded for key={}", key, exception);
         } finally {
-            rollingWindowStore.add(key, entry);
+            try {
+                rollingWindowStore.add(key, entry);
+            } catch (RuntimeException exception) {
+                log.warn("Failed to update rolling window for key={}", key, exception);
+            }
         }
     }
 
@@ -147,6 +175,13 @@ public class AnomalyDetectionService {
                 publisher.publish(anomalyEvent);
             } catch (RuntimeException exception) {
                 log.warn("Failed to hand off anomaly event id={}", anomalyEvent.anomalyId(), exception);
+            }
+            if (alertService != null) {
+                try {
+                    alertService.dispatch(anomalyEvent);
+                } catch (RuntimeException exception) {
+                    log.warn("Failed to dispatch anomaly alert id={}", anomalyEvent.anomalyId(), exception);
+                }
             }
         }
     }

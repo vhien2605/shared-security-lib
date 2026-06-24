@@ -5,6 +5,7 @@ import org.mockito.ArgumentCaptor;
 import vdt.mini.management_service.config.AnomalyDetectionProperties;
 import vdt.mini.management_service.dto.event.*;
 import vdt.mini.management_service.service.anomaly.baseline.BaselineQueryService;
+import vdt.mini.management_service.service.anomaly.alert.AnomalyAlertService;
 import vdt.mini.management_service.service.anomaly.rolling.RollingWindowStore;
 import vdt.mini.management_service.service.anomaly.rule.BehavioralRuleEvaluator;
 import vdt.mini.management_service.service.anomaly.rule.CompositeRiskEvaluator;
@@ -150,6 +151,35 @@ class AnomalyDetectionFlowTest {
 
         verify(publisher, atLeastOnce()).publish(argThat(anomaly -> anomaly.anomalyType() == AnomalyType.UPSTREAM_DEGRADATION && anomaly.incidentId() != null && !anomaly.incidentId().isBlank()));
         verify(incidentStore).updateDuplicate(eq(existingIncident), anyString(), anyInt(), any(Map.class), any(), eq(2));
+    }
+
+    @Test
+    void process_duplicateSuppressed_shouldDispatchAlertOnlyForPublishedAnomaly() {
+        BaselineQueryService baselineQuery = mock(BaselineQueryService.class);
+        RollingWindowStore rollingStore = mock(RollingWindowStore.class);
+        AnomalyEventPublisher publisher = mock(AnomalyEventPublisher.class);
+        AnomalyAlertService alertService = mock(AnomalyAlertService.class);
+        IncidentDedupService dedupService = mock(IncidentDedupService.class);
+        when(dedupService.deduplicate(any(), any(), anyString(), anyInt(), any(Map.class), any()))
+                .thenAnswer(invocation -> new IncidentDedupResult(true, "inc-test", invocation.getArgument(5), invocation.getArgument(5), 1))
+                .thenAnswer(invocation -> new IncidentDedupResult(false, "inc-test", invocation.getArgument(5), invocation.getArgument(5), 2));
+        when(baselineQuery.findLogBaseline(AnomalyTestFixtures.key())).thenReturn(Optional.of(AnomalyTestFixtures.logBaseline(3)));
+        when(baselineQuery.findBehaviorBaseline(AnomalyTestFixtures.key())).thenReturn(Optional.empty());
+        when(rollingStore.snapshotBefore(eq(AnomalyTestFixtures.key()), any())).thenReturn(RollingWindowSnapshot.empty(Instant.EPOCH, Instant.EPOCH));
+
+        new AnomalyDetectionService(new SecurityLogValidator(), new StaticResultContextParser(), baselineQuery, rollingStore,
+                new DeviationCalculatorService(new RobustZCalculator(AnomalyTestFixtures.properties()), AnomalyTestFixtures.properties()),
+                new HistoricalLogRuleEvaluator(), new BehavioralRuleEvaluator(), new CompositeRiskScorer(), new CompositeRiskEvaluator(),
+                new AnomalyTypeResolver(), new AnomalySeverityResolver(AnomalyTestFixtures.properties()), dedupService, publisher, alertService)
+                .process(AnomalyTestFixtures.event("2026-06-23T00:00:00Z", 200));
+        new AnomalyDetectionService(new SecurityLogValidator(), new StaticResultContextParser(), baselineQuery, rollingStore,
+                new DeviationCalculatorService(new RobustZCalculator(AnomalyTestFixtures.properties()), AnomalyTestFixtures.properties()),
+                new HistoricalLogRuleEvaluator(), new BehavioralRuleEvaluator(), new CompositeRiskScorer(), new CompositeRiskEvaluator(),
+                new AnomalyTypeResolver(), new AnomalySeverityResolver(AnomalyTestFixtures.properties()), dedupService, publisher, alertService)
+                .process(AnomalyTestFixtures.event("2026-06-23T00:00:00Z", 200));
+
+        verify(publisher, times(1)).publish(any(AnomalyEvent.class));
+        verify(alertService, times(1)).dispatch(any(AnomalyEvent.class));
     }
 
     private AnomalyDetectionService service(BaselineQueryService baselineQuery, RollingWindowStore rollingStore, AnomalyEventPublisher publisher) {

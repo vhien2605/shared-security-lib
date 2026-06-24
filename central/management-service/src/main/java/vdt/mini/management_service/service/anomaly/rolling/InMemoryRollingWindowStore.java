@@ -1,5 +1,6 @@
 package vdt.mini.management_service.service.anomaly.rolling;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import vdt.mini.management_service.config.AnomalyDetectionProperties;
 import vdt.mini.management_service.dto.event.AnomalyGroupKey;
@@ -15,6 +16,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
+@ConditionalOnProperty(prefix = "anomaly.rolling", name = "store", havingValue = "in-memory")
 public class InMemoryRollingWindowStore implements RollingWindowStore {
     private final Map<AnomalyGroupKey, Deque<RollingWindowEntry>> entries = new ConcurrentHashMap<>();
     private final AnomalyDetectionProperties properties;
