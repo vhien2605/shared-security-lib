@@ -1,0 +1,47 @@
+{
+  "index_patterns": ["security-anomalies-*"],
+  "priority": 200,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "security-anomaly-policy"
+    },
+    "mappings": {
+      "dynamic": true,
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "timestamp": { "type": "date" },
+        "createdAt": { "type": "date" },
+        "firstSeenAt": { "type": "date" },
+        "lastSeenAt": { "type": "date" },
+        "windowStart": { "type": "date" },
+        "windowEnd": { "type": "date" },
+        "anomalyId": { "type": "keyword" },
+        "incidentId": { "type": "keyword" },
+        "anomalyType": { "type": "keyword" },
+        "anomalyLevel": { "type": "keyword" },
+        "decision": { "type": "keyword" },
+        "sourceType": { "type": "keyword" },
+        "traceId": { "type": "keyword" },
+        "correlationId": { "type": "keyword" },
+        "serviceId": { "type": "keyword" },
+        "serviceName": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+        "endpointId": { "type": "keyword" },
+        "endpointName": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+        "flowType": { "type": "keyword" },
+        "direction": { "type": "keyword" },
+        "riskScore": { "type": "integer" },
+        "confidence": { "type": "keyword" },
+        "matchedRules": { "type": "keyword" },
+        "detectedFeatures": { "type": "keyword" },
+        "ruleSetVersion": { "type": "keyword" },
+        "logBaselineVersion": { "type": "keyword" },
+        "behaviorBaselineVersion": { "type": "keyword" },
+        "windowSampleCount": { "type": "integer" },
+        "matchedCount": { "type": "integer" },
+        "status": { "type": "keyword" }
+      }
+    }
+  }
+}

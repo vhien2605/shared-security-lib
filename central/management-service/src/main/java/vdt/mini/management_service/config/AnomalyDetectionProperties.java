@@ -103,9 +103,12 @@ public class AnomalyDetectionProperties {
     public static class Incident {
         private boolean enabled = true;
         private Duration dedupWindow = Duration.ofMinutes(5);
+        private int retentionDays = 30;
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
         public Duration getDedupWindow() { return dedupWindow; }
         public void setDedupWindow(Duration dedupWindow) { this.dedupWindow = dedupWindow; }
+        public int getRetentionDays() { return retentionDays; }
+        public void setRetentionDays(int retentionDays) { this.retentionDays = retentionDays; }
     }
 }

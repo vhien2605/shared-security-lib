@@ -32,5 +32,7 @@ class AnomalyEventPublisherTest {
         new AnomalyEventPublisher(kafkaTemplate, new ObjectMapper().findAndRegisterModules(), properties).publish(event);
 
         verify(kafkaTemplate).send(eq("security.anomalies.test"), eq("svc-1"), contains("LATENCY_OUTLIER"));
+        verify(kafkaTemplate).send(eq("security.anomalies.test"), eq("svc-1"), contains("\"timestamp\":\"1970-01-01T00:00:00Z\""));
+        verify(kafkaTemplate).send(eq("security.anomalies.test"), eq("svc-1"), contains("\"lastSeenAt\":\"1970-01-01T00:00:00Z\""));
     }
 }

@@ -1,0 +1,5 @@
+- pipeline.id: security-log
+  path.config: "/usr/share/logstash/pipeline/security-log.conf"
+
+- pipeline.id: security-anomaly
+  path.config: "/usr/share/logstash/pipeline/security-anomaly.conf"

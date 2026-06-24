@@ -2,6 +2,7 @@ package vdt.mini.management_service.service.anomaly.runtime;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -18,7 +19,7 @@ public class AnomalyEventPublisher {
 
     public AnomalyEventPublisher(KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper, AnomalyDetectionProperties properties) {
         this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
+        this.objectMapper = objectMapper.copy().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         this.properties = properties;
     }
 
