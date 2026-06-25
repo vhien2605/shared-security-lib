@@ -38,7 +38,8 @@ public enum ErrorCode {
     ACCESS_RULE_NOT_FOUND(404, "Access rule not found", HttpStatus.NOT_FOUND),
     ACCESS_PERMISSION_NOT_FOUND(404, "Access permission not found", HttpStatus.NOT_FOUND),
     ACCESS_PERMISSION_CONFLICT(409, "Access permission conflict", HttpStatus.CONFLICT),
-    CREDENTIAL_GENERATION_FAILED(500, "Credential generation failed", HttpStatus.INTERNAL_SERVER_ERROR);
+    CREDENTIAL_GENERATION_FAILED(500, "Credential generation failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    ANOMALY_NOT_FOUND(404, "Anomaly not found", HttpStatus.NOT_FOUND);
 
     private final int code;
     private final String message;
