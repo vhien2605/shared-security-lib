@@ -85,7 +85,7 @@ class SecurityAuditLogPublisherTest {
         return new SecurityLogEvent("2026-06-16T00:00:00Z", traceId, correlationId,
                 SecurityFlowType.INBOUND_HTTP, SecurityDirection.INBOUND, serviceId, "user-service", endpointId,
                 "Create User", "HTTP", "GET", "/users", null, null, null, "client-1", "client-key",
-                "127.0.0.1", "API_KEY", null, "INFO", SecurityResultStatus.SUCCESS, "200", null, 1, 1, 1,
-                10, null, null, null, null, null, 30, "r30", null, null, null, null);
+                "127.0.0.1", "API_KEY", null, "INFO", SecurityResultStatus.SUCCESS, "200", null, 1L, 1L, 1L,
+                10L, null, null, null, null, null, 30, "r30", null, null, null, null);
     }
 }

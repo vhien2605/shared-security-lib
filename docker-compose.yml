@@ -100,6 +100,8 @@ services:
     image: curlimages/curl:8.16.0
     depends_on:
       - elasticsearch
+    environment:
+      ANOMALY_RETENTION_DAYS: ${ANOMALY_RETENTION_DAYS:-30}
     volumes:
       - ./central/elasticsearch/templates:/templates:ro
       - ./central/elasticsearch/ilm:/ilm:ro
@@ -111,11 +113,13 @@ services:
         curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_ilm/policy/security-log-r14-policy -H 'Content-Type: application/json' --data-binary @/ilm/security-log-r14-policy.json
         curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_ilm/policy/security-log-r30-policy -H 'Content-Type: application/json' --data-binary @/ilm/security-log-r30-policy.json
         curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_ilm/policy/security-log-r90-policy -H 'Content-Type: application/json' --data-binary @/ilm/security-log-r90-policy.json
+        curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_ilm/policy/security-anomaly-policy -H 'Content-Type: application/json' --data '{"policy":{"phases":{"delete":{"min_age":"'$${ANOMALY_RETENTION_DAYS}'d","actions":{"delete":{}}}}}}'
         curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_component_template/security-log-mappings -H 'Content-Type: application/json' --data-binary @/templates/security-log-mappings-component-template.json
         curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_index_template/security-log-template -H 'Content-Type: application/json' --data-binary @/templates/security-log-template.json
         curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_index_template/security-log-r14-template -H 'Content-Type: application/json' --data-binary @/templates/security-log-r14-template.json
         curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_index_template/security-log-r30-template -H 'Content-Type: application/json' --data-binary @/templates/security-log-r30-template.json
         curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_index_template/security-log-r90-template -H 'Content-Type: application/json' --data-binary @/templates/security-log-r90-template.json
+        curl -fsS -o /dev/null -X PUT http://elasticsearch:9200/_index_template/security-anomaly-template -H 'Content-Type: application/json' --data-binary @/templates/security-anomaly-template.json
     networks:
       - security-library
   logstash:
@@ -129,6 +133,7 @@ services:
       - "9600:9600"
     volumes:
       - ./central/logstash/pipeline:/usr/share/logstash/pipeline
+      - ./central/logstash/config/pipelines.yml:/usr/share/logstash/config/pipelines.yml
     networks:
       - security-library
   kibana:

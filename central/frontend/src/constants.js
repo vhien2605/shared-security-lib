@@ -4,6 +4,7 @@ export const CLIENT_ID = 'security-lib-client'
 export const REDIRECT_URI = 'http://localhost:5173/callback'
 export const POST_LOGOUT_REDIRECT_URI = 'http://localhost:5173/'
 export const API_BASE_URL = 'http://localhost:8080'
+export const WS_BASE_URL = API_BASE_URL.replace(/^http/, 'ws')
 
 function normalizeHttpBaseUrl(value, fallback, envName) {
   const rawValue = typeof value === 'string' ? value.trim() : ''

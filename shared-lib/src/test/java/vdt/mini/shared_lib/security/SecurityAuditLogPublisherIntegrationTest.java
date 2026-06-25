@@ -60,7 +60,7 @@ class SecurityAuditLogPublisherIntegrationTest {
         return new SecurityLogEvent("2026-06-16T00:00:00Z", "trace-it", "corr-it",
                 SecurityFlowType.INBOUND_HTTP, SecurityDirection.INBOUND, "service-1", "user-service", "endpoint-1",
                 "Create User", "HTTP", "GET", "/users", null, null, null, "client-1", "client-key",
-                "127.0.0.1", "API_KEY", null, "INFO", SecurityResultStatus.SUCCESS, "200", null, 1, 1, 1,
-                10, null, null, null, null, null, 30, "r30", null, null, null, null);
+                "127.0.0.1", "API_KEY", null, "INFO", SecurityResultStatus.SUCCESS, "200", null, 1L, 1L, 1L,
+                10L, null, null, null, null, null, 30, "r30", null, null, null, null);
     }
 }
