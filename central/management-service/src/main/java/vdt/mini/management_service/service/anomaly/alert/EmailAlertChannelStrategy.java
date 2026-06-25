@@ -19,16 +19,14 @@ public class EmailAlertChannelStrategy implements AlertChannelStrategy {
     private final JavaMailSender mailSender;
     private final String senderUsername;
     private final String mailTo;
-    private final AlertSeverityPolicy severityPolicy;
     private final EmailAlertThrottleService throttleService;
 
     public EmailAlertChannelStrategy(JavaMailSender mailSender, @Value("${mail.sender.username}") String senderUsername,
-                                     @Value("${mail.to:}") String mailTo,
-                                     AlertSeverityPolicy severityPolicy, EmailAlertThrottleService throttleService) {
+                                      @Value("${mail.to:}") String mailTo,
+                                      EmailAlertThrottleService throttleService) {
         this.mailSender = mailSender;
         this.senderUsername = senderUsername;
         this.mailTo = mailTo;
-        this.severityPolicy = severityPolicy;
         this.throttleService = throttleService;
     }
 
@@ -45,7 +43,6 @@ public class EmailAlertChannelStrategy implements AlertChannelStrategy {
             log.warn("Skip anomaly email alert because mail.to is empty or invalid anomalyId={}", context.event().anomalyId());
             return;
         }
-        if (!severityPolicy.allows(context.alertConfig().getSeverity(), context.event().anomalyLevel())) return;
         if (!throttleService.acquire(context.event().incidentId(), context.alertConfig().getThrottleMinutes())) return;
         try {
             SimpleMailMessage message = new SimpleMailMessage();

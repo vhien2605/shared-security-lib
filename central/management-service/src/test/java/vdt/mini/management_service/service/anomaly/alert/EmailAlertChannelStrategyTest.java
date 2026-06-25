@@ -23,13 +23,29 @@ class EmailAlertChannelStrategyTest {
         var event = AnomalyTestFixtures.anomalyEvent("inc-1", "HIGH");
 
         new EmailAlertChannelStrategy(mailSender, "sender@example.com", "ops@example.com,sec@example.com",
-                new AlertSeverityPolicy(), throttle)
+                throttle)
                 .send(new AnomalyAlertContext(event, "title", "content", config, true));
 
         ArgumentCaptor<SimpleMailMessage> messageCaptor = ArgumentCaptor.forClass(SimpleMailMessage.class);
         verify(mailSender).send(messageCaptor.capture());
         assertThat(messageCaptor.getValue().getFrom()).isEqualTo("sender@example.com");
         assertThat(messageCaptor.getValue().getTo()).containsExactly("ops@example.com", "sec@example.com");
+    }
+
+    @Test
+    void send_shouldIgnoreAlertSeverityThresholdWhenEmailChannelIsEnabled() {
+        JavaMailSender mailSender = mock(JavaMailSender.class);
+        EmailAlertThrottleService throttle = mock(EmailAlertThrottleService.class);
+        when(throttle.acquire("inc-1", 5)).thenReturn(true);
+        AlertConfig config = new AlertConfig();
+        config.setSeverity(AlertSeverity.CRITICAL);
+        config.setThrottleMinutes(5);
+
+        new EmailAlertChannelStrategy(mailSender, "sender@example.com", "ops@example.com", throttle)
+                .send(new AnomalyAlertContext(AnomalyTestFixtures.anomalyEvent("inc-1", "LOW"), "title", "content", config, true));
+
+        verify(throttle).acquire("inc-1", 5);
+        verify(mailSender).send(any(SimpleMailMessage.class));
     }
 
     @Test
@@ -40,7 +56,7 @@ class EmailAlertChannelStrategyTest {
         config.setSeverity(AlertSeverity.WARNING);
         config.setThrottleMinutes(5);
 
-        new EmailAlertChannelStrategy(mailSender, "sender@example.com", "bad-email", new AlertSeverityPolicy(), throttle)
+        new EmailAlertChannelStrategy(mailSender, "sender@example.com", "bad-email", throttle)
                 .send(new AnomalyAlertContext(AnomalyTestFixtures.anomalyEvent("inc-1", "HIGH"), "title", "content", config, true));
 
         verifyNoInteractions(mailSender, throttle);
