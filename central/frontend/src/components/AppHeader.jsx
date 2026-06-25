@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useNotifications } from '../hooks/useNotifications'
 
@@ -6,12 +6,21 @@ function AppHeader() {
   const { user, logout, isAuthenticated } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
+  const [notificationPage, setNotificationPage] = useState(0)
+  const [copiedNotificationId, setCopiedNotificationId] = useState('')
   const userMenuRef = useRef(null)
   const notificationRef = useRef(null)
   const { notifications, unreadCount, markRead } = useNotifications(isAuthenticated)
   const name = user?.name || user?.username || 'admin'
   const avatarLabel = name.charAt(0).toUpperCase()
   const role = user?.role || 'Quản trị viên'
+  const notificationPageSize = 5
+  const notificationTotalPages = Math.max(1, Math.ceil(notifications.length / notificationPageSize))
+  const safeNotificationPage = Math.min(notificationPage, notificationTotalPages - 1)
+  const pagedNotifications = useMemo(() => {
+    const start = safeNotificationPage * notificationPageSize
+    return notifications.slice(start, start + notificationPageSize)
+  }, [safeNotificationPage, notifications])
 
   useEffect(() => {
     const onClickOutside = (event) => {
@@ -39,27 +48,31 @@ function AppHeader() {
     }
   }, [])
 
+  const selectNotification = (notification) => {
+    if (!notification.read) markRead(notification.id)
+  }
+
+  const onNotificationKeyDown = (event, notification) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    selectNotification(notification)
+  }
+
+  const copyTraceId = async (event, notification) => {
+    event.stopPropagation()
+    if (!notification.traceId) return
+    try {
+      await navigator.clipboard?.writeText(notification.traceId)
+      setCopiedNotificationId(notification.id)
+      window.setTimeout(() => setCopiedNotificationId((current) => (current === notification.id ? '' : current)), 1500)
+    } catch {
+      setCopiedNotificationId('')
+    }
+  }
+
   return (
     <header className="app-header">
-      <div className="app-header__search" role="search">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            stroke="currentColor"
-            strokeWidth="2"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <input type="search" placeholder="Tìm kiếm nhật ký, IP, webhook..." aria-label="Tìm kiếm" />
-      </div>
       <div className="app-header__right">
-        <button className="app-header__icon-btn" type="button" aria-label="Thêm mới">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
         <div className="app-header__notify-wrap" ref={notificationRef}>
           <button
             className="app-header__icon-btn app-header__icon-btn--notify"
@@ -83,26 +96,55 @@ function AppHeader() {
           </button>
           {isNotificationOpen ? (
             <div className="app-header__notifications" role="menu" aria-label="Danh sách thông báo">
-              <div className="app-header__notifications-title">Thông báo</div>
+              <div className="app-header__notifications-title">
+                <span>Thông báo</span>
+                {notifications.length > 0 ? <small>{unreadCount} chưa đọc</small> : null}
+              </div>
               {notifications.length === 0 ? (
                 <div className="app-header__notifications-empty">Chưa có thông báo mới</div>
               ) : (
-                notifications.map((notification) => (
-                  <button
-                    key={notification.id}
-                    className={`app-header__notification-item${notification.read ? '' : ' app-header__notification-item--unread'}`}
-                    type="button"
-                    role="menuitem"
-                    onClick={() => markRead(notification.id)}
-                  >
-                    <span className={`app-header__notification-severity app-header__notification-severity--${String(notification.severity || '').toLowerCase()}`}>
-                      {notification.severity || 'INFO'}
-                    </span>
-                    <strong>{notification.title}</strong>
-                    <small>{notification.content}</small>
-                    {notification.traceId ? <em>traceId: {notification.traceId}</em> : null}
-                  </button>
-                ))
+                <>
+                  <div className="app-header__notification-list">
+                    {pagedNotifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className={`app-header__notification-item${notification.read ? ' app-header__notification-item--read' : ' app-header__notification-item--unread'}`}
+                        role="menuitem"
+                        tabIndex={0}
+                        onClick={() => selectNotification(notification)}
+                        onKeyDown={(event) => onNotificationKeyDown(event, notification)}
+                      >
+                        <div className="app-header__notification-meta">
+                          <span className={`app-header__notification-severity app-header__notification-severity--${String(notification.severity || '').toLowerCase()}`}>
+                            {notification.severity || 'INFO'}
+                          </span>
+                          <button
+                            type="button"
+                            className="app-header__notification-copy"
+                            disabled={!notification.traceId}
+                            onClick={(event) => copyTraceId(event, notification)}
+                            aria-label={notification.traceId ? `Copy traceId ${notification.traceId}` : 'Thông báo không có traceId'}
+                            title={notification.traceId ? 'Copy traceId' : 'Không có traceId'}
+                          >
+                            {copiedNotificationId === notification.id ? 'Đã copy' : 'Copy traceId'}
+                          </button>
+                        </div>
+                        <strong>{notification.title}</strong>
+                        <small>{notification.content}</small>
+                        {notification.traceId ? <em>traceId: {notification.traceId}</em> : null}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="app-header__notifications-pagination" aria-label="Phân trang thông báo">
+                    <button type="button" disabled={safeNotificationPage === 0} onClick={() => setNotificationPage((page) => Math.max(0, page - 1))}>
+                      Trước
+                    </button>
+                    <span>{safeNotificationPage + 1}/{notificationTotalPages}</span>
+                    <button type="button" disabled={safeNotificationPage + 1 >= notificationTotalPages} onClick={() => setNotificationPage((page) => Math.min(notificationTotalPages - 1, page + 1))}>
+                      Sau
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           ) : null}
