@@ -104,8 +104,10 @@ class AnomalyDetectionFlowTest {
         verify(publisher, times(2)).publish(events.capture());
         assertThat(events.getAllValues().stream().map(AnomalyEvent::anomalyType).toList())
                 .containsExactlyInAnyOrder(AnomalyType.FAILURE_SPIKE, AnomalyType.RETRY_SPIKE);
-        assertThat(events.getAllValues()).allSatisfy(event -> assertThat(event.matchedRules())
-                .contains("BEHAVIOR_FAILURE_001", "BEHAVIOR_RETRY_001"));
+        AnomalyEvent failureEvent = events.getAllValues().stream().filter(e -> e.anomalyType() == AnomalyType.FAILURE_SPIKE).findFirst().orElseThrow();
+        AnomalyEvent retryEvent = events.getAllValues().stream().filter(e -> e.anomalyType() == AnomalyType.RETRY_SPIKE).findFirst().orElseThrow();
+        assertThat(failureEvent.matchedRules()).containsExactly("BEHAVIOR_FAILURE_001");
+        assertThat(retryEvent.matchedRules()).containsExactly("BEHAVIOR_RETRY_001");
     }
 
     @Test

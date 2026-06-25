@@ -17,6 +17,7 @@ public class BehavioralRuleEvaluator implements RuleEvaluator {
     private static final double MIN_DENIED_RATE = 0.30;
     private static final double MIN_RETRY_RATE = 0.30;
     private static final long MIN_RATE_EVENT_COUNT = 10;
+    private static final int MIN_GENERAL_EVENT_COUNT = 4;
 
     @Override
     public RuleEvaluationResult evaluate(AnomalyContext context) {
@@ -31,15 +32,15 @@ public class BehavioralRuleEvaluator implements RuleEvaluator {
         if (rateSpike(s.failureRateLast5m(), baseline.medianFailureRateLast5m(), d.failureRateRobustZ(), MIN_FAILURE_RATE, s.failedCountLast5m())) add(matches, "BEHAVIOR_FAILURE_001", AnomalyType.FAILURE_SPIKE, "failureRateLast5m");
         if (rateSpike(s.deniedRateLast5m(), baseline.medianDeniedRateLast5m(), d.deniedRateRobustZ(), MIN_DENIED_RATE, s.deniedCountLast5m())) add(matches, "BEHAVIOR_DENIED_001", AnomalyType.DENIED_SPIKE, "deniedRateLast5m");
         if (rateSpike(s.retryRateLast5m(), baseline.medianRetryRateLast5m(), d.retryRateRobustZ(), MIN_RETRY_RATE, s.retryCountLast5m())) add(matches, "BEHAVIOR_RETRY_001", AnomalyType.RETRY_SPIKE, "retryRateLast5m");
-        if (gte(d.requestCountRobustZ(), 6)) add(matches, "BEHAVIOR_TRAFFIC_SPIKE_001", AnomalyType.TRAFFIC_SPIKE, "requestCountRobustZ");
-        if (lte(d.requestCountRobustZ(), -5) && context.behaviorBaseline().medianRequestCountLast5m() != null && context.behaviorBaseline().medianRequestCountLast5m() > 0) add(matches, "BEHAVIOR_TRAFFIC_DROP_001", AnomalyType.TRAFFIC_DROP, "requestCountRobustZ");
-        if (gte(d.p95DurationRobustZ(), 5)) add(matches, "BEHAVIOR_LATENCY_001", AnomalyType.LATENCY_DRIFT, "p95DurationRobustZ");
-        if (gte(d.avgRequestSizeRobustZ(), 5)) add(matches, "BEHAVIOR_REQ_SIZE_001", AnomalyType.REQUEST_SIZE_DRIFT, "avgRequestSizeRobustZ");
-        if (gte(d.avgResponseSizeRobustZ(), 5)) add(matches, "BEHAVIOR_RES_SIZE_001", AnomalyType.RESPONSE_SIZE_DRIFT, "avgResponseSizeRobustZ");
-        if (gte(d.avgMessageSizeRobustZ(), 5)) add(matches, "BEHAVIOR_MSG_SIZE_001", AnomalyType.MESSAGE_SIZE_DRIFT, "avgMessageSizeRobustZ");
-        if (gte(d.uniqueSourceIpCountRobustZ(), 5)) add(matches, "BEHAVIOR_SOURCE_IP_001", AnomalyType.SOURCE_IP_SPIKE, "uniqueSourceIpCountRobustZ");
-        if (gte(d.uniqueClientCountRobustZ(), 5)) add(matches, "BEHAVIOR_CLIENT_001", AnomalyType.CLIENT_DIVERSITY_SPIKE, "uniqueClientCountRobustZ");
-        if (gte(d.uniqueErrorCodeCountRobustZ(), 5)) add(matches, "BEHAVIOR_ERROR_001", AnomalyType.ERROR_DISTRIBUTION_DRIFT, "uniqueErrorCodeCountRobustZ");
+        if (gte(d.requestCountRobustZ(), 6) && s.windowSampleCount() >= MIN_GENERAL_EVENT_COUNT) add(matches, "BEHAVIOR_TRAFFIC_SPIKE_001", AnomalyType.TRAFFIC_SPIKE, "requestCountRobustZ");
+        if (lte(d.requestCountRobustZ(), -5) && context.behaviorBaseline().medianRequestCountLast5m() != null && context.behaviorBaseline().medianRequestCountLast5m() > 0 && s.windowSampleCount() >= MIN_GENERAL_EVENT_COUNT) add(matches, "BEHAVIOR_TRAFFIC_DROP_001", AnomalyType.TRAFFIC_DROP, "requestCountRobustZ");
+        if (gte(d.p95DurationRobustZ(), 5) && s.windowSampleCount() >= MIN_GENERAL_EVENT_COUNT) add(matches, "BEHAVIOR_LATENCY_001", AnomalyType.LATENCY_DRIFT, "p95DurationRobustZ");
+        if (gte(d.avgRequestSizeRobustZ(), 5) && s.windowSampleCount() >= MIN_GENERAL_EVENT_COUNT) add(matches, "BEHAVIOR_REQ_SIZE_001", AnomalyType.REQUEST_SIZE_DRIFT, "avgRequestSizeRobustZ");
+        if (gte(d.avgResponseSizeRobustZ(), 5) && s.windowSampleCount() >= MIN_GENERAL_EVENT_COUNT) add(matches, "BEHAVIOR_RES_SIZE_001", AnomalyType.RESPONSE_SIZE_DRIFT, "avgResponseSizeRobustZ");
+        if (gte(d.avgMessageSizeRobustZ(), 5) && s.windowSampleCount() >= MIN_GENERAL_EVENT_COUNT) add(matches, "BEHAVIOR_MSG_SIZE_001", AnomalyType.MESSAGE_SIZE_DRIFT, "avgMessageSizeRobustZ");
+        if (gte(d.uniqueSourceIpCountRobustZ(), 5) && s.windowSampleCount() >= MIN_GENERAL_EVENT_COUNT) add(matches, "BEHAVIOR_SOURCE_IP_001", AnomalyType.SOURCE_IP_SPIKE, "uniqueSourceIpCountRobustZ");
+        if (gte(d.uniqueClientCountRobustZ(), 5) && s.windowSampleCount() >= MIN_GENERAL_EVENT_COUNT) add(matches, "BEHAVIOR_CLIENT_001", AnomalyType.CLIENT_DIVERSITY_SPIKE, "uniqueClientCountRobustZ");
+        if (gte(d.uniqueErrorCodeCountRobustZ(), 5) && s.windowSampleCount() >= MIN_GENERAL_EVENT_COUNT) add(matches, "BEHAVIOR_ERROR_001", AnomalyType.ERROR_DISTRIBUTION_DRIFT, "uniqueErrorCodeCountRobustZ");
         return matches.isEmpty() ? RuleEvaluationResult.normal() : new RuleEvaluationResult(AnomalyDecision.ANOMALY, matches);
     }
 

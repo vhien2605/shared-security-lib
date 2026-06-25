@@ -155,19 +155,23 @@ public class AnomalyDetectionService {
         features.put("sourceAlertSeverity", event.getAlertSeverity());
         features.put("severityInputs", Map.of("decision", decision, "sourceSeverityPoints", riskScore.sourceSeverityPoints(), "highestConfidence", highestConfidence(matches)));
         features.put("compositeMatches", matches.stream().filter(match -> match.ruleId().startsWith("COMPOSITE_")).map(RuleMatch::ruleId).toList());
-        String severity = anomalySeverityResolver.resolve(decision, riskScore, highestConfidence(matches), context, matches);
         for (AnomalyType anomalyType : anomalyTypes) {
+            List<RuleMatch> perTypeMatches = matches.stream().filter(m -> m.anomalyType() == anomalyType).toList();
+            AnomalyDecision perTypeDecision = perTypeMatches.stream().allMatch(m -> m.confidence() == RuleConfidence.LOW)
+                    ? AnomalyDecision.OBSERVE : AnomalyDecision.ANOMALY;
+            RiskScoreResult perTypeRiskScore = compositeRiskScorer.score(context, perTypeMatches);
+            String perTypeSeverity = anomalySeverityResolver.resolve(perTypeDecision, perTypeRiskScore, highestConfidence(perTypeMatches), context, perTypeMatches);
             Map<String, Object> eventFeatures = new LinkedHashMap<>(features);
-            IncidentDedupResult dedupResult = incidentDedupService.deduplicate(context, anomalyType, severity, riskScore.totalScore(), eventFeatures, now);
+            IncidentDedupResult dedupResult = incidentDedupService.deduplicate(context, anomalyType, perTypeSeverity, perTypeRiskScore.totalScore(), eventFeatures, now);
             eventFeatures.put("incidentDedup", Map.of("shouldPublish", dedupResult.shouldPublish(), "incidentId", dedupResult.incidentId() == null ? "" : dedupResult.incidentId(), "matchedCount", dedupResult.matchedCount()));
             if (!dedupResult.shouldPublish()) {
                 log.info("Suppressing duplicate anomaly publish for incidentId={} key={} type={}", dedupResult.incidentId(), context.groupKey(), anomalyType);
                 continue;
             }
-            AnomalyEvent anomalyEvent = new AnomalyEvent(UUID.randomUUID().toString(), dedupResult.incidentId(), now, "LOG_RULE_ENGINE", anomalyType, severity,
+            AnomalyEvent anomalyEvent = new AnomalyEvent(UUID.randomUUID().toString(), dedupResult.incidentId(), now, "LOG_RULE_ENGINE", anomalyType, perTypeSeverity,
                     event.getTraceId(), event.getCorrelationId(), event.getServiceId(), event.getServiceName(), event.getEndpointId(), event.getEndpointName(), event.getFlowType(), event.getDirection(),
-                    decision, riskScore.totalScore(), highestConfidence(matches), matches.stream().map(RuleMatch::ruleId).toList(),
-                    matches.stream().flatMap(match -> match.detectedFeatures().stream()).distinct().toList(), eventFeatures, RuleSetVersion.CURRENT,
+                    perTypeDecision, perTypeRiskScore.totalScore(), highestConfidence(perTypeMatches), perTypeMatches.stream().map(RuleMatch::ruleId).toList(),
+                    perTypeMatches.stream().flatMap(match -> match.detectedFeatures().stream()).distinct().toList(), eventFeatures, RuleSetVersion.CURRENT,
                     context.logBaseline() == null ? null : context.logBaseline().baselineVersion(), context.behaviorBaseline() == null ? null : context.behaviorBaseline().baselineVersion(),
                     snapshot == null ? null : snapshot.windowStart(), snapshot == null ? null : snapshot.windowEnd(), snapshot == null ? 0 : snapshot.windowSampleCount(),
                     dedupResult.firstSeenAt(), dedupResult.lastSeenAt(), dedupResult.matchedCount(), now);
