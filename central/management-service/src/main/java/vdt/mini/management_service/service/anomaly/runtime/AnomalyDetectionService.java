@@ -159,9 +159,11 @@ public class AnomalyDetectionService {
             List<RuleMatch> perTypeMatches = matches.stream().filter(m -> m.anomalyType() == anomalyType).toList();
             AnomalyDecision perTypeDecision = perTypeMatches.stream().allMatch(m -> m.confidence() == RuleConfidence.LOW)
                     ? AnomalyDecision.OBSERVE : AnomalyDecision.ANOMALY;
-            RiskScoreResult perTypeRiskScore = compositeRiskScorer.score(context, perTypeMatches);
+            RiskScoreResult perTypeRiskScore = compositeRiskScorer.score(context, perTypeMatches, anomalyType);
             String perTypeSeverity = anomalySeverityResolver.resolve(perTypeDecision, perTypeRiskScore, highestConfidence(perTypeMatches), context, perTypeMatches);
             Map<String, Object> eventFeatures = new LinkedHashMap<>(features);
+            eventFeatures.put("riskContributions", perTypeRiskScore.contributions());
+            eventFeatures.put("severityInputs", Map.of("decision", perTypeDecision, "sourceSeverityPoints", perTypeRiskScore.sourceSeverityPoints(), "highestConfidence", highestConfidence(perTypeMatches)));
             IncidentDedupResult dedupResult = incidentDedupService.deduplicate(context, anomalyType, perTypeSeverity, perTypeRiskScore.totalScore(), eventFeatures, now);
             eventFeatures.put("incidentDedup", Map.of("shouldPublish", dedupResult.shouldPublish(), "incidentId", dedupResult.incidentId() == null ? "" : dedupResult.incidentId(), "matchedCount", dedupResult.matchedCount()));
             if (!dedupResult.shouldPublish()) {
