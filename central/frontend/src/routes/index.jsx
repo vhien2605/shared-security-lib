@@ -14,6 +14,7 @@ import ClientDetailPage from '../pages/client/ClientDetailPage'
 import PermissionControlPage from '../pages/access-control/PermissionControlPage'
 import OverviewPage from '../pages/overview/OverviewPage'
 import SecurityLogPage from '../pages/security-log/SecurityLogPage'
+import AnomalyManagementPage from '../pages/anomaly-management/AnomalyManagementPage'
 
 const routes = [
   {
@@ -130,6 +131,16 @@ const routes = [
       <ProtectedRoute>
         <HeaderSidebarLayout>
           <SecurityLogPage />
+        </HeaderSidebarLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/anomalies',
+    element: (
+      <ProtectedRoute>
+        <HeaderSidebarLayout>
+          <AnomalyManagementPage />
         </HeaderSidebarLayout>
       </ProtectedRoute>
     ),

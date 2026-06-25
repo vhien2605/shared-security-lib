@@ -576,7 +576,6 @@ export default function PermissionControlPage() {
     <div className="permission-page">
       <header className="permission-page__header">
         <div>
-          <p className="permission-page__eyebrow">VDT 2026 Sentinel</p>
           <h2>Quản lý quyền truy cập</h2>
           <p>Thiết lập và kiểm soát các quy tắc truy cập hệ thống Sentinel bằng API thật.</p>
         </div>
