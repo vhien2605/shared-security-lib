@@ -54,7 +54,7 @@ class CompositeRiskScorerTest {
 
         RiskScoreResult result = scorer.score(context, List.of(failureMatch), AnomalyType.FAILURE_SPIKE);
 
-        assertThat(result.totalScore()).isEqualTo(7);
+        assertThat(result.totalScore()).isEqualTo(12);
         assertThat(result.contributions())
                 .containsEntry("failureRateRobustZ", 3)
                 .containsEntry("failed", 1)

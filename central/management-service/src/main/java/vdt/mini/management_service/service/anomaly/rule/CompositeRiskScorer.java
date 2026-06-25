@@ -53,7 +53,7 @@ public class CompositeRiskScorer {
             }
             int featureScore = contributions.values().stream().mapToInt(Integer::intValue).sum();
             int existingScore = existingMatches == null ? 0 : existingMatches.stream().mapToInt(RuleMatch::riskPoints).sum();
-            return new RiskScoreResult(Math.max(existingScore, featureScore), sourceSeverityPoints, Map.copyOf(contributions));
+            return new RiskScoreResult(existingScore + featureScore, sourceSeverityPoints, Map.copyOf(contributions));
         }
         return new RiskScoreResult(0, 0, Map.of());
     }
