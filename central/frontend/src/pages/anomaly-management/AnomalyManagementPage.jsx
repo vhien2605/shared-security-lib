@@ -156,7 +156,7 @@ function Toolbar({ totalElements, lastUpdatedAt, autoRefreshMs, onAutoRefreshCha
             {ANOMALY_AUTO_REFRESH_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
-        <button type="button" className="anomaly-button anomaly-button--primary" onClick={onRefresh} disabled={isBusy}>Refresh</button>
+        <button type="button" className="anomaly-button" onClick={onRefresh} disabled={isBusy}>Refresh</button>
       </div>
     </section>
   )
