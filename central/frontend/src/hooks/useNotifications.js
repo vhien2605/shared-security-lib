@@ -4,7 +4,7 @@ import { fetchNotifications, markNotificationRead, openNotificationSocket } from
 function mergeNewest(current, incoming) {
   if (!incoming?.id) return current
   if (current.some((item) => item.id === incoming.id)) return current
-  return [incoming, ...current].slice(0, 10)
+  return [incoming, ...current].slice(0, 50)
 }
 
 export function useNotifications(isAuthenticated) {
@@ -18,7 +18,7 @@ export function useNotifications(isAuthenticated) {
       return undefined
     }
 
-    fetchNotifications(10)
+    fetchNotifications(50)
       .then((notifications) => {
         if (!cancelled) setItems(notifications)
       })

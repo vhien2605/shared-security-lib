@@ -5,5 +5,4 @@ export const SIDEBAR_ITEMS = [
   { label: 'Quản lý quyền hạn', path: '/permissions', icon: 'permissions' },
   { label: 'Nhật ký hệ thống', path: '/security-logs', icon: 'logs' },
   { label: 'Quản lý bất thường', path: '/anomalies', icon: 'warning' },
-  { label: 'Báo cáo thống kê', path: '/audit-logs', icon: 'chart' },
 ]
