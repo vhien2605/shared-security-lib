@@ -1,50 +1,40 @@
-VDT mini-project
-
-
-### Mô tả bài toán
-
-Trong các dự án Microservices hiện nay, việc các dịch vụ chia sẻ và đồng bộ dữ liệu với nhau (hoặc với bên thứ ba) thông qua Webhook và Message Queue rất phổ biến. Khi hệ thống phình to, doanh nghiệp sẽ khó quản lý các client của mình và đối mặt với rủi ro bảo mật dữ liệu.
-
-Giải pháp: Xây dựng một Thư viện dùng chung (Shared Library) kết hợp Hệ thống giám sát tập trung đóng vai trò cầu nối giữa hệ thống nội bộ và hệ thống client.
-
-
+# VDT Mini Project - Thư viện bảo mật dùng chung và hệ thống quản trị tập trung
 
 ## 1. Giới thiệu
 
-Shared-lib cung cấp 2 annotation `@InBoundSecurity` và `@OutBoundSecurity` để tự động scan endpoint của secureService,
-đồng bộ cấu hình runtime từ Redis và, với instance registrar, đăng ký endpoint lên management-secureService qua Kafka khi
-secureService khởi động.
+Dự án này mô phỏng một hệ thống bảo mật dùng chung cho kiến trúc microservices. Mục tiêu chính là giúp các service nghiệp vụ tích hợp bảo mật, logging, quản lý endpoint, quản lý client và giám sát bất thường thông qua một **shared library** và một cụm **central management**.
 
-**Luồng dữ liệu:**
+Thay vì mỗi service tự xử lý cấu hình bảo mật, audit log, rate limit, quyền truy cập hoặc đăng ký endpoint, dự án cung cấp:
 
-```
-Service startup
-    │
-    ├── ApplicationReadyEvent
-    ├── SecurityEndpointScanner quét bean
-    │     ├── Tìm method có @InBoundSecurity
-    │     └── Tìm method có @OutBoundSecurity
-    ├── SecurityIdGenerator
-    │     ├── serviceId = SHA-256(namespace + ":" + serviceName), lấy 32 ký tự đầu
-    │     └── endpointId = SHA-256(serviceId + endpoint metadata), lấy 32 ký tự đầu
-    ├── EndpointRegistry cập nhật endpoint local
-    ├── Nếu app.security.registration.enabled=true
-    │     ├── Build ServiceRegistrationEvent từ config + annotation đã scan
-    │     │     ├── serviceId, serviceName, baseUrl
-    │     │     ├── List<InboundEndpointDTO>
-    │     │     └── List<OutboundEndpointDTO>
-    │     └── KafkaPublisher → topic security.endpoint.registration
-    ├── Nếu app.security.registration.enabled=false
-    │     └── Không publish Kafka registration
-    └── Redis sync
-          ├── Poll config từ Redis nếu app.security.settings.sync.enabled=true
-          └── Subscribe Redis channel theo deterministic serviceId
+- `shared-lib`: thư viện Spring Boot dùng chung, import vào các service nghiệp vụ.
+- `central/management-service`: backend quản trị tập trung, nhận registration, quản lý settings, client, quyền truy cập, runtime config và anomaly.
+- `central/frontend`: giao diện quản trị tập trung.
+- Hạ tầng local gồm Kafka, Redis, PostgreSQL, Keycloak, Elasticsearch, Logstash và Kibana.
+- Service mẫu: `user-service`, `profile-service`.
+
+## 2. Cấu trúc thư mục
+
+```text
+mini-project/
+├── shared-lib/                  # Thư viện bảo mật dùng chung cho Spring Boot services
+├── user-service/                # Service mẫu có tích hợp shared-lib
+├── profile-service/             # Service mẫu nghiệp vụ
+├── central/
+│   ├── management-service/      # Backend quản trị tập trung
+│   ├── frontend/                # React admin UI
+│   ├── elasticsearch/           # Template và ILM policy cho security logs/anomalies
+│   ├── logstash/                # Pipeline Kafka -> Elasticsearch
+│   └── keycloak/                # Realm import cho xác thực admin UI
+└── docker-compose.yml           # Hạ tầng local
 ```
 
-## 2. Thêm dependency
+## 3. Cách dùng `shared-lib` trong service nghiệp vụ
+
+### 3.1. Import dependency
+
+Trong service Spring Boot muốn dùng thư viện, thêm dependency Maven:
 
 ```xml
-
 <dependency>
     <groupId>vdt.mini</groupId>
     <artifactId>shared-lib</artifactId>
@@ -52,102 +42,29 @@ Service startup
 </dependency>
 ```
 
-## 3. Cấu hình application.properties
+Sau khi dependency có mặt trong classpath, `SecurityAutoConfiguration` của thư viện sẽ tự kích hoạt nếu `app.security.enabled=true` hoặc không cấu hình giá trị này.
 
-### 3.1. Bắt buộc
+### 3.2. Import annotation và enum
 
-```properties
-spring.application.name=user-secureService
-app.security.namespace=mini-project
-app.security.service.name=user-secureService
-app.security.service.base-url=http://user-secureService:8081
-app.security.service.description=Quản lý account người dùng
-```
-
-`app.security.namespace` và `app.security.service.name` là input để sinh deterministic `serviceId`:
-
-```text
-serviceId = first32Hex(SHA-256(trim(namespace) + ":" + trim(serviceName)))
-```
-
-Các instance của cùng một logical service phải cấu hình cùng `namespace` và `service.name` để cùng poll/sub Redis config.
-
-### 3.2. Tuỳ chọn (có giá trị mặc định)
-
-```properties
-# Kafka topic (mặc định: security.endpoint.registration)
-app.security.registration.topic=security.endpoint.registration
-# Chỉ registrar/master bật true để publish Kafka registration (mặc định: true)
-app.security.registration.enabled=true
-# Bật/tắt (mặc định: true)
-app.security.enabled=true
-app.security.redis.host=localhost
-app.security.redis.port=6379
-app.security.redis.password=redis123
-app.security.settings.sync.enabled=true
-```
-
-### 3.3. Registrar và follower trong môi trường nhiều instance
-
-Mọi instance đều cần bật security và Redis sync để scan endpoint, derive ID, poll Redis và subscribe Redis channel:
-
-```properties
-app.security.enabled=true
-app.security.settings.sync.enabled=true
-app.security.namespace=mini-project
-app.security.service.name=user-secureService
-```
-
-Chỉ một instance registrar/master của mỗi logical service bật registration:
-
-```properties
-# Registrar/master
-app.security.registration.enabled=true
-```
-
-Các instance follower/slave tắt registration:
-
-```properties
-# Follower/slave
-app.security.registration.enabled=false
-```
-
-Khác biệt duy nhất:
-
-| Mode | Publish Kafka registration | Poll/sub Redis |
-|------|----------------------------|----------------|
-| Registrar/master | Có | Có |
-| Follower/slave | Không | Có |
-
-### 3.4. Kafka connection
-
-Không cần config Kafka. Shared-lib tự tạo `KafkaTemplate` riêng với:
-
-| Config            | Giá trị mặc định   |
-|-------------------|--------------------|
-| bootstrap-servers | `localhost:9094`   |
-| key serializer    | `StringSerializer` |
-| value serializer  | `StringSerializer` |
-
-Nếu muốn override Kafka cluster:
-
-```properties
-app.security.kafka.bootstrap-servers=my-cluster:9092
-```
-
-Nếu secureService có Kafka riêng (cho mục đích khác), config `spring.kafka.bootstrap-servers` như bình thường — không
-ảnh hưởng gì, shared-lib dùng producer riêng tên `securityKafkaTemplate`.
-
-## 4. Annotation InBoundSecurity
-
-Dùng cho các endpoint **nhận dữ liệu từ bên ngoài** (webhook, message listener).
-
-### 4.1. HTTP Webhook
+Các annotation chính:
 
 ```java
+import vdt.mini.shared_lib.annotation.InBoundSecurity;
+import vdt.mini.shared_lib.annotation.OutBoundSecurity;
+import vdt.mini.shared_lib.enums.EndpointMethod;
+import vdt.mini.shared_lib.enums.EndpointProtocol;
+```
 
+Ý nghĩa:
+
+- `@InBoundSecurity`: đánh dấu endpoint nhận request/message từ bên ngoài hoặc từ hệ thống khác.
+- `@OutBoundSecurity`: đánh dấu logic gọi ra bên ngoài như HTTP client, Feign client hoặc Kafka publisher.
+
+### 3.3. Đánh annotation cho inbound HTTP endpoint
+
+```java
 @RestController
-public class OrderController {
+public class OrderWebhookController {
 
     @PostMapping("/api/orders/webhook")
     @InBoundSecurity(
@@ -157,16 +74,17 @@ public class OrderController {
             method = EndpointMethod.POST,
             description = "Webhook nhận đơn hàng từ đối tác"
     )
-    public ResponseEntity<?> handleWebhook(@RequestBody WebhookPayload payload) {
-        // logic xử lý
+    public ResponseEntity<Void> receiveOrder(@RequestBody String payload) {
+        return ResponseEntity.ok().build();
     }
 }
 ```
 
-### 4.2. MQ Listener
+Khi service khởi động, shared-lib scan method này, sinh metadata endpoint, đăng ký vào registry local và gửi registration về central qua Kafka nếu registration đang bật.
+
+### 3.4. Đánh annotation cho inbound MQ listener
 
 ```java
-
 @Component
 public class OrderEventListener {
 
@@ -178,142 +96,388 @@ public class OrderEventListener {
             method = EndpointMethod.SUB,
             description = "Lắng nghe sự kiện đơn hàng"
     )
-    public void onOrderEvent(String message) {
-        // logic xử lý
+    public void onMessage(String message) {
+        // xử lý message
     }
 }
 ```
 
-### 4.3. Tham số
+Shared-lib có `SecurityRecordInterceptor` để hỗ trợ kiểm soát inbound Kafka listener khi `app.security.mq.inbound.enabled=true`.
 
-| Tham số       | Bắt buộc              | Mô tả                                    |
-|---------------|-----------------------|------------------------------------------|
-| `name`        | Có                    | Tên endpoint, unique trong secureService |
-| `protocol`    | Có                    | `HTTP`, `MQ`, hoặc `WEBHOOK`             |
-| `path`        | Không (nếu dùng HTTP) | URL path cho HTTP webhook                |
-| `topic`       | Không (nếu dùng MQ)   | Topic name cho message listener          |
-| `method`      | Không (mặc định POST) | HTTP method hoặc `SUB` cho MQ listener   |
-| `description` | Không                 | Mô tả chức năng                          |
+### 3.5. Đánh annotation cho outbound HTTP/Feign/Kafka
 
-## 5. Annotation OutBoundSecurity
-
-Dùng cho các endpoint **gửi dữ liệu ra ngoài** (HTTP client, Feign, Kafka publisher).
-
-### 5.1. HTTP Client (RestTemplate)
+Ví dụ outbound HTTP:
 
 ```java
-
 @Service
 public class PaymentClient {
 
     @OutBoundSecurity(
-            name = "call-partner-payment",
-            targetUrl = "https://partner.com/api/pay",
+            name = "call-payment-provider",
+            targetUrl = "https://partner.example.com/api/payments",
             protocol = EndpointProtocol.HTTP,
             method = EndpointMethod.POST,
-            description = "Gọi API thanh toán đối tác"
+            description = "Gọi cổng thanh toán đối tác"
     )
-    public PaymentResponse processPayment(PaymentRequest req) {
-        return restTemplate.postForObject(
-                "https://partner.com/api/pay", req, PaymentResponse.class);
+    public String pay(String request) {
+        // gọi RestTemplate/WebClient/Feign tùy service
+        return "OK";
     }
 }
 ```
 
-### 5.2. Feign Client
+Ví dụ outbound Kafka publisher:
 
 ```java
-
-@FeignClient(name = "payment-client", url = "https://partner.com")
-public interface PaymentClient {
-
-    @PostMapping("/api/pay")
-    @OutBoundSecurity(
-            name = "payment-outbound",
-            targetUrl = "https://partner.com/api/pay",
-            protocol = EndpointProtocol.HTTP,
-            method = EndpointMethod.POST,
-            description = "Gọi API thanh toán đối tác"
-    )
-    String pay(@RequestBody String body);
-}
-```
-
-Lưu ý: phải có `@EnableFeignClients` trên `@SpringBootApplication`.
-
-### 5.3. Kafka Publisher
-
-```java
-
 @Service
-public class NotificationService {
+public class NotificationPublisher {
 
     @OutBoundSecurity(
             name = "publish-notification",
             topic = "notification.events",
             protocol = EndpointProtocol.MQ,
             method = EndpointMethod.PUB,
-            description = "Gửi thông báo qua Kafka"
+            description = "Publish thông báo sang Kafka"
     )
-    public void sendNotification(Notification notif) {
-        kafkaTemplate.send("notification.events", notif);
+    public void publish(String message) {
+        // kafkaTemplate.send("notification.events", message)
     }
 }
 ```
 
-### 5.4. Tham số
+### 3.6. Tham số annotation
 
-| Tham số       | Bắt buộc              | Mô tả                                    |
-|---------------|-----------------------|------------------------------------------|
-| `name`        | Có                    | Tên endpoint, unique trong secureService |
-| `protocol`    | Có                    | `HTTP` hoặc `MQ`                         |
-| `targetUrl`   | Không (nếu dùng HTTP) | URL đích cho HTTP client                 |
-| `topic`       | Không (nếu dùng MQ)   | Topic name cho publisher                 |
-| `method`      | Không (mặc định POST) | HTTP method hoặc `PUB` cho MQ publisher  |
-| `description` | Không                 | Mô tả chức năng                          |
+`@InBoundSecurity`:
 
-## 6. Deterministic identity
+| Tham số | Mô tả |
+|---|---|
+| `name` | Tên endpoint, nên unique trong service |
+| `path` | Đường dẫn HTTP inbound |
+| `topic` | Topic MQ inbound |
+| `protocol` | `HTTP`, `MQ` hoặc `WEBHOOK` |
+| `method` | HTTP method hoặc `SUB`; mặc định `POST` |
+| `description` | Mô tả nghiệp vụ |
 
-Shared-lib không đọc hoặc ghi identity file trong luồng startup/registration. Khi start/restart, mọi instance derive
-`serviceId`, `endpointId` và metadata endpoint trực tiếp từ config và annotation đang có, rồi cập nhật registry local.
-Registrar/master publish Kafka registration event; follower/slave không publish event.
+`@OutBoundSecurity`:
 
-Mọi instance derive ID từ cùng rule:
+| Tham số | Mô tả |
+|---|---|
+| `name` | Tên outbound endpoint |
+| `targetUrl` | URL đích nếu gọi HTTP |
+| `topic` | Topic nếu publish MQ |
+| `protocol` | `HTTP`, `MQ` hoặc `WEBHOOK` |
+| `method` | HTTP method hoặc `PUB`; mặc định `POST` |
+| `description` | Mô tả nghiệp vụ |
 
-```text
-serviceId  = first32Hex(SHA-256(namespace + ":" + serviceName))
-endpointId = first32Hex(SHA-256(serviceId + "|" + direction + "|" + protocol + "|" + method + "|" + destination + "|"))
-```
+## 4. Cấu hình properties khi dùng lib
 
-Trong phase hiện tại, `consumerGroup` trong endpoint identity để rỗng vì annotation/DTO chưa có field này.
-
-## 7. Security audit log ELK sync
-
-Shared-lib luôn ghi audit JSON vào logger `SECURITY_AUDIT` và best-effort publish cùng event vào Kafka topic
-`security.logs`. Service import không cần tự tạo producer hoặc tự publish audit log.
+### 4.1. Cấu hình tối thiểu
 
 ```properties
-app.security.kafka.bootstrap-servers=localhost:9094
-app.security.audit.kafka.enabled=true
+spring.application.name=user-service
+
+app.security.enabled=true
+app.security.namespace=mini-project
+app.security.service.name=user-service
+app.security.service.base-url=http://localhost:8081
+app.security.service.description=Quan ly tai khoan user
 ```
 
-Topic audit log là giá trị cố định trong shared-lib: `security.logs`; service sử dụng lib không cần và không nên cấu hình topic này.
+Trong đó:
 
-`retentionDays` từ inbound/outbound settings được map thành `retentionBucket`: `<=14 -> r14`, `<=30 -> r30`, còn lại
-`r90`; giá trị thiếu dùng `30/r30`. Kafka publish là async, lỗi serialize/send/ack chỉ ghi warning nội bộ trong
-shared-lib và không làm fail inbound/outbound business flow.
+- `app.security.namespace`: namespace logic của hệ thống, dùng để sinh ID ổn định.
+- `app.security.service.name`: tên logic của service.
+- `app.security.service.base-url`: base URL central dùng để hiển thị/quản trị service.
+- `app.security.service.description`: mô tả service trên giao diện central.
 
-Local ELK stack:
+### 4.2. Kafka registration
+
+```properties
+app.security.registration.enabled=true
+app.security.registration.topic=security.endpoint.registration
+app.security.kafka.bootstrap-servers=localhost:9094
+```
+
+Khi `registration.enabled=true`, service sẽ publish thông tin service và endpoint lên Kafka topic `security.endpoint.registration`. `management-service` consume topic này để tạo/cập nhật service, inbound endpoint và outbound endpoint.
+
+Trong môi trường nhiều instance, chỉ nên bật registration ở một instance đại diện:
+
+```properties
+# Instance registrar/master
+app.security.registration.enabled=true
+
+# Instance follower
+app.security.registration.enabled=false
+```
+
+Các instance follower vẫn có thể bật Redis sync để nhận runtime config.
+
+### 4.3. Redis runtime settings sync
+
+```properties
+app.security.redis.host=localhost
+app.security.redis.port=6379
+app.security.redis.password=redis123
+app.security.settings.sync.enabled=true
+```
+
+Shared-lib dùng Redis để:
+
+- Poll/sub cấu hình runtime theo service.
+- Nhận thay đổi settings, client, auth config, blacklist/whitelist, permission từ central.
+- Áp dụng cấu hình mới mà không cần restart service.
+
+### 4.4. Audit log và security log
+
+```properties
+app.security.audit.kafka.enabled=true
+app.security.kafka.bootstrap-servers=localhost:9094
+```
+
+Shared-lib ghi audit log vào logger `SECURITY_AUDIT` và publish event lên Kafka topic `security.logs`. Logstash đọc topic này và ghi vào Elasticsearch index `security-logs-*`.
+
+### 4.5. Kafka nghiệp vụ riêng của service
+
+Nếu service có Kafka nghiệp vụ riêng, vẫn cấu hình `spring.kafka.*` như bình thường:
+
+```properties
+spring.kafka.bootstrap-servers=localhost:9194
+spring.kafka.consumer.group-id=user-group
+```
+
+Shared-lib dùng producer riêng tên `securityKafkaTemplate`, nên `app.security.kafka.bootstrap-servers` không bắt buộc trùng với Kafka nghiệp vụ của service.
+
+## 5. Kiến trúc hoạt động mức cao
+
+### 5.0. Sơ đồ tổng quan shared-lib và central
+
+```text
+┌──────────────────────────────────────┐
+│ Service nghiệp vụ dùng shared-lib    │
+│                                      │
+│  Spring Boot service                 │
+│    │                                 │
+│    ├─ @InBoundSecurity               │
+│    ├─ @OutBoundSecurity              │
+│    │                                 │
+│    ▼                                 │
+│  shared-lib runtime                  │
+│    ├─ Endpoint scanner/registry      │
+│    ├─ Runtime policy enforcement     │
+│    └─ Security audit logger          │
+└───────────────┬───────────────▲──────┘
+                │               │
+                │               │ Redis runtime config
+                │               │ settings/client/permission
+                │               │
+                ▼               │
+┌──────────────────────────────────────┐
+│ Hạ tầng trao đổi                     │
+│                                      │
+│  Kafka: security.endpoint.registration
+│  Kafka: security.logs                │
+│  Kafka: security.anomalies           │
+│  Redis: runtime config channels      │
+└───────────────┬───────────────▲──────┘
+                │               │
+                │               │ publish runtime config
+                ▼               │
+┌──────────────────────────────────────┐
+│ Central Management                   │
+│                                      │
+│  central frontend                    │
+│    │                                 │
+│    ▼                                 │
+│  management-service                  │
+│    ├─ PostgreSQL                     │
+│    ├─ Elasticsearch: security-logs-* │
+│    ├─ Elasticsearch: security-anomalies-*
+│    └─ Kibana dashboard               │
+└──────────────────────────────────────┘
+
+Luồng service -> central:
+  1. shared-lib scan annotation trong service.
+  2. shared-lib publish metadata service/endpoint vào Kafka registration.
+  3. management-service consume registration và lưu PostgreSQL.
+  4. shared-lib publish SecurityLogEvent vào Kafka security.logs.
+  5. Logstash ghi security.logs vào Elasticsearch security-logs-*.
+  6. management-service đọc logs để phát hiện bất thường, publish security.anomalies.
+  7. Logstash ghi anomalies vào Elasticsearch security-anomalies-*.
+
+Luồng central -> service:
+  1. Admin chỉnh setting/client/quyền truy cập trên central frontend.
+  2. management-service lưu cấu hình quản trị vào PostgreSQL.
+  3. management-service publish runtime config sang Redis channel theo serviceId.
+  4. shared-lib subscribe Redis, nhận config mới và áp dụng vào service.
+```
+
+Luồng chính có hai chiều:
+
+- Từ service về central: `shared-lib` scan annotation, publish registration, ghi security log và gửi dữ liệu cho anomaly detection.
+- Từ central về service: admin thay đổi cấu hình trên UI, `management-service` ghi PostgreSQL và đẩy runtime config qua Redis để `shared-lib` áp dụng ngay trong service.
+
+### 5.1. Startup và registration
+
+```text
+Service nghiệp vụ khởi động
+    -> shared-lib auto configuration được nạp
+    -> scan method có @InBoundSecurity / @OutBoundSecurity
+    -> sinh serviceId, endpointId ổn định từ namespace + serviceName + endpoint metadata
+    -> lưu endpoint vào registry local
+    -> publish ServiceRegistrationEvent lên Kafka security.endpoint.registration
+    -> management-service consume và lưu metadata vào PostgreSQL
+```
+
+`serviceId` và `endpointId` được sinh theo hướng deterministic, nên restart service không làm đổi ID nếu `namespace`, `service.name` và metadata endpoint không đổi.
+
+### 5.2. Runtime configuration
+
+```text
+Admin thay đổi setting/client/permission trên central UI
+    -> management-service lưu vào PostgreSQL
+    -> management-service sync projection/runtime config sang Redis
+    -> shared-lib trong service subscribe Redis channel theo serviceId
+    -> service áp dụng cấu hình mới cho inbound/outbound runtime
+```
+
+Cấu hình runtime gồm ngưỡng timeout, rate limit, retention, rollback strategy, alert setting, client auth config, access rule, access permission.
+
+### 5.3. Security logs
+
+```text
+Request/message đi qua service đã tích hợp shared-lib
+    -> shared-lib đánh giá bảo mật và runtime policy
+    -> tạo SecurityLogEvent
+    -> publish Kafka topic security.logs
+    -> Logstash ghi vào Elasticsearch security-logs-*
+    -> Central UI tra cứu tại trang Nhật ký hệ thống
+```
+
+### 5.4. Anomaly detection
+
+```text
+management-service consume security.logs
+    -> tính deviation, rule match, risk score
+    -> tạo AnomalyEvent
+    -> publish Kafka topic security.anomalies
+    -> Logstash ghi vào Elasticsearch security-anomalies-*
+    -> Central UI hiển thị tại trang Quản lý bất thường
+```
+
+Risk score được tạo từ nhiều nguồn: rule points, historical/behavior deviation, static context và source alert severity. Incident dedup giúp gom các anomaly trùng nhóm trong một khoảng thời gian.
+
+## 6. Central Management
+
+### 6.1. Backend `management-service`
+
+`management-service` là backend quản trị trung tâm, chịu trách nhiệm:
+
+- Nhận registration event từ Kafka.
+- Lưu service, endpoint, setting template, client, auth config, permission vào PostgreSQL.
+- Đồng bộ runtime config sang Redis cho các service đã tích hợp lib.
+- Cung cấp API cho central frontend.
+- Consume `security.logs` để xử lý anomaly detection.
+- Truy vấn Elasticsearch cho security logs và anomaly.
+- Gửi alert qua WebSocket/email/in-app notification tùy cấu hình.
+
+### 6.2. Frontend `central/frontend`
+
+Frontend là React admin UI, dùng Keycloak để xác thực. Các route chính được bọc bởi `ProtectedRoute` và layout chung `HeaderSidebarLayout`.
+
+Các trang chính:
+
+| Trang | Route | Vai trò | Cách dùng ở mức tổng quan |
+|---|---|---|---|
+| Đăng nhập | `/` | Trang vào hệ thống, chuyển hướng xác thực qua Keycloak | Người dùng đăng nhập bằng tài khoản có quyền quản trị |
+| Tổng quan | `/overview` | Nhúng Kibana dashboard để xem nhanh tình trạng security logs và chỉ số vận hành | Dùng để quan sát toàn cảnh, filter thời gian trực tiếp trên dashboard Kibana |
+| Quản lý setting | `/settings-management` | Danh sách service đã đăng ký và cấu hình global template | Xem service, bật/tắt service, điều chỉnh cấu hình global như timeout, rate limit, retention, alert |
+| Chi tiết setting service | `/settings-management/services/:serviceId` | Quản lý endpoint và ngưỡng cấu hình ở cấp service | Vào từ danh sách setting để xem inbound/outbound endpoint, chỉnh threshold, channel alert, apply config |
+| Quản lý client | `/clients` | Quản lý client sử dụng hệ thống | Tìm kiếm client, tạo client mới, đổi trạng thái, xem chi tiết client |
+| Chi tiết client | `/clients/:clientId` | Quản lý metadata và auth config của một client | Sửa thông tin client, thêm/xóa/bật/tắt API key hoặc HMAC auth config |
+| Quản lý quyền hạn | `/permissions` | Quản lý blacklist, whitelist và quyền truy cập thường | Lọc theo endpoint, thêm rule chặn/cho phép, bật/tắt hoặc xóa quyền truy cập |
+| Nhật ký hệ thống | `/security-logs` | Tra cứu security logs trong Elasticsearch | Lọc theo thời gian, service, endpoint, trace, flow; click row để xem chi tiết log |
+| Quản lý bất thường | `/anomalies` | Theo dõi anomaly và incident từ `security-anomalies-*` | Xem KPI, filter anomaly, xem risk score, timeline, top services/endpoints và detail snapshot |
+| Báo cáo thống kê | `/audit-logs` | Mục sidebar dành cho báo cáo/thống kê | Route hiện có trong menu; cần đảm bảo page tương ứng tồn tại khi build production |
+
+Lưu ý: trong route hiện tại có một số import page placeholder như `ServicesPage`, `EndpointsPage`, `SecurityPoliciesPage`, `AuditLogsPage`. Nếu các file này chưa tồn tại, production build frontend sẽ fail cho tới khi bổ sung hoặc bỏ route tương ứng.
+
+## 7. Cách chạy local
+
+### 7.1. Khởi động hạ tầng
 
 ```powershell
-docker compose up -d kafka elasticsearch elasticsearch-template-loader logstash kibana kibana-setup
+docker compose up -d postgres redis kafka kafka2 keycloak elasticsearch elasticsearch-template-loader logstash kibana kibana-setup
+```
+
+Các cổng mặc định:
+
+| Thành phần | URL/Cổng |
+|---|---|
+| PostgreSQL | `localhost:5434` |
+| Redis | `localhost:6379` |
+| Kafka security | `localhost:9094` |
+| Kafka nghiệp vụ mẫu | `localhost:9194` |
+| Keycloak | `http://localhost:8000` |
+| Elasticsearch | `http://localhost:9200` |
+| Kibana | `http://localhost:5601` |
+
+### 7.2. Chạy backend
+
+Ví dụ với PowerShell:
+
+```powershell
+cd central/management-service
+./mvnw.cmd spring-boot:run
+```
+
+Chạy service mẫu:
+
+```powershell
+cd user-service
+./mvnw.cmd spring-boot:run
+```
+
+```powershell
+cd profile-service
+./mvnw.cmd spring-boot:run
+```
+
+### 7.3. Chạy frontend
+
+```powershell
+cd central/frontend
+npm install
+npm run dev
+```
+
+Sau đó mở URL dev server do Vite hiển thị.
+
+## 8. Kiểm tra dữ liệu log và anomaly
+
+Kiểm tra Kafka security logs:
+
+```powershell
 docker exec -it kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic security.logs --from-beginning --max-messages 5
+```
+
+Tìm security logs trong Elasticsearch:
+
+```powershell
 curl "http://localhost:9200/security-logs-*/_search?q=traceId:<trace-id>"
 ```
 
-Kibana: mở `http://localhost:5601`, vào `Analytics > Discover`, chọn data view `Security Logs`
-(`security-logs-*`), rồi filter theo `traceId`, `serviceName`, `endpointName`, `resultStatus`, `retentionBucket`.
+Tìm anomaly:
 
-Elasticsearch templates and ILM policies live under `central/elasticsearch/`; Logstash pipeline lives under
-`central/logstash/pipeline/security-log.conf`. Rollback runtime by setting `app.security.audit.kafka.enabled=false` or stopping
-Logstash/Elasticsearch; `SECURITY_AUDIT` logger output remains unchanged.
+```powershell
+curl "http://localhost:9200/security-anomalies-*/_search?pretty"
+```
+
+Trên Kibana, vào `Analytics > Discover`, chọn data view `Security Logs` (`security-logs-*`) để phân tích log.
+
+## 9. Ghi chú phát triển
+
+- Không nên hard-code `serviceId` hoặc `endpointId`; hãy để shared-lib sinh ID từ config và annotation.
+- Với nhiều instance cùng logical service, chỉ bật registration ở một instance đại diện để tránh publish registration lặp không cần thiết.
+- Các service nghiệp vụ có thể dùng Kafka riêng; shared-lib vẫn dùng Kafka security riêng qua `app.security.kafka.bootstrap-servers`.
+- Central UI là công cụ quản trị, không phải nơi xử lý business request trực tiếp.
+- Elasticsearch là nguồn tra cứu log/anomaly; PostgreSQL là nguồn dữ liệu quản trị cấu hình; Redis là kênh runtime config cho service.
