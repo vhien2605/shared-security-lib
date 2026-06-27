@@ -13,9 +13,11 @@ public class AccessPermissionResponse {
     private String id;
     private String clientId;
     private String clientKey;
+    private String clientCode;
     private String clientName;
     private String inboundEndpointId;
     private String inboundEndpointName;
+    private String endpointName;
     private String inboundEndpointPath;
     private String serviceId;
     private String serviceName;

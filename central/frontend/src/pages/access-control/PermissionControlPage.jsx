@@ -15,6 +15,7 @@ import {
   ACCESS_CONTROL_DEFAULT_PAGE_SIZE,
   RULE_TYPES,
   RULE_VALUE_TYPES,
+  VALUE_TYPE_OPTIONS,
 } from '../../types/accessControl'
 import './PermissionControlPage.css'
 
@@ -103,11 +104,15 @@ function SearchInput({ value, placeholder, onChange }) {
   )
 }
 
-function EndpointFilter({ value, onChange }) {
+function ValueTypeFilter({ value, onChange }) {
   return (
-    <label className="permission-endpoint-filter">
-      <span>Endpoint ID hoặc tên</span>
-      <input value={value} placeholder="VD: EP_AUTH_TOKEN_GEN hoặc Auth Token" onChange={(event) => onChange(event.target.value)} />
+    <label className="permission-value-type-filter">
+      <span className="material-symbols-outlined" aria-hidden="true">filter_alt</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {VALUE_TYPE_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
     </label>
   )
 }
@@ -135,13 +140,13 @@ const AccessRuleSection = memo(function AccessRuleSection({
   title,
   description,
   icon,
-  endpointFilter,
+  valueType,
   keyword,
   rows,
   pageInfo,
   isLoading,
   error,
-  onEndpointFilterChange,
+  onValueTypeChange,
   onKeywordChange,
   onPageChange,
   onOpenCreate,
@@ -161,8 +166,8 @@ const AccessRuleSection = memo(function AccessRuleSection({
           <p>{description}</p>
         </div>
         <div className="permission-section__filters">
-          <EndpointFilter value={endpointFilter} onChange={onEndpointFilterChange} />
-          <SearchInput value={keyword} placeholder={`Tìm kiếm trong ${type === RULE_TYPES.BLACKLIST ? 'Blacklist' : 'Whitelist'}...`} onChange={onKeywordChange} />
+          <ValueTypeFilter value={valueType} onChange={onValueTypeChange} />
+          <SearchInput value={keyword} placeholder="Tìm theo Service ID hoặc Endpoint ID..." onChange={onKeywordChange} />
         </div>
         <button type="button" className="permission-button permission-button--primary" onClick={onOpenCreate}>
           <span className="material-symbols-outlined" aria-hidden="true">add</span>
@@ -231,7 +236,7 @@ const AccessPermissionSection = memo(function AccessPermissionSection({ keyword,
           </h3>
           <p>Cấp phát quyền hạn chi tiết cho các Client và Endpoint cụ thể.</p>
         </div>
-        <SearchInput value={keyword} placeholder="Tìm kiếm quyền truy cập..." onChange={onKeywordChange} />
+        <SearchInput value={keyword} placeholder="Tìm theo Service ID, Endpoint ID hoặc Client ID..." onChange={onKeywordChange} />
         <button type="button" className="permission-button permission-button--primary" onClick={onOpenCreate}>
           <span className="material-symbols-outlined" aria-hidden="true">add</span>
           Thêm mới Quyền truy cập
@@ -245,7 +250,9 @@ const AccessPermissionSection = memo(function AccessPermissionSection({ keyword,
               <th>Service ID</th>
               <th>Service Name</th>
               <th>Client ID</th>
+              <th>Client Key</th>
               <th>Inbound Endpoint ID</th>
+              <th>Endpoint Name</th>
               <th>Endpoint Path</th>
               <th>Created At</th>
               <th>Updated At</th>
@@ -255,15 +262,17 @@ const AccessPermissionSection = memo(function AccessPermissionSection({ keyword,
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan="10" className="permission-empty">{emptyText}</td></tr>
+              <tr><td colSpan="12" className="permission-empty">{emptyText}</td></tr>
             ) : rows.map((permission) => (
               <tr key={permission.id}>
                 <td className="permission-mono">#{permission.id}</td>
                 <td className="permission-mono">{permission.serviceId || '-'}</td>
                 <td>{permission.serviceName || permission.clientName || '-'}</td>
                 <td>{permission.clientId}</td>
+                <td><code>{permission.clientCode || permission.clientKey || '-'}</code></td>
                 <td><code>{permission.inboundEndpointId}</code></td>
-                <td><code>{permission.inboundEndpointPath || permission.inboundEndpointName || '-'}</code></td>
+                <td>{permission.endpointName || permission.inboundEndpointName || '-'}</td>
+                <td><code>{permission.inboundEndpointPath || '-'}</code></td>
                 <td>{formatDateTime(permission.createdAt)}</td>
                 <td>{formatDateTime(permission.updatedAt)}</td>
                 <td className="permission-center">
@@ -342,7 +351,7 @@ export default function PermissionControlPage() {
   const [permissions, setPermissions] = useState([])
   const [pageInfo, setPageInfo] = useState({ blacklist: EMPTY_PAGE_INFO, whitelist: EMPTY_PAGE_INFO, permissions: EMPTY_PAGE_INFO })
   const [keywords, setKeywords] = useState({ blacklist: '', whitelist: '', permissions: '' })
-  const [ruleEndpointFilters, setRuleEndpointFilters] = useState({ blacklist: '', whitelist: '' })
+  const [valueTypes, setValueTypes] = useState({ blacklist: '', whitelist: '' })
   const [pages, setPages] = useState({ blacklist: 0, whitelist: 0, permissions: 0 })
   const [loading, setLoading] = useState({ blacklist: false, whitelist: false, permissions: false })
   const [errors, setErrors] = useState({ blacklist: '', whitelist: '', permissions: '' })
@@ -364,8 +373,8 @@ export default function PermissionControlPage() {
 
     listAllAccessRules({
       type: RULE_TYPES.BLACKLIST,
-      endpointKeyword: ruleEndpointFilters.blacklist,
-      keyword: keywords.blacklist,
+      valueType: valueTypes.blacklist || undefined,
+      keyword: keywords.blacklist || undefined,
       page: pages.blacklist,
       size: ACCESS_CONTROL_DEFAULT_PAGE_SIZE,
     })
@@ -386,7 +395,7 @@ export default function PermissionControlPage() {
       })
 
     return () => { isActive = false }
-  }, [keywords.blacklist, pages.blacklist, reloadKeys.blacklist, ruleEndpointFilters.blacklist])
+  }, [keywords.blacklist, pages.blacklist, reloadKeys.blacklist, valueTypes.blacklist])
 
   useEffect(() => {
     let isActive = true
@@ -395,8 +404,8 @@ export default function PermissionControlPage() {
 
     listAllAccessRules({
       type: RULE_TYPES.WHITELIST,
-      endpointKeyword: ruleEndpointFilters.whitelist,
-      keyword: keywords.whitelist,
+      valueType: valueTypes.whitelist || undefined,
+      keyword: keywords.whitelist || undefined,
       page: pages.whitelist,
       size: ACCESS_CONTROL_DEFAULT_PAGE_SIZE,
     })
@@ -417,7 +426,7 @@ export default function PermissionControlPage() {
       })
 
     return () => { isActive = false }
-  }, [keywords.whitelist, pages.whitelist, reloadKeys.whitelist, ruleEndpointFilters.whitelist])
+  }, [keywords.whitelist, pages.whitelist, reloadKeys.whitelist, valueTypes.whitelist])
 
   useEffect(() => {
     let isActive = true
@@ -425,7 +434,7 @@ export default function PermissionControlPage() {
     setErrors((current) => ({ ...current, permissions: '' }))
 
     listAccessPermissions({
-      keyword: keywords.permissions,
+      keyword: keywords.permissions || undefined,
       page: pages.permissions,
       size: ACCESS_CONTROL_DEFAULT_PAGE_SIZE,
     })
@@ -457,8 +466,8 @@ export default function PermissionControlPage() {
     setPages((current) => ({ ...current, [section]: 0 }))
   }, [])
 
-  const updateRuleEndpointFilter = useCallback((section, value) => {
-    setRuleEndpointFilters((current) => ({ ...current, [section]: value }))
+  const updateValueType = useCallback((section, value) => {
+    setValueTypes((current) => ({ ...current, [section]: value }))
     setPages((current) => ({ ...current, [section]: 0 }))
   }, [])
 
@@ -591,15 +600,15 @@ export default function PermissionControlPage() {
       <AccessRuleSection
         type={RULE_TYPES.BLACKLIST}
         title="Quản lý Blacklist"
-        description="Danh sách các thực thể bị từ chối truy cập vĩnh viễn hoặc tạm thời. Dữ liệu được tải trực tiếp từ API và có thể lọc theo endpoint."
+        description="Danh sách các thực thể bị từ chối truy cập vĩnh viễn hoặc tạm thời. Dữ liệu được tải từ API và có thể lọc theo Value Type hoặc tìm kiếm."
         icon="block"
-        endpointFilter={ruleEndpointFilters.blacklist}
+        valueType={valueTypes.blacklist}
         keyword={keywords.blacklist}
         rows={rules.blacklist}
         pageInfo={pageInfo.blacklist}
         isLoading={loading.blacklist}
         error={errors.blacklist}
-        onEndpointFilterChange={(value) => updateRuleEndpointFilter('blacklist', value)}
+        onValueTypeChange={(value) => updateValueType('blacklist', value)}
         onKeywordChange={(value) => updateKeyword('blacklist', value)}
         onPageChange={(page) => setPages((current) => ({ ...current, blacklist: page }))}
         onOpenCreate={() => openRuleModal(RULE_TYPES.BLACKLIST)}
@@ -610,15 +619,15 @@ export default function PermissionControlPage() {
       <AccessRuleSection
         type={RULE_TYPES.WHITELIST}
         title="Quản lý Whitelist"
-        description="Danh sách ưu tiên truy cập không bị giới hạn bởi các bộ lọc bảo mật thông thường. Dữ liệu được tải trực tiếp từ API và có thể lọc theo endpoint."
+        description="Danh sách ưu tiên truy cập không bị giới hạn bởi các bộ lọc bảo mật thông thường. Dữ liệu được tải từ API và có thể lọc theo Value Type hoặc tìm kiếm."
         icon="verified_user"
-        endpointFilter={ruleEndpointFilters.whitelist}
+        valueType={valueTypes.whitelist}
         keyword={keywords.whitelist}
         rows={rules.whitelist}
         pageInfo={pageInfo.whitelist}
         isLoading={loading.whitelist}
         error={errors.whitelist}
-        onEndpointFilterChange={(value) => updateRuleEndpointFilter('whitelist', value)}
+        onValueTypeChange={(value) => updateValueType('whitelist', value)}
         onKeywordChange={(value) => updateKeyword('whitelist', value)}
         onPageChange={(page) => setPages((current) => ({ ...current, whitelist: page }))}
         onOpenCreate={() => openRuleModal(RULE_TYPES.WHITELIST)}

@@ -99,7 +99,7 @@
 .permission-section__filters {
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(160px, 220px) minmax(180px, 1fr);
+  grid-template-columns: auto minmax(180px, 1fr);
 }
 
 .permission-section__title-group p {
@@ -168,6 +168,39 @@
   border-color: #af101a;
   box-shadow: 0 0 0 3px rgba(175, 16, 26, .12);
   outline: none;
+}
+
+.permission-value-type-filter {
+  align-items: center;
+  background: #f3f3f3;
+  border: 1px solid #e4beba;
+  border-radius: 6px;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 8px 0 12px;
+}
+
+.permission-value-type-filter .material-symbols-outlined {
+  color: #546067;
+  font-size: 18px;
+}
+
+.permission-value-type-filter select {
+  background: transparent;
+  border: 0;
+  color: #1a1c1c;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 20px;
+  min-width: 130px;
+  outline: none;
+  padding: 11px 0;
+}
+
+.permission-value-type-filter:focus-within {
+  border-color: #af101a;
+  box-shadow: 0 0 0 3px rgba(175, 16, 26, .12);
 }
 
 .permission-search:focus-within {

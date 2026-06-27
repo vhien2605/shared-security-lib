@@ -10,6 +10,14 @@ export const RULE_VALUE_TYPES = Object.freeze({
   HEADER: 'HEADER',
 })
 
+export const VALUE_TYPE_OPTIONS = Object.freeze([
+  { value: '', label: 'Tất cả Value Type' },
+  { value: 'IP', label: 'IP' },
+  { value: 'CIDR', label: 'CIDR' },
+  { value: 'CLIENT_KEY', label: 'CLIENT_KEY' },
+  { value: 'HEADER', label: 'HEADER' },
+])
+
 export const ACCESS_CONTROL_DEFAULT_PAGE_SIZE = 10
 
 /**
@@ -46,9 +54,11 @@ export const ACCESS_CONTROL_DEFAULT_PAGE_SIZE = 10
  * @property {string} id
  * @property {string} clientId
  * @property {string} [clientKey]
+ * @property {string} [clientCode]
  * @property {string} [clientName]
  * @property {string} inboundEndpointId
  * @property {string} [inboundEndpointName]
+ * @property {string} [endpointName]
  * @property {string} [inboundEndpointPath]
  * @property {string} [serviceId]
  * @property {string} [serviceName]

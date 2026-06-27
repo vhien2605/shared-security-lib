@@ -37,7 +37,9 @@ public interface InboundAccessRuleRepository extends JpaRepository<InboundAccess
             + "AND (:enable IS NULL OR rule.enable = :enable) "
             + "AND (:keywordPattern IS NULL OR LOWER(rule.value) LIKE :keywordPattern "
             + "OR LOWER(rule.reason) LIKE :keywordPattern "
-            + "OR LOWER(service.name) LIKE :keywordPattern) "
+            + "OR LOWER(service.name) LIKE :keywordPattern "
+            + "OR LOWER(endpoint.id) LIKE :keywordPattern "
+            + "OR LOWER(service.id) LIKE :keywordPattern) "
             + "ORDER BY rule.createdAt DESC")
     @EntityGraph(attributePaths = {"inboundEndpoint", "inboundEndpoint.secureService"})
     Page<InboundAccessRule> searchAll(@Param("type") AccessRuleType type,
