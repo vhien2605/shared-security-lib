@@ -44,6 +44,7 @@ public class AnomalyDetectionProperties {
         private int lookbackDays = 14;
         private long minLogSamples = 500;
         private long minBehaviorWindows = 100;
+        private Duration behaviorSampleInterval = Duration.ofSeconds(30);
         private int knownValueLimit = 200;
         private Recompute recompute = new Recompute();
         public int getLookbackDays() { return lookbackDays; }
@@ -52,6 +53,13 @@ public class AnomalyDetectionProperties {
         public void setMinLogSamples(long minLogSamples) { this.minLogSamples = minLogSamples; }
         public long getMinBehaviorWindows() { return minBehaviorWindows; }
         public void setMinBehaviorWindows(long minBehaviorWindows) { this.minBehaviorWindows = minBehaviorWindows; }
+        public Duration getBehaviorSampleInterval() { return behaviorSampleInterval; }
+        public void setBehaviorSampleInterval(Duration behaviorSampleInterval) {
+            if (behaviorSampleInterval == null || behaviorSampleInterval.isZero() || behaviorSampleInterval.isNegative()) {
+                throw new IllegalArgumentException("behaviorSampleInterval must be positive");
+            }
+            this.behaviorSampleInterval = behaviorSampleInterval;
+        }
         public int getKnownValueLimit() { return knownValueLimit; }
         public void setKnownValueLimit(int knownValueLimit) { this.knownValueLimit = knownValueLimit; }
         public Recompute getRecompute() { return recompute; }
