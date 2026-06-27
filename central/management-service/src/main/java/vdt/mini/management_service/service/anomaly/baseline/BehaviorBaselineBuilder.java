@@ -58,19 +58,39 @@ public class BehaviorBaselineBuilder {
                 .sorted((left, right) -> Instant.parse(left.getTimestamp()).compareTo(Instant.parse(right.getTimestamp())))
                 .toList();
         Duration windowSize = properties.getRolling().getWindowSize();
+        Duration sampleInterval = properties.getBaseline().getBehaviorSampleInterval();
         int minSamples = properties.getRolling().getMinSamples();
         ArrayDeque<RollingWindowEntry> window = new ArrayDeque<>();
         java.util.ArrayList<RollingWindowSnapshot> snapshots = new java.util.ArrayList<>();
+        Instant nextSampleAt = null;
+        Instant lastEventTime = null;
         for (SecurityLogEventMessage event : sorted) {
             Instant current = Instant.parse(event.getTimestamp());
-            evict(window, current.minus(windowSize));
-            RollingWindowSnapshot snapshot = snapshotCalculator.snapshot(window, current.minus(windowSize), current);
-            if (snapshot.windowSampleCount() >= minSamples) {
-                snapshots.add(snapshot);
+            if (nextSampleAt == null) {
+                nextSampleAt = current;
             }
+            while (!nextSampleAt.isAfter(current)) {
+                addSnapshotIfSufficient(window, nextSampleAt, windowSize, minSamples, snapshots);
+                nextSampleAt = nextSampleAt.plus(sampleInterval);
+            }
+            evict(window, current.minus(windowSize));
             window.addLast(RollingWindowEntry.from(event));
+            lastEventTime = current;
+        }
+        if (lastEventTime != null && nextSampleAt != null && !window.isEmpty()) {
+            addSnapshotIfSufficient(window, nextSampleAt, windowSize, minSamples, snapshots);
         }
         return newSnapshot(key, snapshots);
+    }
+
+    private void addSnapshotIfSufficient(ArrayDeque<RollingWindowEntry> window, Instant sampleAt, Duration windowSize, int minSamples,
+                                         java.util.ArrayList<RollingWindowSnapshot> snapshots) {
+        Instant windowStart = sampleAt.minus(windowSize);
+        evict(window, windowStart);
+        RollingWindowSnapshot snapshot = snapshotCalculator.snapshot(window, windowStart, sampleAt);
+        if (snapshot.windowSampleCount() >= minSamples) {
+            snapshots.add(snapshot);
+        }
     }
 
     private BehaviorBaselineSnapshot newSnapshot(AnomalyGroupKey key, List<RollingWindowSnapshot> snapshots) {
