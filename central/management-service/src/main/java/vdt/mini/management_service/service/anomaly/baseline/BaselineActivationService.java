@@ -1,6 +1,7 @@
 package vdt.mini.management_service.service.anomaly.baseline;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import vdt.mini.management_service.dto.event.AnomalyGroupKey;
 import vdt.mini.management_service.dto.event.BehaviorBaselineSnapshot;
@@ -22,7 +23,7 @@ public class BaselineActivationService {
         this.baselineCache = baselineCache;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void activate(LogBaselineSnapshot logBaseline, BehaviorBaselineSnapshot behaviorBaseline) {
         AnomalyGroupKey key = logBaseline != null ? logBaseline.groupKey() : behaviorBaseline.groupKey();
         if (key == null) {
