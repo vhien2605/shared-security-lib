@@ -197,7 +197,8 @@ export default function ClientManagementPage() {
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [openStatusClientId, setOpenStatusClientId] = useState("");
+  const [statusModalClient, setStatusModalClient] = useState(null);
+  const [statusModalPos, setStatusModalPos] = useState(null);
   const [updatingStatusClientId, setUpdatingStatusClientId] = useState("");
   const [createdCredential, setCreatedCredential] = useState(null);
   const [serviceSuggestions, setServiceSuggestions] = useState({});
@@ -413,8 +414,18 @@ export default function ClientManagementPage() {
     }
   }
 
-  const toggleStatusMenu = useCallback((clientId) => {
-    setOpenStatusClientId((current) => (current === clientId ? "" : clientId));
+  const openStatusModal = useCallback((client, event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const modalWidth = 160;
+    let left = rect.right - modalWidth;
+    if (left < 8) left = 8;
+    setStatusModalPos({ top: rect.bottom + 4, left });
+    setStatusModalClient(client);
+  }, []);
+
+  const closeStatusModal = useCallback(() => {
+    setStatusModalClient(null);
+    setStatusModalPos(null);
   }, []);
 
   const updateClientStatus = useCallback(async (client, nextStatus) => {
@@ -422,7 +433,8 @@ export default function ClientManagementPage() {
 
     setError("");
     setMessage("");
-    setOpenStatusClientId("");
+    setStatusModalClient(null);
+    setStatusModalPos(null);
     setUpdatingStatusClientId(client.id);
     try {
       unwrapResponse(await updateClient(client.id, { status: nextStatus }));
@@ -515,9 +527,8 @@ export default function ClientManagementPage() {
             endItem={endItem}
             onChangePage={changePage}
             onChangeSize={changeSize}
-            openStatusClientId={openStatusClientId}
             updatingStatusClientId={updatingStatusClientId}
-            onToggleStatusMenu={toggleStatusMenu}
+            onOpenStatusModal={openStatusModal}
             onUpdateStatus={updateClientStatus}
           />
         </section>
@@ -564,9 +575,49 @@ export default function ClientManagementPage() {
           onRemoveAuthConfig={removeAuthConfig}
         />
       ) : null}
+      {statusModalClient && statusModalPos ? (
+        <StatusChangeModal
+          client={statusModalClient}
+          pos={statusModalPos}
+          onClose={closeStatusModal}
+          onUpdate={updateClientStatus}
+          isUpdating={updatingStatusClientId === statusModalClient.id}
+        />
+      ) : null}
     </section>
   );
 }
+
+const StatusChangeModal = memo(function StatusChangeModal({ client, pos, onClose, onUpdate, isUpdating }) {
+  return (
+    <>
+      <button
+        type="button"
+        className="status-modal__backdrop"
+        aria-label="Đóng"
+        onClick={onClose}
+      />
+      <div
+        className="status-modal"
+        style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 101 }}
+      >
+        <div className="status-modal__options">
+          {CLIENT_STATUSES.filter((status) => status !== client.status).map((status) => (
+            <button
+              type="button"
+              key={status}
+              className="status-modal__option"
+              onClick={() => onUpdate(client, status)}
+              disabled={isUpdating}
+            >
+              {status}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+});
 
 const ClientTable = memo(function ClientTable({
   clients,
@@ -576,9 +627,8 @@ const ClientTable = memo(function ClientTable({
   endItem,
   onChangePage,
   onChangeSize,
-  openStatusClientId,
   updatingStatusClientId,
-  onToggleStatusMenu,
+  onOpenStatusModal,
   onUpdateStatus,
 }) {
   return (
@@ -636,28 +686,13 @@ const ClientTable = memo(function ClientTable({
                         type="button"
                         title="Cập nhật trạng thái"
                         aria-label={`Cập nhật trạng thái ${client.name || client.clientCode || client.id}`}
-                        aria-expanded={openStatusClientId === client.id}
                         disabled={!client.id || updatingStatusClientId === client.id}
-                        onClick={() => onToggleStatusMenu(client.id)}
+                        onClick={(event) => onOpenStatusModal(client, event)}
                       >
                         <span className="material-symbols-outlined">
                           power_settings_new
                         </span>
                       </button>
-                      {openStatusClientId === client.id ? (
-                        <div className="client-status-menu">
-                          {CLIENT_STATUSES.filter((status) => status !== client.status).map((status) => (
-                            <button
-                              type="button"
-                              key={status}
-                              onClick={() => onUpdateStatus(client, status)}
-                              disabled={updatingStatusClientId === client.id}
-                            >
-                              {status}
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
                     </div>
                   </div>
                 </td>
