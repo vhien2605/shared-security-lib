@@ -15,7 +15,6 @@ public class AnomalyDetectionProperties {
     private RobustZ robustZ = new RobustZ();
     private Risk risk = new Risk();
     private Incident incident = new Incident();
-    private Alert alert = new Alert();
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -31,8 +30,6 @@ public class AnomalyDetectionProperties {
     public void setRisk(Risk risk) { this.risk = risk; }
     public Incident getIncident() { return incident; }
     public void setIncident(Incident incident) { this.incident = incident; }
-    public Alert getAlert() { return alert; }
-    public void setAlert(Alert alert) { this.alert = alert; }
 
     public static class Kafka {
         private String logsTopic = "security.logs";
@@ -77,15 +74,12 @@ public class AnomalyDetectionProperties {
         private Duration windowSize = Duration.ofMinutes(5);
         private Duration lateTolerance = Duration.ofMinutes(1);
         private int minSamples = 20;
-        private String store = "redis";
         public Duration getWindowSize() { return windowSize; }
         public void setWindowSize(Duration windowSize) { this.windowSize = windowSize; }
         public Duration getLateTolerance() { return lateTolerance; }
         public void setLateTolerance(Duration lateTolerance) { this.lateTolerance = lateTolerance; }
         public int getMinSamples() { return minSamples; }
         public void setMinSamples(int minSamples) { this.minSamples = minSamples; }
-        public String getStore() { return store; }
-        public void setStore(String store) { this.store = store; }
     }
 
     public static class RobustZ {
@@ -116,17 +110,5 @@ public class AnomalyDetectionProperties {
         public void setDedupWindow(Duration dedupWindow) { this.dedupWindow = dedupWindow; }
         public int getRetentionDays() { return retentionDays; }
         public void setRetentionDays(int retentionDays) { this.retentionDays = retentionDays; }
-    }
-
-    public static class Alert {
-        private Websocket websocket = new Websocket();
-        public Websocket getWebsocket() { return websocket; }
-        public void setWebsocket(Websocket websocket) { this.websocket = websocket; }
-
-        public static class Websocket {
-            private boolean enabled = true;
-            public boolean isEnabled() { return enabled; }
-            public void setEnabled(boolean enabled) { this.enabled = enabled; }
-        }
     }
 }
