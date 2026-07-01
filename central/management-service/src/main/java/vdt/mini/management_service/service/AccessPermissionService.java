@@ -26,6 +26,7 @@ import vdt.mini.management_service.repository.AuditLogRepository;
 import vdt.mini.management_service.repository.ClientRepository;
 import vdt.mini.management_service.repository.InboundEndpointRepository;
 import vdt.mini.management_service.util.enums.ClientStatus;
+import vdt.mini.management_service.util.enums.EndpointProtocol;
 import vdt.mini.management_service.util.enums.ErrorCode;
 
 import java.util.List;
@@ -263,12 +264,22 @@ public class AccessPermissionService {
                 .inboundEndpointId(endpoint.getId())
                 .inboundEndpointName(endpoint.getName())
                 .endpointName(endpoint.getName())
-                .inboundEndpointPath(endpoint.getPath())
+                .inboundEndpointPath(endpointPath(endpoint))
                 .serviceId(secureService != null ? secureService.getId() : null)
                 .serviceName(secureService != null ? secureService.getName() : null)
                 .enable(permission.getEnable())
                 .createdAt(permission.getCreatedAt())
                 .updatedAt(permission.getUpdatedAt())
                 .build();
+    }
+
+    private String endpointPath(InboundEndpoint endpoint) {
+        if (endpoint == null) {
+            return null;
+        }
+        if (EndpointProtocol.MQ == endpoint.getProtocol()) {
+            return endpoint.getTopic();
+        }
+        return endpoint.getPath();
     }
 }

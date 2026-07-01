@@ -25,6 +25,7 @@ import vdt.mini.management_service.repository.InboundAccessRuleRepository;
 import vdt.mini.management_service.repository.InboundEndpointRepository;
 import vdt.mini.management_service.util.enums.AccessRuleType;
 import vdt.mini.management_service.util.enums.AccessRuleValueType;
+import vdt.mini.management_service.util.enums.EndpointProtocol;
 import vdt.mini.management_service.util.enums.ErrorCode;
 
 import java.util.Locale;
@@ -274,7 +275,7 @@ public class AccessRuleService {
                 .id(rule.getId())
                 .inboundEndpointId(endpoint.getId())
                 .inboundEndpointName(endpoint.getName())
-                .inboundEndpointPath(endpoint.getPath())
+                .inboundEndpointPath(endpointPath(endpoint))
                 .serviceId(secureService != null ? secureService.getId() : null)
                 .serviceName(secureService != null ? secureService.getName() : null)
                 .type(rule.getType())
@@ -286,5 +287,15 @@ public class AccessRuleService {
                 .reason(rule.getReason())
                 .createdAt(rule.getCreatedAt())
                 .build();
+    }
+
+    private String endpointPath(InboundEndpoint endpoint) {
+        if (endpoint == null) {
+            return null;
+        }
+        if (EndpointProtocol.MQ == endpoint.getProtocol()) {
+            return endpoint.getTopic();
+        }
+        return endpoint.getPath();
     }
 }
