@@ -32,12 +32,23 @@ import java.lang.reflect.Method;
 import java.net.SocketTimeoutException;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Aspect
 @Component
 public class OutBoundSecurityAspect {
     private static final Logger log = LoggerFactory.getLogger(OutBoundSecurityAspect.class);
+    private static final ExecutorService HTTP_CALL_EXECUTOR = Executors.newCachedThreadPool(r -> {
+        Thread thread = new Thread(r, "outbound-http-call");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     private final OutboundPolicyService policyService;
     private final OutboundContextHolder contextHolder;
@@ -135,7 +146,7 @@ public class OutBoundSecurityAspect {
         for (int attempt = 0; attempt <= policy.retryCount(); attempt++) {
             long startedAt = System.nanoTime();
             try {
-                Object result = joinPoint.proceed();
+                Object result = callHttpWithTimeout(joinPoint, policy.timeoutMs(), outboundContext);
                 long durationMs = elapsedMs(startedAt);
                 log.info("outbound_http_success endpointId={} attempt={} durationMs={}", policy.endpointId(), attempt, durationMs);
                 auditLogger.logOutbound(policy, outboundContext, SecurityResultStatus.SUCCESS, null, durationMs, attempt);
@@ -168,6 +179,33 @@ public class OutBoundSecurityAspect {
         }
         throw new OutboundException(lastErrorCode == null ? OutboundErrorCode.INTERNAL_ERROR : lastErrorCode,
                 "Outbound call failed", lastFailure, policy.endpointId());
+    }
+
+    private Object callHttpWithTimeout(ProceedingJoinPoint joinPoint, int timeoutMs, OutboundContext outboundContext) throws Throwable {
+        if (timeoutMs <= 0) {
+            return joinPoint.proceed();
+        }
+        CompletableFuture<Object> future = CompletableFuture.supplyAsync(() -> {
+            contextHolder.set(outboundContext);
+            try {
+                return joinPoint.proceed();
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Throwable e) {
+                throw new CompletionException(e);
+            } finally {
+                contextHolder.clear();
+            }
+        }, HTTP_CALL_EXECUTOR);
+        try {
+            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            throw new SocketTimeoutException("HTTP call timed out after " + timeoutMs + "ms");
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            throw cause == null ? e : cause;
+        }
     }
 
     private void logFailure(OutboundExecutionPolicy policy, int attempt, long durationMs, Throwable failure, OutboundErrorCode errorCode) {
