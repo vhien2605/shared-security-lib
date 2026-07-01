@@ -27,7 +27,7 @@ public class ProfileController {
                     .body("{\"error\":\"Simulated 500 Internal Server Error\"}");
             case "timeout" -> {
                 try {
-                    Thread.sleep(30_000);
+                    Thread.sleep(15000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
