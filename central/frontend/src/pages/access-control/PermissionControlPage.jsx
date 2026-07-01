@@ -117,18 +117,39 @@ function ValueTypeFilter({ value, onChange }) {
   )
 }
 
-function Pagination({ pageInfo, onPageChange }) {
+function Pagination({ pageInfo, pageSize, rows, onPageChange, onPageSizeChange }) {
+  const startItem = rows > 0 ? pageInfo.number * pageSize + 1 : 0
+  const endItem = pageInfo.number * pageSize + rows
+
   return (
     <div className="permission-pagination" aria-label="Phân trang">
-      <span>
-        Trang {pageInfo.number + 1}/{pageInfo.totalPages} · {pageInfo.totalElements} bản ghi
-      </span>
-      <div>
+      <div className="permission-pagination-summary">
+        <span>
+          Hiển thị <strong>{startItem}-{endItem}</strong> / <strong>{pageInfo.totalElements}</strong> bản ghi
+        </span>
+        <label>
+          Kích thước:
+          <select value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))}>
+            {[10, 20, 50].map((size) => (
+              <option key={size} value={size}>{size}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="permission-pagination-buttons">
         <button type="button" disabled={pageInfo.first} onClick={() => onPageChange(pageInfo.number - 1)}>
           Trước
         </button>
+        <button type="button" className="active">
+          {pageInfo.number + 1}
+        </button>
+        {!pageInfo.last && (
+          <button type="button" onClick={() => onPageChange(pageInfo.number + 1)}>
+            {pageInfo.number + 2}
+          </button>
+        )}
         <button type="button" disabled={pageInfo.last} onClick={() => onPageChange(pageInfo.number + 1)}>
-          Sau
+          Tiếp
         </button>
       </div>
     </div>
@@ -144,11 +165,13 @@ const AccessRuleSection = memo(function AccessRuleSection({
   keyword,
   rows,
   pageInfo,
+  pageSize,
   isLoading,
   error,
   onValueTypeChange,
   onKeywordChange,
   onPageChange,
+  onPageSizeChange,
   onOpenCreate,
   onToggle,
   onDelete,
@@ -218,12 +241,12 @@ const AccessRuleSection = memo(function AccessRuleSection({
           </tbody>
         </table>
       </div>
-      <Pagination pageInfo={pageInfo} onPageChange={onPageChange} />
+      <Pagination pageInfo={pageInfo} pageSize={pageSize} rows={rows.length} onPageChange={onPageChange} onPageSizeChange={onPageSizeChange} />
     </section>
   )
 })
 
-const AccessPermissionSection = memo(function AccessPermissionSection({ keyword, rows, pageInfo, isLoading, error, onKeywordChange, onPageChange, onOpenCreate, onToggle, onDelete }) {
+const AccessPermissionSection = memo(function AccessPermissionSection({ keyword, rows, pageInfo, pageSize, isLoading, error, onKeywordChange, onPageChange, onPageSizeChange, onOpenCreate, onToggle, onDelete }) {
   const emptyText = isLoading ? 'Đang tải dữ liệu từ API...' : error || 'Không có dữ liệu phù hợp.'
 
   return (
@@ -288,7 +311,7 @@ const AccessPermissionSection = memo(function AccessPermissionSection({ keyword,
           </tbody>
         </table>
       </div>
-      <Pagination pageInfo={pageInfo} onPageChange={onPageChange} />
+      <Pagination pageInfo={pageInfo} pageSize={pageSize} rows={rows.length} onPageChange={onPageChange} onPageSizeChange={onPageSizeChange} />
     </section>
   )
 })
@@ -350,12 +373,13 @@ export default function PermissionControlPage() {
   const [rules, setRules] = useState({ blacklist: [], whitelist: [] })
   const [permissions, setPermissions] = useState([])
   const [pageInfo, setPageInfo] = useState({ blacklist: EMPTY_PAGE_INFO, whitelist: EMPTY_PAGE_INFO, permissions: EMPTY_PAGE_INFO })
-  const [keywords, setKeywords] = useState({ blacklist: '', whitelist: '', permissions: '' })
-  const [valueTypes, setValueTypes] = useState({ blacklist: '', whitelist: '' })
-  const [pages, setPages] = useState({ blacklist: 0, whitelist: 0, permissions: 0 })
+  const [filters, setFilters] = useState({
+    blacklist: { keyword: '', valueType: '', page: 0, size: ACCESS_CONTROL_DEFAULT_PAGE_SIZE },
+    whitelist: { keyword: '', valueType: '', page: 0, size: ACCESS_CONTROL_DEFAULT_PAGE_SIZE },
+    permissions: { keyword: '', page: 0, size: ACCESS_CONTROL_DEFAULT_PAGE_SIZE },
+  })
   const [loading, setLoading] = useState({ blacklist: false, whitelist: false, permissions: false })
   const [errors, setErrors] = useState({ blacklist: '', whitelist: '', permissions: '' })
-  const [reloadKeys, setReloadKeys] = useState({ blacklist: 0, whitelist: 0, permissions: 0 })
   const [message, setMessage] = useState('')
   const [modal, setModal] = useState({ type: '', form: null, error: '' })
   const [isSaving, setIsSaving] = useState(false)
@@ -366,110 +390,128 @@ export default function PermissionControlPage() {
     return () => window.clearTimeout(timeoutId)
   }, [message])
 
+  // ─── Fetch helpers (gọi trực tiếp, không phụ thuộc state cũ) ────────────────
+
+  const fetchBlacklist = useCallback(async ({ keyword, valueType, page, size }) => {
+    setLoading((c) => ({ ...c, blacklist: true }))
+    setErrors((c) => ({ ...c, blacklist: '' }))
+    try {
+      const response = await listAllAccessRules({
+        type: RULE_TYPES.BLACKLIST,
+        valueType: valueType || undefined,
+        keyword: keyword || undefined,
+        page,
+        size,
+      })
+      const payload = normalizePagePayload(response)
+      setRules((c) => ({ ...c, blacklist: payload.items }))
+      setPageInfo((c) => ({ ...c, blacklist: payload.pageInfo }))
+    } catch (error) {
+      setRules((c) => ({ ...c, blacklist: [] }))
+      setPageInfo((c) => ({ ...c, blacklist: EMPTY_PAGE_INFO }))
+      setErrors((c) => ({ ...c, blacklist: getErrorMessage(error, 'Không thể tải Blacklist.') }))
+    } finally {
+      setLoading((c) => ({ ...c, blacklist: false }))
+    }
+  }, [])
+
+  const fetchWhitelist = useCallback(async ({ keyword, valueType, page, size }) => {
+    setLoading((c) => ({ ...c, whitelist: true }))
+    setErrors((c) => ({ ...c, whitelist: '' }))
+    try {
+      const response = await listAllAccessRules({
+        type: RULE_TYPES.WHITELIST,
+        valueType: valueType || undefined,
+        keyword: keyword || undefined,
+        page,
+        size,
+      })
+      const payload = normalizePagePayload(response)
+      setRules((c) => ({ ...c, whitelist: payload.items }))
+      setPageInfo((c) => ({ ...c, whitelist: payload.pageInfo }))
+    } catch (error) {
+      setRules((c) => ({ ...c, whitelist: [] }))
+      setPageInfo((c) => ({ ...c, whitelist: EMPTY_PAGE_INFO }))
+      setErrors((c) => ({ ...c, whitelist: getErrorMessage(error, 'Không thể tải Whitelist.') }))
+    } finally {
+      setLoading((c) => ({ ...c, whitelist: false }))
+    }
+  }, [])
+
+  const fetchPermissions = useCallback(async ({ keyword, page, size }) => {
+    setLoading((c) => ({ ...c, permissions: true }))
+    setErrors((c) => ({ ...c, permissions: '' }))
+    try {
+      const response = await listAccessPermissions({
+        keyword: keyword || undefined,
+        page,
+        size,
+      })
+      const payload = normalizePagePayload(response)
+      setPermissions(payload.items)
+      setPageInfo((c) => ({ ...c, permissions: payload.pageInfo }))
+    } catch (error) {
+      setPermissions([])
+      setPageInfo((c) => ({ ...c, permissions: EMPTY_PAGE_INFO }))
+      setErrors((c) => ({ ...c, permissions: getErrorMessage(error, 'Không thể tải quyền truy cập.') }))
+    } finally {
+      setLoading((c) => ({ ...c, permissions: false }))
+    }
+  }, [])
+
+  // ─── Mount: tải lần đầu ──────────────────────────────────────────────────────
+
   useEffect(() => {
-    let isActive = true
-    setLoading((current) => ({ ...current, blacklist: true }))
-    setErrors((current) => ({ ...current, blacklist: '' }))
+    fetchBlacklist({ keyword: '', valueType: '', page: 0, size: ACCESS_CONTROL_DEFAULT_PAGE_SIZE })
+    fetchWhitelist({ keyword: '', valueType: '', page: 0, size: ACCESS_CONTROL_DEFAULT_PAGE_SIZE })
+    fetchPermissions({ keyword: '', page: 0, size: ACCESS_CONTROL_DEFAULT_PAGE_SIZE })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-    listAllAccessRules({
-      type: RULE_TYPES.BLACKLIST,
-      valueType: valueTypes.blacklist || undefined,
-      keyword: keywords.blacklist || undefined,
-      page: pages.blacklist,
-      size: ACCESS_CONTROL_DEFAULT_PAGE_SIZE,
+  // ─── Helpers cập nhật filter + gọi API ngay ─────────────────────────────────
+
+  const updateBlacklistFilter = useCallback((patch) => {
+    setFilters((prev) => {
+      const next = { ...prev.blacklist, ...patch }
+      fetchBlacklist(next)
+      return { ...prev, blacklist: next }
     })
-      .then((response) => {
-        if (!isActive) return
-        const payload = normalizePagePayload(response)
-        setRules((current) => ({ ...current, blacklist: payload.items }))
-        setPageInfo((current) => ({ ...current, blacklist: payload.pageInfo }))
-      })
-      .catch((error) => {
-        if (!isActive) return
-        setRules((current) => ({ ...current, blacklist: [] }))
-        setPageInfo((current) => ({ ...current, blacklist: EMPTY_PAGE_INFO }))
-        setErrors((current) => ({ ...current, blacklist: getErrorMessage(error, 'Không thể tải Blacklist.') }))
-      })
-      .finally(() => {
-        if (isActive) setLoading((current) => ({ ...current, blacklist: false }))
-      })
+  }, [fetchBlacklist])
 
-    return () => { isActive = false }
-  }, [keywords.blacklist, pages.blacklist, reloadKeys.blacklist, valueTypes.blacklist])
-
-  useEffect(() => {
-    let isActive = true
-    setLoading((current) => ({ ...current, whitelist: true }))
-    setErrors((current) => ({ ...current, whitelist: '' }))
-
-    listAllAccessRules({
-      type: RULE_TYPES.WHITELIST,
-      valueType: valueTypes.whitelist || undefined,
-      keyword: keywords.whitelist || undefined,
-      page: pages.whitelist,
-      size: ACCESS_CONTROL_DEFAULT_PAGE_SIZE,
+  const updateWhitelistFilter = useCallback((patch) => {
+    setFilters((prev) => {
+      const next = { ...prev.whitelist, ...patch }
+      fetchWhitelist(next)
+      return { ...prev, whitelist: next }
     })
-      .then((response) => {
-        if (!isActive) return
-        const payload = normalizePagePayload(response)
-        setRules((current) => ({ ...current, whitelist: payload.items }))
-        setPageInfo((current) => ({ ...current, whitelist: payload.pageInfo }))
-      })
-      .catch((error) => {
-        if (!isActive) return
-        setRules((current) => ({ ...current, whitelist: [] }))
-        setPageInfo((current) => ({ ...current, whitelist: EMPTY_PAGE_INFO }))
-        setErrors((current) => ({ ...current, whitelist: getErrorMessage(error, 'Không thể tải Whitelist.') }))
-      })
-      .finally(() => {
-        if (isActive) setLoading((current) => ({ ...current, whitelist: false }))
-      })
+  }, [fetchWhitelist])
 
-    return () => { isActive = false }
-  }, [keywords.whitelist, pages.whitelist, reloadKeys.whitelist, valueTypes.whitelist])
-
-  useEffect(() => {
-    let isActive = true
-    setLoading((current) => ({ ...current, permissions: true }))
-    setErrors((current) => ({ ...current, permissions: '' }))
-
-    listAccessPermissions({
-      keyword: keywords.permissions || undefined,
-      page: pages.permissions,
-      size: ACCESS_CONTROL_DEFAULT_PAGE_SIZE,
+  const updatePermissionsFilter = useCallback((patch) => {
+    setFilters((prev) => {
+      const next = { ...prev.permissions, ...patch }
+      fetchPermissions(next)
+      return { ...prev, permissions: next }
     })
-      .then((response) => {
-        if (!isActive) return
-        const payload = normalizePagePayload(response)
-        setPermissions(payload.items)
-        setPageInfo((current) => ({ ...current, permissions: payload.pageInfo }))
-      })
-      .catch((error) => {
-        if (!isActive) return
-        setPermissions([])
-        setPageInfo((current) => ({ ...current, permissions: EMPTY_PAGE_INFO }))
-        setErrors((current) => ({ ...current, permissions: getErrorMessage(error, 'Không thể tải quyền truy cập.') }))
-      })
-      .finally(() => {
-        if (isActive) setLoading((current) => ({ ...current, permissions: false }))
-      })
+  }, [fetchPermissions])
 
-    return () => { isActive = false }
-  }, [keywords.permissions, pages.permissions, reloadKeys.permissions])
+  // ─── Reload (sau create/delete) ──────────────────────────────────────────────
+
+  const reloadBlacklist = useCallback(() => {
+    setFilters((prev) => { fetchBlacklist(prev.blacklist); return prev })
+  }, [fetchBlacklist])
+
+  const reloadWhitelist = useCallback(() => {
+    setFilters((prev) => { fetchWhitelist(prev.whitelist); return prev })
+  }, [fetchWhitelist])
+
+  const reloadPermissions = useCallback(() => {
+    setFilters((prev) => { fetchPermissions(prev.permissions); return prev })
+  }, [fetchPermissions])
 
   const reloadSection = useCallback((section) => {
-    setReloadKeys((current) => ({ ...current, [section]: current[section] + 1 }))
-  }, [])
-
-  const updateKeyword = useCallback((section, value) => {
-    setKeywords((current) => ({ ...current, [section]: value }))
-    setPages((current) => ({ ...current, [section]: 0 }))
-  }, [])
-
-  const updateValueType = useCallback((section, value) => {
-    setValueTypes((current) => ({ ...current, [section]: value }))
-    setPages((current) => ({ ...current, [section]: 0 }))
-  }, [])
+    if (section === 'blacklist') reloadBlacklist()
+    else if (section === 'whitelist') reloadWhitelist()
+    else reloadPermissions()
+  }, [reloadBlacklist, reloadWhitelist, reloadPermissions])
 
   const openRuleModal = useCallback((type) => setModal({ type: 'rule', form: emptyRuleForm(type), error: '' }), [])
   const openPermissionModal = useCallback(() => setModal({ type: 'permission', form: emptyPermissionForm(), error: '' }), [])
@@ -548,8 +590,8 @@ export default function PermissionControlPage() {
       }
       unwrapResponse(await createAccessRule(inboundEndpointId, body))
       const section = modal.form.type === RULE_TYPES.BLACKLIST ? 'blacklist' : 'whitelist'
-      setPages((current) => ({ ...current, [section]: 0 }))
-      reloadSection(section)
+      if (section === 'blacklist') updateBlacklistFilter({ page: 0 })
+      else updateWhitelistFilter({ page: 0 })
       setModal({ type: '', form: null, error: '' })
       setMessage(`Đã thêm ${modal.form.type === RULE_TYPES.BLACKLIST ? 'Blacklist' : 'Whitelist'} qua API.`)
     } catch (error) {
@@ -557,7 +599,7 @@ export default function PermissionControlPage() {
     } finally {
       setIsSaving(false)
     }
-  }, [isSaving, modal.form, reloadSection])
+  }, [isSaving, modal.form, updateBlacklistFilter, updateWhitelistFilter])
 
   const submitPermission = useCallback(async (event) => {
     event.preventDefault()
@@ -570,8 +612,7 @@ export default function PermissionControlPage() {
         inboundEndpointId: modal.form.inboundEndpointId.trim(),
         enable: Boolean(modal.form.enable),
       }))
-      setPages((current) => ({ ...current, permissions: 0 }))
-      reloadSection('permissions')
+      updatePermissionsFilter({ page: 0 })
       setModal({ type: '', form: null, error: '' })
       setMessage('Đã thêm quyền truy cập qua API.')
     } catch (error) {
@@ -579,7 +620,7 @@ export default function PermissionControlPage() {
     } finally {
       setIsSaving(false)
     }
-  }, [isSaving, modal.form, reloadSection])
+  }, [isSaving, modal.form, updatePermissionsFilter])
 
   return (
     <div className="permission-page">
@@ -602,15 +643,17 @@ export default function PermissionControlPage() {
         title="Quản lý Blacklist"
         description="Danh sách các thực thể bị từ chối truy cập vĩnh viễn hoặc tạm thời. Dữ liệu được tải từ API và có thể lọc theo Value Type hoặc tìm kiếm."
         icon="block"
-        valueType={valueTypes.blacklist}
-        keyword={keywords.blacklist}
+        valueType={filters.blacklist.valueType}
+        keyword={filters.blacklist.keyword}
         rows={rules.blacklist}
         pageInfo={pageInfo.blacklist}
+        pageSize={filters.blacklist.size}
         isLoading={loading.blacklist}
         error={errors.blacklist}
-        onValueTypeChange={(value) => updateValueType('blacklist', value)}
-        onKeywordChange={(value) => updateKeyword('blacklist', value)}
-        onPageChange={(page) => setPages((current) => ({ ...current, blacklist: page }))}
+        onValueTypeChange={(value) => updateBlacklistFilter({ valueType: value, page: 0 })}
+        onKeywordChange={(value) => updateBlacklistFilter({ keyword: value, page: 0 })}
+        onPageChange={(page) => updateBlacklistFilter({ page })}
+        onPageSizeChange={(size) => updateBlacklistFilter({ size, page: 0 })}
         onOpenCreate={() => openRuleModal(RULE_TYPES.BLACKLIST)}
         onToggle={toggleRule}
         onDelete={removeRule}
@@ -621,28 +664,32 @@ export default function PermissionControlPage() {
         title="Quản lý Whitelist"
         description="Danh sách ưu tiên truy cập không bị giới hạn bởi các bộ lọc bảo mật thông thường. Dữ liệu được tải từ API và có thể lọc theo Value Type hoặc tìm kiếm."
         icon="verified_user"
-        valueType={valueTypes.whitelist}
-        keyword={keywords.whitelist}
+        valueType={filters.whitelist.valueType}
+        keyword={filters.whitelist.keyword}
         rows={rules.whitelist}
         pageInfo={pageInfo.whitelist}
+        pageSize={filters.whitelist.size}
         isLoading={loading.whitelist}
         error={errors.whitelist}
-        onValueTypeChange={(value) => updateValueType('whitelist', value)}
-        onKeywordChange={(value) => updateKeyword('whitelist', value)}
-        onPageChange={(page) => setPages((current) => ({ ...current, whitelist: page }))}
+        onValueTypeChange={(value) => updateWhitelistFilter({ valueType: value, page: 0 })}
+        onKeywordChange={(value) => updateWhitelistFilter({ keyword: value, page: 0 })}
+        onPageChange={(page) => updateWhitelistFilter({ page })}
+        onPageSizeChange={(size) => updateWhitelistFilter({ size, page: 0 })}
         onOpenCreate={() => openRuleModal(RULE_TYPES.WHITELIST)}
         onToggle={toggleRule}
         onDelete={removeRule}
       />
 
       <AccessPermissionSection
-        keyword={keywords.permissions}
+        keyword={filters.permissions.keyword}
         rows={permissions}
         pageInfo={pageInfo.permissions}
+        pageSize={filters.permissions.size}
         isLoading={loading.permissions}
         error={errors.permissions}
-        onKeywordChange={(value) => updateKeyword('permissions', value)}
-        onPageChange={(page) => setPages((current) => ({ ...current, permissions: page }))}
+        onKeywordChange={(value) => updatePermissionsFilter({ keyword: value, page: 0 })}
+        onPageChange={(page) => updatePermissionsFilter({ page })}
+        onPageSizeChange={(size) => updatePermissionsFilter({ size, page: 0 })}
         onOpenCreate={openPermissionModal}
         onToggle={togglePermission}
         onDelete={removePermission}

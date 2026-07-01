@@ -423,34 +423,53 @@
 }
 
 .permission-pagination {
-  align-items: center;
-  color: #546067;
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: #f3f3f3;
+  border-top: 1px solid #e4beba;
+  flex-wrap: wrap;
+  color: #5b403d;
   font-size: 14px;
   line-height: 20px;
-  justify-content: space-between;
 }
 
-.permission-pagination div {
+.permission-pagination-summary {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.permission-pagination-buttons {
   display: flex;
   gap: 8px;
 }
 
-.permission-pagination button {
-  background: #fff;
+.permission-pagination-summary select,
+.permission-pagination-buttons button {
   border: 1px solid #e4beba;
+  background: #fff;
   border-radius: 0.5rem;
-  color: #1a1c1c;
+  padding: 0.625rem 1rem;
   cursor: pointer;
+  color: #1a1c1c;
   font-size: 14px;
   line-height: 20px;
   font-weight: 600;
-  padding: 0.625rem 1rem;
 }
 
-.permission-pagination button:disabled {
-  cursor: not-allowed;
-  opacity: .45;
+.permission-pagination-buttons button.active {
+  background: #af101a;
+  color: #fff;
+  border-color: #af101a;
+}
+
+.permission-pagination-buttons button:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .permission-modal-overlay {
