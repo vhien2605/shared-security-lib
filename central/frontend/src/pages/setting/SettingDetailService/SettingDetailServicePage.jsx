@@ -87,7 +87,9 @@ export default function SettingDetailServicePage() {
   const location = useLocation();
   const fallbackService = location.state?.service;
 
-  const [service, setService] = useState(normalizeService(fallbackService) || null);
+  const [service, setService] = useState(
+    normalizeService(fallbackService) || null,
+  );
   const [inbounds, setInbounds] = useState([]);
   const [outbounds, setOutbounds] = useState([]);
   const [template, setTemplate] = useState(null);
@@ -121,9 +123,18 @@ export default function SettingDetailServicePage() {
   }, [applyMode, applyTypes, inbounds, outbounds]);
 
   const loadService = useCallback(() => fetchService(serviceId), [serviceId]);
-  const loadInbounds = useCallback(() => getServiceInbounds(serviceId), [serviceId]);
-  const loadOutbounds = useCallback(() => getServiceOutbounds(serviceId), [serviceId]);
-  const loadTemplate = useCallback(() => getServiceTemplate(serviceId), [serviceId]);
+  const loadInbounds = useCallback(
+    () => getServiceInbounds(serviceId),
+    [serviceId],
+  );
+  const loadOutbounds = useCallback(
+    () => getServiceOutbounds(serviceId),
+    [serviceId],
+  );
+  const loadTemplate = useCallback(
+    () => getServiceTemplate(serviceId),
+    [serviceId],
+  );
 
   const applyInboundRows = useCallback((rows) => {
     const normalizedRows = rows.map(normalizeEndpoint);
@@ -410,7 +421,10 @@ export default function SettingDetailServicePage() {
         return;
       }
 
-      const response = await saveServiceTemplate(serviceId, buildTemplateBody());
+      const response = await saveServiceTemplate(
+        serviceId,
+        buildTemplateBody(),
+      );
       applyTemplateState(unwrapResponse(response));
       setMessage("Lưu cấu hình mẫu cho service mới thành công.");
     } catch (error) {
@@ -443,9 +457,9 @@ export default function SettingDetailServicePage() {
     setTogglingService(true);
     setMessage("");
     try {
-      const updatedService = normalizeService(unwrapResponse(
-        await updateServiceStatus(service.id, nextStatus),
-      ));
+      const updatedService = normalizeService(
+        unwrapResponse(await updateServiceStatus(service.id, nextStatus)),
+      );
       setService(updatedService);
       await Promise.allSettled([refreshInbounds(), refreshOutbounds()]);
       setMessage(`Đã ${nextStatus === "ACTIVE" ? "bật" : "tắt"} service.`);
@@ -460,7 +474,8 @@ export default function SettingDetailServicePage() {
     const id = endpointId(row);
     if (!id || togglingEndpointId) return;
     const nextStatus = row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-    const currentServiceStatus = row.serviceStatus || service?.status || "ACTIVE";
+    const currentServiceStatus =
+      row.serviceStatus || service?.status || "ACTIVE";
     if (nextStatus === "ACTIVE" && currentServiceStatus !== "ACTIVE") {
       setMessage("Không thể bật endpoint khi service đang tắt.");
       return;
@@ -543,15 +558,27 @@ export default function SettingDetailServicePage() {
             <div className="setting-detail-actions">
               <button
                 type="button"
-                className={service?.status === "ACTIVE" ? "setting-detail-toggle setting-detail-toggle--inactive" : "setting-detail-toggle setting-detail-toggle--active"}
+                className={
+                  service?.status === "ACTIVE"
+                    ? "setting-detail-toggle setting-detail-toggle--inactive"
+                    : "setting-detail-toggle setting-detail-toggle--active"
+                }
                 onClick={toggleServiceStatus}
-                disabled={!service?.id || service?.status === "DEPRECATED" || togglingService}
+                disabled={
+                  !service?.id ||
+                  service?.status === "DEPRECATED" ||
+                  togglingService
+                }
               >
-                {togglingService ? "Đang cập nhật..." : service?.status === "ACTIVE" ? "Tắt service" : "Bật service"}
+                {togglingService
+                  ? "Đang cập nhật..."
+                  : service?.status === "ACTIVE"
+                    ? "Tắt service"
+                    : "Bật service"}
               </button>
-              <button type="button" className="setting-detail-action-secondary" disabled>
+              {/* <button type="button" className="setting-detail-action-secondary" disabled>
                 Export JSON
-              </button>
+              </button> */}
             </div>
           </div>
         </header>
@@ -730,7 +757,9 @@ function EndpointTable({
                   </td>
                   <td>{row.protocol || row.type || "—"}</td>
                   <td>
-                    <span className={statusClass(row.status)}>{row.status || "ACTIVE"}</span>
+                    <span className={statusClass(row.status)}>
+                      {row.status || "ACTIVE"}
+                    </span>
                   </td>
                   {numericFields.map((field) => (
                     <td key={field}>
@@ -806,9 +835,11 @@ function EndpointTable({
                   <td>
                     <div className="setting-detail-row-actions">
                       {(() => {
-                        const currentServiceStatus = row.serviceStatus || serviceStatus || "ACTIVE";
+                        const currentServiceStatus =
+                          row.serviceStatus || serviceStatus || "ACTIVE";
                         const cannotActivateBecauseServiceInactive =
-                          row.status !== "ACTIVE" && currentServiceStatus !== "ACTIVE";
+                          row.status !== "ACTIVE" &&
+                          currentServiceStatus !== "ACTIVE";
                         const cannotActivateBecauseEndpointRemoved =
                           row.status !== "ACTIVE" && row.enabled !== true;
                         const disabled =
@@ -823,25 +854,33 @@ function EndpointTable({
                             : undefined;
 
                         return (
-                      <button
-                        type="button"
-                        className={row.status === "ACTIVE" ? "setting-detail-toggle-row setting-detail-toggle-row--danger" : "setting-detail-toggle-row setting-detail-toggle-row--success"}
-                        onClick={() => onToggleStatus(type, row)}
-                        disabled={disabled}
-                        title={title}
-                      >
-                        {togglingStatusId === id ? "Đang cập nhật..." : row.status === "ACTIVE" ? "Tắt" : "Bật"}
-                      </button>
+                          <button
+                            type="button"
+                            className={
+                              row.status === "ACTIVE"
+                                ? "setting-detail-toggle-row setting-detail-toggle-row--danger"
+                                : "setting-detail-toggle-row setting-detail-toggle-row--success"
+                            }
+                            onClick={() => onToggleStatus(type, row)}
+                            disabled={disabled}
+                            title={title}
+                          >
+                            {togglingStatusId === id
+                              ? "Đang cập nhật..."
+                              : row.status === "ACTIVE"
+                                ? "Tắt"
+                                : "Bật"}
+                          </button>
                         );
                       })()}
-                    <button
-                      type="button"
-                      className="setting-detail-save-row"
-                      onClick={() => onSave(row)}
-                      disabled={savingId === id || !id}
-                    >
-                      {savingId === id ? "Đang lưu..." : "Lưu"}
-                    </button>
+                      <button
+                        type="button"
+                        className="setting-detail-save-row"
+                        onClick={() => onSave(row)}
+                        disabled={savingId === id || !id}
+                      >
+                        {savingId === id ? "Đang lưu..." : "Lưu"}
+                      </button>
                     </div>
                   </td>
                 </tr>
