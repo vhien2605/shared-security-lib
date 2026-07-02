@@ -474,10 +474,3 @@ curl "http://localhost:9200/security-anomalies-*/_search?pretty"
 
 Trên Kibana, vào `Analytics > Discover`, chọn data view `Security Logs` (`security-logs-*`) để phân tích log.
 
-## 9. Ghi chú phát triển
-
-- Không nên hard-code `serviceId` hoặc `endpointId`; hãy để shared-lib sinh ID từ config và annotation.
-- Với nhiều instance cùng logical service, chỉ bật registration ở một instance đại diện để tránh publish registration lặp không cần thiết.
-- Các service nghiệp vụ có thể dùng Kafka riêng; shared-lib vẫn dùng Kafka security riêng qua `app.security.kafka.bootstrap-servers`.
-- Central UI là công cụ quản trị, không phải nơi xử lý business request trực tiếp.
-- Elasticsearch là nguồn tra cứu log/anomaly; PostgreSQL là nguồn dữ liệu quản trị cấu hình; Redis là kênh runtime config cho service.
