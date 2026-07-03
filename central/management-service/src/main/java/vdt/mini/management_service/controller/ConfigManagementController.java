@@ -115,6 +115,19 @@ public class ConfigManagementController {
                 .build();
     }
     
+    @GetMapping("/inbound-endpoints/search")
+    @PreAuthorize("hasRole('admin')")
+    public ApiSuccessResponse<List<InboundEndpointResponse>> searchInbounds(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Integer size) {
+        List<InboundEndpointResponse> data = configQueryService.searchInboundsByName(name, size);
+        return ApiSuccessResponse.<List<InboundEndpointResponse>>builder()
+                .status(200)
+                .message("OK")
+                .data(data)
+                .build();
+    }
+
     @GetMapping("/inbounds/{endpointId}")
     @PreAuthorize("hasRole('admin')")
     public ApiSuccessResponse<InboundEndpointResponse> getInboundDetail(@PathVariable String endpointId) {

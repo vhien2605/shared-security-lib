@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import {
   createAccessPermission,
   createAccessRule,
@@ -11,6 +11,7 @@ import {
   updateAccessPermission,
   updateAccessRule,
 } from '../../services/accessControl'
+import { searchInbounds, getClients } from '../../services/clients'
 import {
   ACCESS_CONTROL_DEFAULT_PAGE_SIZE,
   RULE_TYPES,
@@ -316,7 +317,61 @@ const AccessPermissionSection = memo(function AccessPermissionSection({ keyword,
   )
 })
 
-function RuleFormModal({ form, formError, isSaving, onChange, onClose, onSubmit }) {
+function EndpointSearchField({ inputValue, suggestions, onChange, onSelect }) {
+  return (
+    <div className="permission-search-field">
+      <span>Inbound Endpoint</span>
+      <input
+        type="text"
+        value={inputValue || ''}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Nhập tên endpoint để tìm kiếm..."
+        autoComplete="off"
+      />
+      {suggestions.length > 0 ? (
+        <div className="permission-search-suggestions">
+          {suggestions.map((ep) => (
+            <button type="button" key={ep.id} onClick={() => onSelect(ep)}>
+              <strong>{ep.name || 'Unknown'}</strong>
+              <span>{[ep.path, ep.protocol, ep.serviceName, ep.id].filter(Boolean).join(' · ')}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function getClientKey(c) {
+  return c.clientCode || c.code || c.clientKey || ''
+}
+
+function ClientSearchField({ inputValue, suggestions, onChange, onSelect }) {
+  return (
+    <div className="permission-search-field">
+      <span>Client</span>
+      <input
+        type="text"
+        value={inputValue || ''}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Nhập clientKey để tìm kiếm..."
+        autoComplete="off"
+      />
+      {suggestions.length > 0 ? (
+        <div className="permission-search-suggestions">
+          {suggestions.map((c) => (
+            <button type="button" key={c.id} onClick={() => onSelect(c)}>
+              <strong>{getClientKey(c) || c.name || c.id}</strong>
+              <span>{[c.name, c.status, c.id].filter(Boolean).join(' · ')}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function RuleFormModal({ form, formError, isSaving, endpointSuggestions, onEndpointSearch, onSelectEndpoint, onChange, onClose, onSubmit }) {
   const isBlacklist = form.type === RULE_TYPES.BLACKLIST
   return (
     <form className="permission-modal" role="dialog" aria-modal="true" aria-labelledby="permission-rule-modal-title" onSubmit={onSubmit}>
@@ -328,7 +383,12 @@ function RuleFormModal({ form, formError, isSaving, onChange, onClose, onSubmit 
       </div>
       <div className="permission-modal__body">
         {formError ? <div className="permission-form-error" role="alert">{formError}</div> : null}
-        <label>Inbound Endpoint ID<input value={form.inboundEndpointId} onChange={(event) => onChange('inboundEndpointId', event.target.value)} placeholder="VD: EP_AUTH_TOKEN_GEN" /></label>
+        <EndpointSearchField
+          inputValue={form.inboundEndpointId}
+          suggestions={endpointSuggestions}
+          onChange={onEndpointSearch}
+          onSelect={onSelectEndpoint}
+        />
         <div className="permission-form-grid">
           <label>Value Type<select value={form.valueType} onChange={(event) => onChange('valueType', event.target.value)}><option value={RULE_VALUE_TYPES.IP}>IP</option><option value={RULE_VALUE_TYPES.CIDR}>CIDR</option><option value={RULE_VALUE_TYPES.CLIENT_KEY}>CLIENT_KEY</option><option value={RULE_VALUE_TYPES.HEADER}>HEADER</option></select></label>
           <label>Value<input value={form.value} onChange={(event) => onChange('value', event.target.value)} placeholder="VD: 192.168.1.1" /></label>
@@ -346,7 +406,7 @@ function RuleFormModal({ form, formError, isSaving, onChange, onClose, onSubmit 
   )
 }
 
-function PermissionFormModal({ form, formError, isSaving, onChange, onClose, onSubmit }) {
+function PermissionFormModal({ form, formError, isSaving, endpointSuggestions, clientSuggestions, onEndpointSearch, onClientSearch, onSelectEndpoint, onSelectClient, onChange, onClose, onSubmit }) {
   return (
     <form className="permission-modal" role="dialog" aria-modal="true" aria-labelledby="permission-access-modal-title" onSubmit={onSubmit}>
       <div className="permission-modal__header">
@@ -357,8 +417,18 @@ function PermissionFormModal({ form, formError, isSaving, onChange, onClose, onS
       </div>
       <div className="permission-modal__body">
         {formError ? <div className="permission-form-error" role="alert">{formError}</div> : null}
-        <label>Client ID<input value={form.clientId} onChange={(event) => onChange('clientId', event.target.value)} placeholder="VD: CLIENT_APP_MOBILE_IOS" /></label>
-        <label>Inbound Endpoint ID<input value={form.inboundEndpointId} onChange={(event) => onChange('inboundEndpointId', event.target.value)} placeholder="VD: EP_AUTH_TOKEN_GEN" /></label>
+        <ClientSearchField
+          inputValue={form.clientId}
+          suggestions={clientSuggestions}
+          onChange={onClientSearch}
+          onSelect={onSelectClient}
+        />
+        <EndpointSearchField
+          inputValue={form.inboundEndpointId}
+          suggestions={endpointSuggestions}
+          onChange={onEndpointSearch}
+          onSelect={onSelectEndpoint}
+        />
         <label className="permission-checkbox"><input type="checkbox" checked={form.enable} onChange={(event) => onChange('enable', event.target.checked)} /> Trạng thái hoạt động</label>
       </div>
       <div className="permission-modal__footer">
@@ -383,6 +453,10 @@ export default function PermissionControlPage() {
   const [message, setMessage] = useState('')
   const [modal, setModal] = useState({ type: '', form: null, error: '' })
   const [isSaving, setIsSaving] = useState(false)
+  const [endpointSuggestions, setEndpointSuggestions] = useState([])
+  const [clientSuggestions, setClientSuggestions] = useState([])
+  const endpointSearchRef = useRef(0)
+  const clientSearchRef = useRef(0)
 
   useEffect(() => {
     if (!message) return undefined
@@ -522,6 +596,49 @@ export default function PermissionControlPage() {
   const updateModalForm = useCallback((field, value) => {
     setModal((current) => ({ ...current, form: { ...current.form, [field]: value }, error: '' }))
   }, [])
+
+  const handleEndpointSearch = useCallback(async (keyword) => {
+    const requestId = ++endpointSearchRef.current
+    if (!keyword.trim()) { setEndpointSuggestions([]); return }
+    try {
+      const response = await searchInbounds({ name: keyword.trim(), size: 10 })
+      const body = unwrapResponse(response)
+      const items = body?.data ?? body
+      if (requestId !== endpointSearchRef.current) return
+      setEndpointSuggestions(Array.isArray(items) ? items : [])
+    } catch { setEndpointSuggestions([]) }
+  }, [])
+
+  const handleEndpointInputChange = useCallback((value) => {
+    updateModalForm('inboundEndpointId', value)
+    handleEndpointSearch(value)
+  }, [updateModalForm, handleEndpointSearch])
+
+  const handleSelectEndpoint = useCallback((ep) => {
+    updateModalForm('inboundEndpointId', ep.id)
+    setEndpointSuggestions([])
+  }, [updateModalForm])
+
+  const handleClientSearch = useCallback(async (keyword) => {
+    const requestId = ++clientSearchRef.current
+    if (!keyword.trim()) { setClientSuggestions([]); return }
+    try {
+      const response = await getClients({ keyword: keyword.trim(), size: 10 })
+      const payload = normalizePagePayload(response)
+      if (requestId !== clientSearchRef.current) return
+      setClientSuggestions(Array.isArray(payload.items) ? payload.items : [])
+    } catch { setClientSuggestions([]) }
+  }, [])
+
+  const handleClientInputChange = useCallback((value) => {
+    updateModalForm('clientId', value)
+    handleClientSearch(value)
+  }, [updateModalForm, handleClientSearch])
+
+  const handleSelectClient = useCallback((c) => {
+    updateModalForm('clientId', c.id)
+    setClientSuggestions([])
+  }, [updateModalForm])
 
   const toggleRule = useCallback(async (rule) => {
     try {
@@ -698,9 +815,32 @@ export default function PermissionControlPage() {
       {modal.form ? (
         <div className="permission-modal-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) closeModal() }}>
           {modal.type === 'rule' ? (
-            <RuleFormModal form={modal.form} formError={modal.error} isSaving={isSaving} onChange={updateModalForm} onClose={closeModal} onSubmit={submitRule} />
+            <RuleFormModal
+              form={modal.form}
+              formError={modal.error}
+              isSaving={isSaving}
+              endpointSuggestions={endpointSuggestions}
+              onEndpointSearch={handleEndpointInputChange}
+              onSelectEndpoint={handleSelectEndpoint}
+              onChange={updateModalForm}
+              onClose={closeModal}
+              onSubmit={submitRule}
+            />
           ) : (
-            <PermissionFormModal form={modal.form} formError={modal.error} isSaving={isSaving} onChange={updateModalForm} onClose={closeModal} onSubmit={submitPermission} />
+            <PermissionFormModal
+              form={modal.form}
+              formError={modal.error}
+              isSaving={isSaving}
+              endpointSuggestions={endpointSuggestions}
+              clientSuggestions={clientSuggestions}
+              onEndpointSearch={handleEndpointInputChange}
+              onClientSearch={handleClientInputChange}
+              onSelectEndpoint={handleSelectEndpoint}
+              onSelectClient={handleSelectClient}
+              onChange={updateModalForm}
+              onClose={closeModal}
+              onSubmit={submitPermission}
+            />
           )}
         </div>
       ) : null}

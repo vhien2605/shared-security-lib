@@ -37,12 +37,12 @@ export default function LoginPage() {
         <div className="login-page__badge">Giải pháp an ninh chọn lọc tại Hà Nội</div>
         <h1 className="login-page__hero-title">Khám phá không gian an toàn dành cho bạn</h1>
         <p className="login-page__hero-subtitle">
-          Hệ thống giám sát tập trung VDT 2026 - Bảo vệ tài sản và con người mỗi ngày.
+          Hệ thống giám sát tập trung trong hệ thống phân tán.
         </p>
         <div className="login-page__stats" aria-label="Chỉ số hệ thống">
           <article className="login-page__stat-card">
-            <span className="login-page__stat-value">500+</span>
-            <span className="login-page__stat-label">Thiết bị</span>
+            <span className="login-page__stat-value">300+</span>
+            <span className="login-page__stat-label">Microservice</span>
           </article>
           <article className="login-page__stat-card">
             <span className="login-page__stat-value">24/7</span>
