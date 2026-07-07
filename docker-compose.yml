@@ -167,6 +167,50 @@ services:
           --data '{"data_view":{"id":"security-logs","name":"Security Logs","title":"security-logs-*","timeFieldName":"@timestamp","allowNoIndex":true}}'
     networks:
       - security-library
+  central-backend:
+    container_name: central-backend
+    build:
+      context: ./central/management-service
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - keycloak
+      - elasticsearch
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/security_library
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: 123456
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: redis123
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8000/realms/security-lib-realm
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/security-lib-realm/protocol/openid-connect/certs
+      SECURITY_CREDENTIALS_MASTER_SECRET: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+    networks:
+      - security-library
+  central-frontend:
+    container_name: central-frontend
+    build:
+      context: ./central/frontend
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - central-backend
+      - keycloak
+      - kibana
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_KIBANA_BASE_URL: http://localhost:5601
+    networks:
+      - security-library
 networks:
   security-library:
     name: security-library
